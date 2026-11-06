@@ -41,9 +41,17 @@ git checkout -b fe-11-lista-pacientes
 | `npm run preview` | Serve localmente o conteúdo de `dist/`. |
 | `npm run lint` | ESLint sem tolerância a avisos e conferência de formatação pelo Prettier. |
 | `npm run format` | Formata os arquivos pelo Prettier. Arquivos Markdown ficam de fora. |
-| `npm run verify` | Lint e build, nessa ordem; para no primeiro erro. |
+| `npm test` | Roda todos os testes uma vez. |
+| `npm run verify` | Lint, testes e build, nessa ordem; para no primeiro erro. |
 
 O `npm run verify` precisa terminar sem erro antes da abertura do pull request.
+
+## Testes
+
+- Os testes usam Vitest e Testing Library e ficam em `tests/`, espelhando as pastas de `src/`, com o nome do arquivo testado seguido de `.test.js` ou `.test.jsx`.
+- Telas são testadas pelo que o usuário vê: textos, papéis acessíveis (`getByRole`) e o resultado das interações.
+- Lógica é escrita com o teste antes do código. O primeiro teste roda contra uma função que devolve um valor neutro, e só os casos do comportamento novo podem falhar.
+- Duas verificações de projeto rodam junto com os testes: todo arquivo solto em `src/` e toda pasta de `src/` até dois níveis precisam de linha na tabela "Estrutura" do README, e o marcador `TODO_PREENCHER`, usado para conteúdo ainda não definido, não pode aparecer em `src/`.
 
 ## Pull requests
 
