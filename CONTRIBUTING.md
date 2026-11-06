@@ -32,11 +32,25 @@ git checkout -b fe-11-lista-pacientes
 | `tela de login` | `Cria a tela de login com código da organização, e-mail e senha` |
 | `fix` | `Corrige a máscara de CPF que aceitava letras` |
 
+## Scripts
+
+| Script | O que faz |
+| --- | --- |
+| `npm run dev` | Servidor de desenvolvimento com recarga automática. |
+| `npm run build` | Gera a versão de produção em `dist/`. |
+| `npm run preview` | Serve localmente o conteúdo de `dist/`. |
+| `npm run lint` | ESLint sem tolerância a avisos e conferência de formatação pelo Prettier. |
+| `npm run format` | Formata os arquivos pelo Prettier. Arquivos Markdown ficam de fora. |
+| `npm run verify` | Lint e build, nessa ordem; para no primeiro erro. |
+
+O `npm run verify` precisa terminar sem erro antes da abertura do pull request.
+
 ## Pull requests
 
 - Título: identificador do card e o que ele entrega. Exemplo: `FE-11 — Listagem de pacientes`.
 - Corpo: o que muda, como foi verificado e o que ficou de fora.
 - Destino: `develop`. A `main` recebe apenas a `develop`.
+- Merge pela opção "Create a merge commit". As opções de squash e rebase reescrevem os commits da branch, e o squash junta todos em um só.
 
 ## Código
 

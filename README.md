@@ -8,6 +8,28 @@ A aplicação é um PWA responsivo, construído com React e Material UI, que con
 
 As telas são construídas com dados simulados, servidos por uma camada de serviços que reproduz o formato de resposta da API. Quando todas as telas estiverem prontas, a integração com o backend substitui a implementação dessa camada, sem alterar as telas.
 
+## Como rodar
+
+Requisitos: Node.js 24.15 ou superior (a versão de referência está no `.nvmrc`) e npm.
+
+```bash
+npm ci
+npm run dev
+```
+
+O servidor de desenvolvimento abre em `http://localhost:5173`. Os demais scripts estão descritos no [guia de contribuição](CONTRIBUTING.md#scripts).
+
+## Estrutura
+
+| Caminho | Conteúdo |
+| --- | --- |
+| `docs/` | Documentação técnica. |
+| `public/` | Arquivos servidos sem processamento, como o ícone da aba. |
+| `index.html` | Página base carregada pelo Vite. |
+| `src/main.jsx` | Ponto de entrada: monta a aplicação na página. |
+| `src/App.jsx` | Componente raiz. |
+| `src/data/` | Textos da interface e dados simulados. |
+
 ## Documentação
 
 - [Arquitetura](docs/arquitetura.md): tecnologias, camadas, dados simulados, perfis de acesso e identidade visual.

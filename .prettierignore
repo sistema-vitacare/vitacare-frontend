@@ -1,0 +1,3 @@
+# O Prettier alinha todas as colunas das tabelas em Markdown; a edição de uma
+# única célula reescreveria a tabela inteira no diff.
+*.md
