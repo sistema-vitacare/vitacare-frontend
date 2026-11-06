@@ -1,0 +1,13 @@
+# Mantém LF no repositório e na cópia de trabalho, em qualquer sistema.
+# Sem isso, o Git do Windows pode entregar os arquivos com CRLF, e o Prettier
+# (padrão endOfLine: lf) passa a acusar diferença em todos eles.
+* text=auto eol=lf
+
+# Binários: o Git não converte fim de linha nem tenta mostrar diff.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.woff2 binary
