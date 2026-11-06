@@ -29,6 +29,10 @@ O servidor de desenvolvimento abre em `http://localhost:5173`. Os demais scripts
 | `src/main.jsx` | Ponto de entrada: monta a aplicação na página. |
 | `src/App.jsx` | Componente raiz. |
 | `src/data/` | Textos da interface e dados simulados. |
+| `tests/` | Testes automatizados, espelhando as pastas de `src/`. |
+| `tests/support/` | Verificações de projeto usadas pelos testes. |
+
+Todo arquivo solto em `src/` e toda pasta de `src/` até dois níveis precisam de uma linha nesta tabela; um teste falha quando falta alguma.
 
 ## Documentação
 
