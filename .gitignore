@@ -1,0 +1,25 @@
+# Dependências: recriadas por `npm ci` a partir do package-lock.json.
+node_modules/
+
+# Saídas geradas por build, testes e PWA em desenvolvimento.
+dist/
+dist-ssr/
+dev-dist/
+coverage/
+
+# Variáveis de ambiente: cada máquina tem as suas. O modelo versionado é o .env.example.
+.env
+.env.*
+!.env.example
+*.local
+
+# Logs.
+*.log
+npm-debug.log*
+
+# Arquivos de editor e de sistema operacional.
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
