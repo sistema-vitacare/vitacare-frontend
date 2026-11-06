@@ -23,6 +23,7 @@ O servidor de desenvolvimento abre em `http://localhost:5173`. Os demais scripts
 
 | Caminho | Conteúdo |
 | --- | --- |
+| `.github/workflows/` | Integração contínua: lint, testes e build em cada pull request. |
 | `docs/` | Documentação técnica. |
 | `public/` | Arquivos servidos sem processamento, como o ícone da aba. |
 | `index.html` | Página base carregada pelo Vite. |
