@@ -44,7 +44,7 @@ git checkout -b fe-11-lista-pacientes
 | `npm test` | Roda todos os testes uma vez. |
 | `npm run verify` | Lint, testes e build, nessa ordem; para no primeiro erro. |
 
-O `npm run verify` precisa terminar sem erro antes da abertura do pull request.
+O `npm run verify` precisa terminar sem erro antes da abertura do pull request. O GitHub Actions roda o mesmo comando, no check `verify`, em todo pull request e push para `develop` e `main`.
 
 ## Testes
 
@@ -58,6 +58,7 @@ O `npm run verify` precisa terminar sem erro antes da abertura do pull request.
 - Título: identificador do card e o que ele entrega. Exemplo: `FE-11 — Listagem de pacientes`.
 - Corpo: o que muda, como foi verificado e o que ficou de fora.
 - Destino: `develop`. A `main` recebe apenas a `develop`.
+- Merge só com o check `verify` verde.
 - Merge pela opção "Create a merge commit". As opções de squash e rebase reescrevem os commits da branch, e o squash junta todos em um só.
 
 ## Código
