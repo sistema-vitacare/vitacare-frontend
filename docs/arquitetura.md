@@ -75,6 +75,18 @@ A sessão fica no `SessionProvider` e chega às telas pelo hook `useSession`, em
 
 Enquanto os dados são simulados, a sessão começa com um usuário de demonstração de cada perfil (`src/services/authService.js`), e as permissões vêm da matriz local, porque a API ainda não tem rota que devolva o usuário autenticado com suas permissões (ver "Em aberto").
 
+## Rotas e navegação
+
+Os endereços, a permissão de cada tela e os itens do menu ficam em `src/constants/routes.js`; a árvore de rotas, em `src/routes.jsx`.
+
+- **Rota pública:** apenas o login (`/login`). Quem já tem sessão e abre o login vai para a página inicial.
+- **Rotas autenticadas:** ficam dentro de `RequireSession`, que leva ao login quem não tem sessão ou está com a sessão expirada; no segundo caso, o login mostra o aviso de sessão expirada (UC01, fluxo alternativo). Cada rota exige a permissão de leitura da sua tela, por `RequirePermission`: sem ela, aparece a página de acesso negado, e a tela não é montada.
+- **Página inicial:** escolhida por permissão, nesta ordem: painel (`dashboard:read`), organizações (`platform_organizations:read`) e pacientes (`patients:read`).
+- **Menu:** um item por tela, agrupado em Cuidado, Gestão e Plataforma. Só aparece o item cuja permissão a sessão tem, para que o menu não leve a uma página de acesso negado. A mesma lista alimenta o menu lateral, o menu recolhível e a barra inferior.
+- **Celular:** abaixo de 900 px, o menu lateral vira um menu recolhível, aberto pela barra superior. Quem tem `follow_ups:create` (hoje, apenas o cuidador) navega por uma barra inferior, porque registra visitas com o aparelho na mão.
+- **Sair:** fica no menu do usuário, na barra superior, presente em todos os layouts.
+- **Páginas de estado:** não encontrada, acesso negado, erro inesperado e tela em construção usam o mesmo molde, em `src/pages/Status/`. A tela em construção ocupa o endereço de cada tela que ainda não existe.
+
 ## Identidade visual
 
 A estrutura de telas segue os protótipos do TCC (Figuras 31 a 46). Os valores ficam no tema, em `src/styles/`; esta seção registra os critérios.
@@ -84,7 +96,6 @@ A estrutura de telas segue os protótipos do TCC (Figuras 31 a 46). Os valores f
 - **Cores de estado:** crítico, atenção, informativo e normal aparecem apenas para indicar situação clínica ou do sistema, nunca como decoração.
 - **Superfícies:** fundo cinza-claro, cartões brancos com sombra difusa em tom azul-marinho e cantos arredondados.
 - **Movimento:** transições curtas com desaceleração, entrada escalonada de listas e esqueletos de carregamento no formato do conteúdo. Animações usam apenas `transform` e `opacity` e respeitam a preferência do sistema por movimento reduzido.
-- **Celular:** o cuidador navega por uma barra inferior, porque o registro de visita acontece com o aparelho na mão. Os demais perfis usam o menu lateral recolhível.
 
 Os contrastes seguem a fórmula de luminância relativa da WCAG 2.1. O teste `tests/styles/theme.test.js` confere o mínimo de 4,5:1 entre cada cor de texto do tema e os fundos em que ela aparece; uma cor nova no tema entra também nesse teste.
 
@@ -99,6 +110,9 @@ Os contrastes seguem a fórmula de luminância relativa da WCAG 2.1. O teste `te
 | Configurações (Figura 46) | Plano "Pro – Clínica" | Planos Basic e Enterprise | Catálogo do Quadro 2 do TCC, adotado pela API. |
 | Configurações (Figura 46) | Autenticação em dois fatores e preferências de notificação | Não exibidos | Sem requisito funcional nem suporte na API. |
 | Todas | Botões teal `#00B69B` com texto branco | Teal `#0D7D77` | Contraste mínimo para texto (WCAG 2.1 AA). |
+| Todas | Menu com todos os itens, inclusive no modo de leitura do familiar | Itens permitidos ao perfil, agrupados em Cuidado, Gestão e Plataforma | Matriz de permissões da API (RF016): um item sem permissão levaria a acesso negado. |
+| Todas | Item "Dashboard" | Item "Painel" | Nome do requisito (RF015, painel operacional) e interface em português. |
+| Todas | Botão "Logout" no rodapé do menu lateral | "Sair" no menu do usuário, na barra superior | A barra superior existe em todos os layouts; a barra inferior do cuidador no celular não tem menu lateral. |
 
 Telas sem protótipo, necessárias para os fluxos da API: primeiro acesso (troca da senha provisória), equipe de cuidado do paciente, regras de alerta e, para o administrador da plataforma, organizações e planos.
 
@@ -108,9 +122,10 @@ Os testes usam Vitest e Testing Library e ficam em `tests/`, espelhando as pasta
 
 ## Em aberto
 
-Situação conforme o manual da API atualizado em 05/11/2026.
+Situação conforme o `develop` do vitacare-backend em 09/11/2026 (commit `af58a2c`).
 
-- **Usuário autenticado:** o login devolve apenas o token e o prazo da sessão, e não há rota que devolva o usuário logado com perfil e permissões. Sem ela, o frontend não consegue montar o menu depois da integração.
-- **Recuperação de senha:** o protótipo (Figura 32) usa código de seis dígitos; a API usa link com token e, sem servidor de e-mail configurado, não entrega a mensagem. A tela segue o protótipo até a definição.
-- **Alertas:** marcar como lido, resolver e notificar ainda não existem na API.
+- **Usuário autenticado:** o login devolve apenas o estado, o token e os prazos da sessão, e não há rota que devolva o usuário logado com perfil e permissões. Sem ela, o frontend não consegue montar o menu depois da integração.
+- **Recuperação de senha:** o protótipo (Figura 32) usa código de seis dígitos; a API envia por e-mail um link com token e, sem servidor de e-mail configurado, orienta o usuário a pedir uma senha temporária ao administrador. A tela segue o protótipo até a definição.
+- **Painel, relatórios e auditoria:** a API ainda não tem rotas para essas telas.
+- **Nome dos perfis:** a API devolve o nome do perfil sem acentuação ("Profissional de saude"). A interface mostra o nome pelo código do perfil, em `src/data/profiles.js`.
 - **Hospedagem:** o TCC prevê a Vercel; a documentação de deploy do backend reserva a porta 1040 da VPS para o frontend.

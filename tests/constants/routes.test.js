@@ -1,0 +1,100 @@
+// @vitest-environment node
+import { describe, expect, it } from 'vitest';
+import {
+  PERMISSIONS,
+  permissionsFor,
+} from '../../src/constants/permissions.js';
+import {
+  NAV_ITEMS,
+  PATHS,
+  homePath,
+  usesBottomNav,
+  visibleNavItems,
+} from '../../src/constants/routes.js';
+
+// `can` igual ao da sessão, montado a partir da matriz do perfil.
+function canFor(profileCode) {
+  const granted = new Set(permissionsFor(profileCode));
+  return (permission) => granted.has(permission);
+}
+
+const nobody = () => false;
+
+describe('menu', () => {
+  it.each([
+    [
+      'admin',
+      [
+        'dashboard',
+        'patients',
+        'records',
+        'medications',
+        'alerts',
+        'forms',
+        'reports',
+        'users',
+        'audit',
+        'settings',
+      ],
+    ],
+    [
+      'professional',
+      ['patients', 'records', 'medications', 'alerts', 'forms', 'reports'],
+    ],
+    ['caregiver', ['patients', 'records', 'medications', 'alerts', 'forms']],
+    ['family', ['patients', 'records', 'medications', 'alerts']],
+    ['platform_admin', ['organizations', 'settings']],
+  ])('mostra ao perfil %s apenas os itens da sua matriz', (profile, ids) => {
+    expect(visibleNavItems(canFor(profile)).map((item) => item.id)).toEqual(
+      ids,
+    );
+  });
+
+  it('fica vazio sem nenhuma permissão', () => {
+    expect(visibleNavItems(nobody)).toEqual([]);
+  });
+
+  it('exige de cada item uma permissão que existe no catálogo', () => {
+    const catalog = new Set(Object.values(PERMISSIONS));
+
+    expect(
+      NAV_ITEMS.filter((item) => !catalog.has(item.permission)).map(
+        (item) => item.id,
+      ),
+    ).toEqual([]);
+  });
+
+  it('não repete endereço entre itens', () => {
+    const paths = NAV_ITEMS.map((item) => item.path);
+
+    expect(new Set(paths).size).toBe(paths.length);
+  });
+});
+
+describe('página inicial', () => {
+  it.each([
+    ['admin', PATHS.DASHBOARD],
+    ['platform_admin', PATHS.ORGANIZATIONS],
+    ['professional', PATHS.PATIENTS],
+    ['caregiver', PATHS.PATIENTS],
+    ['family', PATHS.PATIENTS],
+  ])('leva o perfil %s para %s', (profile, path) => {
+    expect(homePath(canFor(profile))).toBe(path);
+  });
+
+  it('não existe sem nenhuma permissão', () => {
+    expect(homePath(nobody)).toBeNull();
+  });
+});
+
+describe('barra inferior no celular', () => {
+  it.each([
+    ['caregiver', true],
+    ['admin', false],
+    ['professional', false],
+    ['family', false],
+    ['platform_admin', false],
+  ])('para o perfil %s: %s', (profile, expected) => {
+    expect(usesBottomNav(canFor(profile))).toBe(expected);
+  });
+});
