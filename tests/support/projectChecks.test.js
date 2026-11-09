@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, relative, sep } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  findHardcodedColors,
   findMarker,
   findUndocumented,
   listFiles,
@@ -128,6 +129,41 @@ describe('findMarker', () => {
 
     expect(findMarker(files, 'TODO_PREENCHER')).toEqual([
       { path: 'src/a.js', line: 2 },
+    ]);
+  });
+});
+
+describe('findHardcodedColors', () => {
+  it('não acusa arquivo que usa só tokens do tema', () => {
+    const files = [
+      {
+        path: 'src/a.jsx',
+        content: "<Box sx={{ color: 'primary.main', p: 2 }} />\nhref='#'\n",
+      },
+    ];
+
+    expect(findHardcodedColors(files)).toEqual([]);
+  });
+
+  it('acusa hexadecimal, rgb e hsl com arquivo, linha e valor', () => {
+    const files = [
+      {
+        path: 'src/a.jsx',
+        content: [
+          "const a = { color: '#B42318' };",
+          "const b = 'rgba(24, 48, 88, 0.1)';",
+          'const c = 1;',
+          "const d = 'hsl(176 81% 27%)';",
+          "const e = '#FFF';",
+        ].join('\n'),
+      },
+    ];
+
+    expect(findHardcodedColors(files)).toEqual([
+      { path: 'src/a.jsx', line: 1, value: '#B42318' },
+      { path: 'src/a.jsx', line: 2, value: 'rgba(' },
+      { path: 'src/a.jsx', line: 4, value: 'hsl(' },
+      { path: 'src/a.jsx', line: 5, value: '#FFF' },
     ]);
   });
 });
