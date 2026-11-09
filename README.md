@@ -25,18 +25,22 @@ O servidor de desenvolvimento abre em `http://localhost:5173`. Os demais scripts
 | --- | --- |
 | `.github/workflows/` | Integração contínua: lint, testes e build em cada pull request. |
 | `docs/` | Documentação técnica. |
-| `public/` | Arquivos servidos sem processamento, como o ícone da aba. |
+| `public/` | Arquivos servidos sem processamento, como o ícone da aba e o símbolo do logotipo. |
 | `index.html` | Página base carregada pelo Vite. |
 | `src/main.jsx` | Ponto de entrada: monta a aplicação na página. |
-| `src/App.jsx` | Componente raiz. |
-| `src/components/` | Componentes usados em mais de um lugar, como o provedor de sessão e a proteção por permissão. |
-| `src/constants/` | Listas fechadas, como a matriz de permissões dos perfis. |
+| `src/App.jsx` | Componente raiz: cria o roteador a partir da árvore de rotas. |
+| `src/routes.jsx` | Árvore de rotas: layout, proteções por sessão e permissão e página de cada endereço. |
+| `src/components/` | Componentes usados em mais de um lugar, como o layout autenticado, o provedor de sessão e as proteções por sessão e por permissão. |
+| `src/constants/` | Listas fechadas, como os endereços do sistema, os itens do menu e a matriz de permissões dos perfis. |
 | `src/data/` | Textos da interface. |
 | `src/data/mocks/` | Dados simulados de organização, usuários e pacientes, no formato da API. |
+| `src/pages/` | Telas, uma pasta por tela. |
+| `src/pages/Login/` | Entrada no sistema. |
+| `src/pages/Status/` | Páginas de não encontrada, acesso negado, erro inesperado e tela em construção. |
 | `src/hooks/` | Hooks que ligam as telas aos serviços, como o `useResource`. |
 | `src/services/` | Único ponto de acesso a dados; hoje responde com os dados simulados. |
 | `src/styles/` | Tema do Material UI: cores, tipografia, raios, sombras e movimento. |
-| `src/utils/` | Funções puras, como a validação de CPF. |
+| `src/utils/` | Funções puras, como a validação de CPF e as iniciais do avatar. |
 | `tests/` | Testes automatizados, espelhando as pastas de `src/`. |
 | `tests/support/` | Verificações de projeto usadas pelos testes. |
 
