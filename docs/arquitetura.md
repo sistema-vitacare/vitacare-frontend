@@ -72,14 +72,14 @@ Enquanto os dados são simulados, o login oferece um usuário de demonstração 
 
 A estrutura de telas segue os protótipos do TCC (Figuras 31 a 46). Os valores ficam no tema, em `src/styles/`; esta seção registra os critérios.
 
-- **Uma cor de ação:** o teal da marca. Botões e links usam `#0D7D77`, com contraste de 4,98:1 sobre branco. O `#00B69B` dos protótipos tem 2,57:1, abaixo do mínimo de 4,5:1 da WCAG 2.1 (nível AA) para texto, e fica restrito a elementos decorativos, como o preenchimento de gráficos e o fundo de selos.
+- **Uma cor de ação:** o teal da marca. Botões e links usam `#0D7D77`, com contraste de 4,98:1 sobre branco. O `#00B69B` dos protótipos tem 2,57:1, abaixo do mínimo de 4,5:1 da WCAG 2.1 (nível AA) para texto, e fica restrito a elementos decorativos, como o preenchimento de gráficos e o fundo de selos. Sobre o fundo teal-claro (`#E7F4F3`), usado no item ativo do menu, o texto passa para `#0B6B66` (5,63:1), porque o teal de ação ali fica em 4,42:1.
 - **Texto:** azul-marinho do logotipo, `#183058`, com contraste de 13,1:1 sobre branco.
 - **Cores de estado:** crítico, atenção, informativo e normal aparecem apenas para indicar situação clínica ou do sistema, nunca como decoração.
 - **Superfícies:** fundo cinza-claro, cartões brancos com sombra difusa em tom azul-marinho e cantos arredondados.
 - **Movimento:** transições curtas com desaceleração, entrada escalonada de listas e esqueletos de carregamento no formato do conteúdo. Animações usam apenas `transform` e `opacity` e respeitam a preferência do sistema por movimento reduzido.
 - **Celular:** o cuidador navega por uma barra inferior, porque o registro de visita acontece com o aparelho na mão. Os demais perfis usam o menu lateral recolhível.
 
-Os contrastes foram calculados pela fórmula de luminância relativa da WCAG 2.1.
+Os contrastes seguem a fórmula de luminância relativa da WCAG 2.1. O teste `tests/styles/theme.test.js` confere o mínimo de 4,5:1 entre cada cor de texto do tema e os fundos em que ela aparece; uma cor nova no tema entra também nesse teste.
 
 ## Diferenças em relação aos protótipos
 
