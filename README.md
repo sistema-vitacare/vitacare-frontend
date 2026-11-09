@@ -30,6 +30,7 @@ O servidor de desenvolvimento abre em `http://localhost:5173`. Os demais scripts
 | `src/main.jsx` | Ponto de entrada: monta a aplicação na página. |
 | `src/App.jsx` | Componente raiz. |
 | `src/data/` | Textos da interface e dados simulados. |
+| `src/styles/` | Tema do Material UI: cores, tipografia, raios, sombras e movimento. |
 | `tests/` | Testes automatizados, espelhando as pastas de `src/`. |
 | `tests/support/` | Verificações de projeto usadas pelos testes. |
 
