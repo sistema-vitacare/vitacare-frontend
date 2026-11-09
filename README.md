@@ -29,8 +29,12 @@ O servidor de desenvolvimento abre em `http://localhost:5173`. Os demais scripts
 | `index.html` | Página base carregada pelo Vite. |
 | `src/main.jsx` | Ponto de entrada: monta a aplicação na página. |
 | `src/App.jsx` | Componente raiz. |
-| `src/data/` | Textos da interface e dados simulados. |
+| `src/data/` | Textos da interface. |
+| `src/data/mocks/` | Dados simulados de organização, usuários e pacientes, no formato da API. |
+| `src/hooks/` | Hooks que ligam as telas aos serviços, como o `useResource`. |
+| `src/services/` | Único ponto de acesso a dados; hoje responde com os dados simulados. |
 | `src/styles/` | Tema do Material UI: cores, tipografia, raios, sombras e movimento. |
+| `src/utils/` | Funções puras, como a validação de CPF. |
 | `tests/` | Testes automatizados, espelhando as pastas de `src/`. |
 | `tests/support/` | Verificações de projeto usadas pelos testes. |
 
