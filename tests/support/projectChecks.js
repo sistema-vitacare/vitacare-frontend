@@ -66,3 +66,20 @@ export function findMarker(files, marker) {
       ),
   );
 }
+
+// Cor escrita direto no código: hexadecimal de 3 a 8 dígitos ou chamada de
+// rgb, rgba, hsl e hsla. Âncora de link com texto parecido com hexadecimal
+// (`#add`) também é acusada; nesse caso, o texto da âncora muda.
+const hardcodedColor = /#[0-9a-fA-F]{3,8}\b|(?:rgba?|hsla?)\(/g;
+
+export function findHardcodedColors(files) {
+  return files.flatMap(({ path, content }) =>
+    content.split('\n').flatMap((text, index) =>
+      [...text.matchAll(hardcodedColor)].map((match) => ({
+        path,
+        line: index + 1,
+        value: match[0],
+      })),
+    ),
+  );
+}

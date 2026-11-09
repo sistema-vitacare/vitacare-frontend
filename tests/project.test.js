@@ -1,8 +1,10 @@
 // @vitest-environment node
 import { readFileSync } from 'node:fs';
+import { relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
+  findHardcodedColors,
   findMarker,
   findUndocumented,
   listFiles,
@@ -35,5 +37,14 @@ describe('projeto', () => {
     }));
 
     expect(findMarker(files, 'TODO_PREENCHER')).toEqual([]);
+  });
+
+  it('não usa cor fixa em src fora de src/styles', () => {
+    const srcDir = fileURLToPath(new URL('../src', import.meta.url));
+    const files = listFiles(srcDir)
+      .filter((path) => relative(srcDir, path).split(sep)[0] !== 'styles')
+      .map((path) => ({ path, content: readFileSync(path, 'utf8') }));
+
+    expect(findHardcodedColors(files)).toEqual([]);
   });
 });

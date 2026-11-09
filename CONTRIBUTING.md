@@ -51,7 +51,7 @@ O `npm run verify` precisa terminar sem erro antes da abertura do pull request. 
 - Os testes usam Vitest e Testing Library e ficam em `tests/`, espelhando as pastas de `src/`, com o nome do arquivo testado seguido de `.test.js` ou `.test.jsx`.
 - Telas são testadas pelo que o usuário vê: textos, papéis acessíveis (`getByRole`) e o resultado das interações.
 - Lógica é escrita com o teste antes do código. O primeiro teste roda contra uma função que devolve um valor neutro, e só os casos do comportamento novo podem falhar.
-- Duas verificações de projeto rodam junto com os testes: todo arquivo solto em `src/` e toda pasta de `src/` até dois níveis precisam de linha na tabela "Estrutura" do README, e o marcador `TODO_PREENCHER`, usado para conteúdo ainda não definido, não pode aparecer em `src/`.
+- Três verificações de projeto rodam junto com os testes: todo arquivo solto em `src/` e toda pasta de `src/` até dois níveis precisam de linha na tabela "Estrutura" do README; o marcador `TODO_PREENCHER`, usado para conteúdo ainda não definido, não pode aparecer em `src/`; e nenhuma cor fixa (hexadecimal, `rgb` ou `hsl`) pode aparecer em `src/` fora de `src/styles/`.
 
 ## Pull requests
 
@@ -66,6 +66,7 @@ O `npm run verify` precisa terminar sem erro antes da abertura do pull request. 
 - Nomes de arquivos, variáveis, funções e componentes em inglês.
 - Comentários, mensagens de teste e descrições de `describe` e `it` em português.
 - Comentário explica o porquê do trecho e o que quebra sem ele, não o que a linha faz.
+- Cores, raios e sombras vêm do tema, em `src/styles/theme.js`. Espaçamento usa a escala do tema no `sx` (`p: 2`, `gap: 1.5`), nunca valor em pixels.
 
 ## Documentação
 
