@@ -67,11 +67,13 @@ Duas alternativas foram descartadas:
 
 A matriz de permissões replica `src/modules/Access/access.permissions.ts` do vitacare-backend, que é a fonte oficial. Mudança na matriz do backend precisa ser repetida aqui.
 
-As telas consultam permissões, por exemplo `can('patients:create')`, e nunca o nome do perfil. Assim, uma mudança na matriz não exige alterar telas.
+As telas consultam permissões, por exemplo `can('patients:create')`, e nunca o nome do perfil. Assim, uma mudança na matriz não exige alterar telas. Conteúdo que depende de uma permissão fica dentro de `RequirePermission`: sem a permissão, o conteúdo não é renderizado e não carrega dados.
 
 Apenas o cuidador registra acompanhamento. O administrador herda as permissões do profissional de saúde, não as do cuidador.
 
-Enquanto os dados são simulados, o login oferece um usuário de demonstração para cada perfil.
+A sessão fica no `SessionProvider` e chega às telas pelo hook `useSession`, em um de três estados: `anonymous` (ninguém entrou), `authenticated` ou `expired`. Como a sessão normal da API, ela dura 12 horas; ao vencer, passa a `expired` e perde usuário e permissões.
+
+Enquanto os dados são simulados, a sessão começa com um usuário de demonstração de cada perfil (`src/services/authService.js`), e as permissões vêm da matriz local, porque a API ainda não tem rota que devolva o usuário autenticado com suas permissões (ver "Em aberto").
 
 ## Identidade visual
 
