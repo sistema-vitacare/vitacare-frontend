@@ -1,13 +1,9 @@
-import { Container, Typography } from '@mui/material';
-import { appInfo } from './data/app.js';
+import { useState } from 'react';
+import { createBrowserRouter } from 'react-router';
+import { RouterProvider } from 'react-router/dom';
+import { appRoutes } from './routes.jsx';
 
 export default function App() {
-  return (
-    <Container component="main" sx={{ py: 6 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        {appInfo.name}
-      </Typography>
-      <Typography color="text.secondary">{appInfo.description}</Typography>
-    </Container>
-  );
+  const [router] = useState(() => createBrowserRouter(appRoutes));
+  return <RouterProvider router={router} />;
 }
