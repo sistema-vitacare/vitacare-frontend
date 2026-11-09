@@ -36,12 +36,17 @@ As dependências seguem um único sentido: páginas, hooks, serviços, dados.
 
 ## Dados simulados
 
-Os serviços devolvem dados simulados no mesmo formato da API do backend:
+Os serviços respondem no mesmo formato da API do backend. O utilitário `src/services/mockApi.js` monta essas respostas:
 
-- sucesso: `{ data, meta }`, com `meta.pagination` nas listagens;
-- erro: `{ error: { code, message, detail, fields }, meta }`, com `fields` preenchido nos erros de validação (status 422).
+- sucesso: `{ data, meta }`, com `meta.requestId` e `meta.timestamp`;
+- listagem: `meta.pagination` com `page`, `limit`, `total` e `totalPages`, página 1 e limite 20 quando não informados, como na API;
+- erro: um `ApiError` com `status`, `code`, `message`, `detail` e `fields`. É o mesmo objeto que o cliente HTTP vai produzir a partir do corpo `{ error, meta }` da API, então as telas tratam erro do mesmo jeito antes e depois da integração.
 
-Cada serviço aplica um atraso curto e pode simular falha, de modo que os estados de carregamento e de erro das telas funcionam desde o início. Os dados simulados ficam em `src/data/mocks/` e usam nomes, documentos e contatos inventados. Nenhum dado pessoal real entra no repositório.
+Cada requisição simulada espera um atraso curto, zerado nos testes. A função `failNextRequest` faz a próxima requisição falhar, para exercitar os estados de erro das telas.
+
+As telas não chamam os serviços direto: usam o hook `useResource`, que devolve um de quatro estados (`loading`, `success`, `empty` ou `error`) e uma função `retry` para tentar de novo depois de uma falha.
+
+Os dados simulados ficam em `src/data/mocks/`, com os campos da API, e usam nomes, documentos e contatos inventados. Todo CPF passa nos dígitos verificadores, e todo paciente aponta para um profissional de saúde existente. Nenhum dado pessoal real entra no repositório.
 
 Na integração, o corpo de cada serviço passa a chamar a rota correspondente da API. Páginas e hooks não mudam.
 
