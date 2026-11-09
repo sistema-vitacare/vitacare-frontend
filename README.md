@@ -29,6 +29,8 @@ O servidor de desenvolvimento abre em `http://localhost:5173`. Os demais scripts
 | `index.html` | Página base carregada pelo Vite. |
 | `src/main.jsx` | Ponto de entrada: monta a aplicação na página. |
 | `src/App.jsx` | Componente raiz. |
+| `src/components/` | Componentes usados em mais de um lugar, como o provedor de sessão e a proteção por permissão. |
+| `src/constants/` | Listas fechadas, como a matriz de permissões dos perfis. |
 | `src/data/` | Textos da interface. |
 | `src/data/mocks/` | Dados simulados de organização, usuários e pacientes, no formato da API. |
 | `src/hooks/` | Hooks que ligam as telas aos serviços, como o `useResource`. |

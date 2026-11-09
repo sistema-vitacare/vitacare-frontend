@@ -2,6 +2,10 @@
 import { describe, expect, it } from 'vitest';
 import { organization } from '../../src/data/mocks/organization.js';
 import { patients } from '../../src/data/mocks/patients.js';
+import {
+  platformAdmin,
+  platformOrganization,
+} from '../../src/data/mocks/platform.js';
 import { users } from '../../src/data/mocks/users.js';
 import { isValidCpf } from '../../src/utils/cpf.js';
 
@@ -48,6 +52,8 @@ describe('dados simulados', () => {
   it('usam só e-mails do domínio reservado .example', () => {
     const emails = [
       organization.email,
+      platformOrganization.email,
+      platformAdmin.email,
       ...people.map((person) => person.email),
     ];
     const real = emails.filter((email) => email && !email.endsWith('.example'));
