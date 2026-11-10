@@ -60,10 +60,10 @@ Duas alternativas foram descartadas:
 | Perfil | Código | Acesso |
 | --- | --- | --- |
 | Administrador | `admin` | Tudo o que o profissional de saúde faz, mais usuários, organização, plano, painel operacional e auditoria. |
-| Profissional de saúde | `professional` | Pacientes, histórico e evolução, formulários, regras de alerta, anulação de registros, medicamentos, relatórios e vínculos de cuidado. |
-| Cuidador | `caregiver` | Pacientes vinculados, registro de acompanhamento, alertas e consulta de medicamentos. |
+| Profissional de saúde | `professional` | Pacientes, histórico e evolução, formulários, consulta e resolução de alertas, regras de alerta, anulação de registros, medicamentos, relatórios e vínculos de cuidado. |
+| Cuidador | `caregiver` | Pacientes vinculados, registro de acompanhamento, consulta e resolução de alertas e consulta de medicamentos. |
 | Familiar | `family` | Consulta do paciente vinculado: cadastro, histórico, evolução, alertas e medicamentos. |
-| Administrador da plataforma | `platform_admin` | Organizações clientes e seus planos. |
+| Administrador da plataforma | `platform_admin` | Organizações clientes e seus planos, e a auditoria de todas as organizações. |
 
 A matriz de permissões replica `src/modules/Access/access.permissions.ts` do vitacare-backend, que é a fonte oficial. Mudança na matriz do backend precisa ser repetida aqui.
 
