@@ -6,6 +6,7 @@ import {
   mockRequest,
   notFoundError,
   paginate,
+  registerMockState,
   resetMockState,
   respond,
   validationError,
@@ -74,6 +75,27 @@ describe('respond', () => {
     expect(response.data).toEqual({ id: 7 });
     expect(response.meta.requestId).toEqual(expect.any(String));
     expect(Number.isNaN(Date.parse(response.meta.timestamp))).toBe(false);
+  });
+
+  it('acrescenta a meta os campos extras, como a mensagem da recuperação de senha', () => {
+    const response = respond(null, { message: 'Procure o administrador.' });
+
+    expect(response.data).toBeNull();
+    expect(response.meta.message).toBe('Procure o administrador.');
+    expect(response.meta.requestId).toEqual(expect.any(String));
+  });
+});
+
+describe('resetMockState', () => {
+  it('zera também o estado registrado por um serviço simulado', () => {
+    let attempts = 3;
+    registerMockState(() => {
+      attempts = 0;
+    });
+
+    resetMockState();
+
+    expect(attempts).toBe(0);
   });
 });
 
