@@ -30,17 +30,20 @@ O servidor de desenvolvimento abre em `http://localhost:5173`. Os demais scripts
 | `src/main.jsx` | Ponto de entrada: monta a aplicação na página. |
 | `src/App.jsx` | Componente raiz: cria o roteador a partir da árvore de rotas. |
 | `src/routes.jsx` | Árvore de rotas: layout, proteções por sessão e permissão e página de cada endereço. |
-| `src/components/` | Componentes usados em mais de um lugar, como o layout autenticado, o provedor de sessão e as proteções por sessão e por permissão. |
+| `src/components/` | Componentes usados em mais de um lugar, como o layout autenticado, o layout das telas de acesso, o provedor de sessão e as proteções por sessão e por permissão. |
 | `src/constants/` | Listas fechadas, como os endereços do sistema, os itens do menu e a matriz de permissões dos perfis. |
 | `src/data/` | Textos da interface. |
-| `src/data/mocks/` | Dados simulados de organização, usuários e pacientes, no formato da API. |
+| `src/data/mocks/` | Dados simulados de organização, usuários, pacientes e credenciais de demonstração, no formato da API. |
 | `src/pages/` | Telas, uma pasta por tela. |
 | `src/pages/Login/` | Entrada no sistema. |
+| `src/pages/PasswordRecovery/` | Pedido de recuperação de senha. |
+| `src/pages/PasswordReset/` | Redefinição da senha pelo link de recuperação. |
+| `src/pages/FirstAccess/` | Troca obrigatória da senha provisória no primeiro acesso. |
 | `src/pages/Status/` | Páginas de não encontrada, acesso negado, erro inesperado e tela em construção. |
-| `src/hooks/` | Hooks que ligam as telas aos serviços, como o `useResource`. |
+| `src/hooks/` | Hooks que ligam as telas aos serviços, como o `useResource`, para leitura, e o `useSubmit`, para envio. |
 | `src/services/` | Único ponto de acesso a dados; hoje responde com os dados simulados. |
 | `src/styles/` | Tema do Material UI: cores, tipografia, raios, sombras e movimento. |
-| `src/utils/` | Funções puras, como a validação de CPF e as iniciais do avatar. |
+| `src/utils/` | Funções puras, como a validação de CPF, a validação dos campos de acesso e as iniciais do avatar. |
 | `tests/` | Testes automatizados, espelhando as pastas de `src/`. |
 | `tests/support/` | Verificações de projeto usadas pelos testes. |
 

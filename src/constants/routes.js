@@ -15,6 +15,9 @@ import { PERMISSIONS as P } from './permissions.js';
 
 export const PATHS = Object.freeze({
   LOGIN: '/login',
+  PASSWORD_RECOVERY: '/recuperar-senha',
+  PASSWORD_RESET: '/redefinir-senha',
+  FIRST_ACCESS: '/primeiro-acesso',
   HOME: '/',
   DASHBOARD: '/painel',
   PATIENTS: '/pacientes',

@@ -3,9 +3,12 @@ import { createContext, useContext } from 'react';
 export const SessionContext = createContext(null);
 
 /**
- * Sessão atual: `status` (`anonymous`, `authenticated` ou `expired`),
- * `session` (usuário, organização, permissões e prazo), `can(permission)`,
- * `signIn(profileCode)` e `signOut()`.
+ * Sessão atual: `status` (`anonymous`, `restricted`, `authenticated` ou
+ * `expired`), `session` (usuário, organização, permissões e prazo), `notice`
+ * (aviso para o login depois do primeiro acesso), `can(permission)`,
+ * `signIn(profileCode)` (atalho de demonstração),
+ * `signInWithPassword(credentials)`, `completeFirstAccess(newPassword)` e
+ * `signOut()`.
  */
 export function useSession() {
   const value = useContext(SessionContext);
