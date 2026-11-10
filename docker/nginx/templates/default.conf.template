@@ -1,0 +1,111 @@
+# Servidor do frontend na porta 1040 (host = interna, molde da VPS).
+#
+# Renderizado na subida do container a partir de /etc/nginx/templates para
+# /etc/nginx/conf.d. O envsubst troca só ${API_URL} (NGINX_ENVSUBST_FILTER no
+# Dockerfile); as variáveis do nginx, como $uri e $status, passam intactas.
+# Este arquivo entra no bloco http do nginx.conf da imagem base.
+
+server_tokens off;
+charset utf-8;
+charset_types text/css text/plain application/javascript application/json image/svg+xml application/manifest+json;
+
+tcp_nopush on;
+open_file_cache max=1000 inactive=60s;
+open_file_cache_valid 60s;
+
+# Só GET e HEAD: nenhum corpo de requisição é esperado.
+client_max_body_size 16k;
+client_header_timeout 10s;
+client_body_timeout 10s;
+send_timeout 30s;
+
+# O build já deixa .gz ao lado de cada arquivo de texto (gzip_static, sem
+# custo de CPU por request); o gzip dinâmico cobre o /config.js.
+gzip on;
+gzip_static on;
+gzip_vary on;
+gzip_comp_level 5;
+gzip_min_length 1024;
+gzip_types text/css text/plain application/javascript application/json image/svg+xml application/manifest+json;
+
+# Log de acesso em JSON de uma linha: docker logs → Alloy → Loki. O Alloy
+# extrai level_name para o label `level`, então 5xx entra no alerta "Muitos
+# erros numa aplicação" da stack obs.
+map $status $vitacare_level {
+  ~^5     ERROR;
+  ~^4     WARNING;
+  default INFO;
+}
+
+# Caminho pedido, sem a query string: a redefinição de senha traz o token em
+# ?token=, e ele não pode parar no log. Pelo mesmo motivo não há Referer nem
+# cookie aqui. O $uri não serve: depois do try_files ele vira /index.html.
+map $request_uri $vitacare_path {
+  "~^(?<path>[^?]*)" $path;
+}
+
+log_format vitacare_json escape=json
+  '{"time":"$time_iso8601","level_name":"$vitacare_level",'
+  '"message":"$request_method $vitacare_path $status","method":"$request_method",'
+  '"path":"$vitacare_path","status":$status,"bytes":$body_bytes_sent,'
+  '"duration_s":$request_time,"remote_addr":"$remote_addr",'
+  '"user_agent":"$http_user_agent","request_id":"$request_id"}';
+
+server {
+  # Sem `listen [::]`: num host com IPv6 desligado o nginx não subiria. O
+  # Docker publica a porta do host para o IPv4 do container.
+  listen 1040 default_server;
+  server_name _;
+  root /usr/share/nginx/html;
+
+  access_log /var/log/nginx/access.log vitacare_json;
+
+  if ($request_method !~ ^(GET|HEAD)$) {
+    return 405;
+  }
+
+  # Um add_header dentro de location descarta os herdados do server; por isso
+  # cada location que define Cache-Control inclui os cabeçalhos de segurança.
+  include /etc/nginx/conf.d/security-headers.inc;
+
+  # Healthcheck do Docker e alvo do Uptime Kuma. A linha de log a cada 30 s é
+  # o batimento que mantém quieta a regra "Pipeline de log sem nenhuma linha".
+  location = /healthz {
+    default_type text/plain;
+    add_header Cache-Control "no-store" always;
+    return 200 "ok\n";
+  }
+
+  # Configuração em tempo de execução (public/config.js no desenvolvimento).
+  location = /config.js {
+    include /etc/nginx/conf.d/security-headers.inc;
+    default_type application/javascript;
+    add_header Cache-Control "no-store" always;
+    return 200 'window.__VITACARE_CONFIG__ = Object.freeze({ apiUrl: "${API_URL}" });\n';
+  }
+
+  # Prova de versão no ar: o deploy espera este arquivo mostrar o commit.
+  location = /version.txt {
+    include /etc/nginx/conf.d/security-headers.inc;
+    default_type text/plain;
+    add_header Cache-Control "no-store" always;
+    try_files $uri =404;
+  }
+
+  # Arquivos com hash no nome: nunca mudam, cache de um ano. Um arquivo que
+  # falta responde 404, e não o index.html: depois de um deploy, uma aba
+  # antiga pedindo o chunk velho receberia HTML no lugar de JavaScript.
+  location /assets/ {
+    include /etc/nginx/conf.d/security-headers.inc;
+    add_header Cache-Control "public, max-age=31536000, immutable" always;
+    try_files $uri =404;
+  }
+
+  # Rotas do React Router caem no index.html. no-cache obriga o navegador a
+  # revalidar (ETag), então um deploy novo vale no próximo carregamento.
+  location / {
+    include /etc/nginx/conf.d/security-headers.inc;
+    add_header Cache-Control "no-cache" always;
+    try_files $uri /index.html;
+  }
+}
