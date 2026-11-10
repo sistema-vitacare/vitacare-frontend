@@ -95,13 +95,28 @@ let accounts = new Map();
 let loginFailures = new Map();
 let recoveryRequests = new Map();
 let resetLinkUsed = false;
+// Sessão de quem consulta. Na API, o token diz quem é; aqui, os serviços
+// simulados leem a sessão guardada no login, como o cliente HTTP vai guardar
+// o token.
+let viewer = null;
 
 registerMockState(() => {
   accounts = new Map();
   loginFailures = new Map();
   recoveryRequests = new Map();
   resetLinkUsed = false;
+  viewer = null;
 });
+
+/** Sessão simulada em uso pelos serviços; `null` sem login. */
+export function currentViewer() {
+  return viewer;
+}
+
+function openSession(account, state) {
+  viewer = buildSession(account, state);
+  return respond(viewer);
+}
 
 const directories = [
   { organization, members: users },
@@ -210,7 +225,7 @@ export function login(credentials) {
       account.status === 'pending'
         ? SESSION_STATES.PASSWORD_CHANGE_REQUIRED
         : SESSION_STATES.AUTHENTICATED;
-    return respond(buildSession(account, state));
+    return openSession(account, state);
   });
 }
 
@@ -290,10 +305,13 @@ export function startDemoSession(profileCode) {
     if (!account) {
       throw notFoundError('Não há usuário de demonstração para este perfil.');
     }
-    return respond(buildSession(account, SESSION_STATES.AUTHENTICATED));
+    return openSession(account, SESSION_STATES.AUTHENTICATED);
   });
 }
 
 export function endSession() {
-  return mockRequest(() => respond(null));
+  return mockRequest(() => {
+    viewer = null;
+    return respond(null);
+  });
 }
