@@ -6,15 +6,73 @@ import {
   ListItemIcon,
   Menu,
   MenuItem,
+  TextField,
   Typography,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { CaretDown, List, SignOut } from '@phosphor-icons/react';
+import {
+  CaretDown,
+  List,
+  MagnifyingGlass,
+  SignOut,
+} from '@phosphor-icons/react';
 import { useId, useState } from 'react';
+import { useNavigate } from 'react-router';
+import { PERMISSIONS as P } from '../constants/permissions.js';
+import { PATHS } from '../constants/routes.js';
 import { shellContent } from '../data/navigation.js';
+import { topBarSearchContent } from '../data/patientList.js';
 import { profileLabels } from '../data/profiles.js';
 import { useSession } from '../hooks/useSession.js';
 import { initials } from '../utils/initials.js';
+
+// Busca de pacientes: leva à listagem com o termo no endereço, que a própria
+// listagem lê. Fica escondida no celular, onde a listagem tem a dela.
+function PatientSearch() {
+  const navigate = useNavigate();
+  const [term, setTerm] = useState('');
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    const query = term.trim();
+    navigate(
+      query
+        ? `${PATHS.PATIENTS}?${new URLSearchParams({ busca: query })}`
+        : PATHS.PATIENTS,
+    );
+  }
+
+  return (
+    <Box
+      component="form"
+      role="search"
+      onSubmit={handleSubmit}
+      sx={{ display: { xs: 'none', md: 'block' }, width: 340 }}
+    >
+      <TextField
+        type="search"
+        size="small"
+        fullWidth
+        value={term}
+        onChange={(event) => setTerm(event.target.value)}
+        placeholder={topBarSearchContent.placeholder}
+        slotProps={{
+          htmlInput: { 'aria-label': topBarSearchContent.label },
+          input: {
+            startAdornment: (
+              <Box
+                component="span"
+                sx={{ display: 'flex', mr: 1, color: 'text.secondary' }}
+              >
+                <MagnifyingGlass size={18} aria-hidden="true" />
+              </Box>
+            ),
+          },
+        }}
+      />
+    </Box>
+  );
+}
 
 /**
  * Barra superior do layout autenticado: botão do menu recolhível (quando
@@ -22,7 +80,7 @@ import { initials } from '../utils/initials.js';
  * Sair, presente em todos os layouts.
  */
 export default function TopBar({ onOpenMenu, showBrand }) {
-  const { session, signOut } = useSession();
+  const { session, signOut, can } = useSession();
   const [anchor, setAnchor] = useState(null);
   const menuId = useId();
   const { user } = session;
@@ -67,6 +125,7 @@ export default function TopBar({ onOpenMenu, showBrand }) {
           sx={{ height: 24, display: 'block' }}
         />
       ) : null}
+      {can(P.PATIENTS_READ) ? <PatientSearch /> : null}
       <Box sx={{ flex: 1 }} />
       <ButtonBase
         aria-haspopup="menu"
