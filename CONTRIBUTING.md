@@ -8,14 +8,15 @@ Este guia define como o código entra no repositório: branches, mensagens de co
 | --- | --- |
 | `main` | Versão estável. Recebe a `develop` quando um bloco de telas é concluído. |
 | `develop` | Integração. Todo trabalho novo sai dela e volta para ela por pull request. |
-| `fe-NN-assunto` | Uma por card do backlog: identificador do card e um resumo curto, em minúsculas e separado por hífens. Exemplo: `fe-11-lista-pacientes`. |
+| `bloco-N-assunto` | Uma por bloco de telas do backlog: número do bloco e um resumo curto, em minúsculas e separado por hífens. Os cards do bloco entram nela como commits. Exemplo: `bloco-2-pacientes`. |
+| `fe-NN-assunto` | Uma por card de fundação ou de manutenção, que não pertence a um bloco: identificador do card e um resumo curto. Exemplo: `fe-31-alerta-minimatch`. |
 
-Para começar um card:
+Para começar um bloco:
 
 ```bash
 git checkout develop
 git pull origin develop
-git checkout -b fe-11-lista-pacientes
+git checkout -b bloco-2-pacientes
 ```
 
 ## Mensagens de commit
@@ -55,9 +56,10 @@ O `npm run verify` precisa terminar sem erro antes da abertura do pull request. 
 
 ## Pull requests
 
-- Título: identificador do card e o que ele entrega. Exemplo: `FE-11 — Listagem de pacientes`.
+- Título de um bloco: número, nome e intervalo de cards. Exemplo: `Bloco 2 — Pacientes (FE-11 a FE-15)`.
+- Título de um card fora de bloco: identificador do card e o que ele entrega. Exemplo: `FE-31 — Alerta do minimatch na cadeia do ESLint`.
 - Corpo: o que muda, como foi verificado e o que ficou de fora.
-- Destino: `develop`. A `main` recebe apenas a `develop`.
+- Destino: `develop`. A `main` recebe apenas a `develop`, ao fim de cada bloco, num pull request com o mesmo título do bloco.
 - Merge só com o check `verify` verde.
 - Merge pela opção "Create a merge commit". As opções de squash e rebase reescrevem os commits da branch, e o squash junta todos em um só.
 
