@@ -43,7 +43,7 @@ describe('menu', () => {
     ],
     ['caregiver', ['patients', 'records', 'medications', 'alerts', 'forms']],
     ['family', ['patients', 'records', 'medications', 'alerts']],
-    ['platform_admin', ['organizations', 'settings']],
+    ['platform_admin', ['organizations', 'audit', 'settings']],
   ])('mostra ao perfil %s apenas os itens da sua matriz', (profile, ids) => {
     expect(visibleNavItems(canFor(profile)).map((item) => item.id)).toEqual(
       ids,

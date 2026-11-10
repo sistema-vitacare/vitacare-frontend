@@ -11,6 +11,7 @@ export const PERMISSIONS = Object.freeze({
   PATIENT_HISTORY_READ: 'patient_history:read',
   PATIENT_EVOLUTION_READ: 'patient_evolution:read',
   ALERTS_READ: 'alerts:read',
+  ALERTS_RESOLVE: 'alerts:resolve',
   FORMS_READ: 'forms:read',
   FORMS_CREATE: 'forms:create',
   FORMS_UPDATE: 'forms:update',
@@ -58,6 +59,7 @@ const CAREGIVER = [
   P.PATIENTS_READ,
   P.PATIENT_HISTORY_READ,
   P.ALERTS_READ,
+  P.ALERTS_RESOLVE,
   P.FORMS_READ,
   P.FOLLOW_UPS_CREATE,
   P.MEDICATIONS_READ,
@@ -71,6 +73,7 @@ const PROFESSIONAL = [
   P.PATIENT_HISTORY_READ,
   P.PATIENT_EVOLUTION_READ,
   P.ALERTS_READ,
+  P.ALERTS_RESOLVE,
   P.FORMS_READ,
   P.FORMS_CREATE,
   P.FORMS_UPDATE,
@@ -110,6 +113,8 @@ const PLATFORM_ADMIN = [
   P.PLATFORM_ORGANIZATIONS_READ,
   P.PLATFORM_ORGANIZATIONS_UPDATE,
   P.PLATFORM_ORGANIZATIONS_CHANGE_STATUS,
+  P.AUDIT_EVENTS_READ,
+  P.AUDIT_EVENTS_EXPORT,
 ];
 
 // O administrador herda o profissional de saúde, mas não o cuidador: só o
