@@ -1,0 +1,25 @@
+# Ensaio local da imagem de produção, com as mesmas restrições do
+# docker-compose.prod.yml: `docker compose up --build` → http://localhost:1040.
+# O desenvolvimento do dia a dia continua sendo `npm run dev`.
+services:
+  app:
+    build:
+      context: .
+      target: runtime
+      args:
+        GIT_SHA: local
+    image: vitacare-frontend:local
+    container_name: vitacare-frontend
+    environment:
+      # API do compose.yaml do vitacare-backend.
+      API_URL: ${API_URL:-http://localhost:3000}
+    ports:
+      - '127.0.0.1:${HOST_PORT:-1040}:1040'
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+      - /etc/nginx/conf.d:uid=101,gid=101,mode=0700,size=1m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
