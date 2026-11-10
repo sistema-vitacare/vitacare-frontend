@@ -44,7 +44,7 @@ Os serviços respondem no mesmo formato da API do backend. O utilitário `src/se
 
 Cada requisição simulada espera um atraso curto, zerado nos testes. A função `failNextRequest` faz a próxima requisição falhar, para exercitar os estados de erro das telas.
 
-As telas não chamam os serviços direto: usam o hook `useResource`, que devolve um de quatro estados (`loading`, `success`, `empty` ou `error`) e uma função `retry` para tentar de novo depois de uma falha.
+As telas não chamam os serviços direto. Para ler, usam o hook `useResource`, que devolve um de quatro estados (`loading`, `success`, `empty` ou `error`) e uma função `retry` para tentar de novo depois de uma falha. Para enviar um formulário, usam o `useSubmit`, que devolve `idle`, `submitting`, `success` ou `error`, com os dados, o `meta` e o erro da resposta. A sessão é a exceção: login, primeiro acesso e Sair passam pelo `SessionProvider`, que guarda o resultado.
 
 Os dados simulados ficam em `src/data/mocks/`, com os campos da API, e usam nomes, documentos e contatos inventados. Todo CPF passa nos dígitos verificadores, e todo paciente aponta para um profissional de saúde existente. Nenhum dado pessoal real entra no repositório.
 
@@ -71,16 +71,24 @@ As telas consultam permissões, por exemplo `can('patients:create')`, e nunca o 
 
 Apenas o cuidador registra acompanhamento. O administrador herda as permissões do profissional de saúde, não as do cuidador.
 
-A sessão fica no `SessionProvider` e chega às telas pelo hook `useSession`, em um de três estados: `anonymous` (ninguém entrou), `authenticated` ou `expired`. Como a sessão normal da API, ela dura 12 horas; ao vencer, passa a `expired` e perde usuário e permissões.
+A sessão fica no `SessionProvider` e chega às telas pelo hook `useSession`, em um de quatro estados:
 
-Enquanto os dados são simulados, a sessão começa com um usuário de demonstração de cada perfil (`src/services/authService.js`), e as permissões vêm da matriz local, porque a API ainda não tem rota que devolva o usuário autenticado com suas permissões (ver "Em aberto").
+| Estado | Quando | Duração |
+| --- | --- | --- |
+| `anonymous` | Ninguém entrou, ou saiu pelo Sair. | — |
+| `restricted` | O login respondeu `password_change_required`: usuário convidado, ou com senha provisória a trocar. Só alcança o primeiro acesso e o Sair, e não tem permissões. | 10 minutos, como a sessão restrita da API. |
+| `authenticated` | Sessão normal. | 12 horas, como a sessão normal da API. |
+| `expired` | Uma das duas sessões venceu. Usuário e permissões somem, e o login mostra o aviso de sessão expirada. | Até a próxima entrada. |
+
+Enquanto os dados são simulados, o serviço de autenticação (`src/services/authService.js`) reproduz as rotas `auth` da API: login com código da organização, e-mail e senha, bloqueio depois de cinco falhas, primeiro acesso, pedido de recuperação e redefinição pelo link. Os usuários de demonstração compartilham uma senha inventada, guardada em `src/data/mocks/credentials.js` e fora do objeto do usuário, porque a API nunca devolve senha. Os atalhos de demonstração do login continuam entrando direto com um usuário de cada perfil. Nos dois caminhos, as permissões vêm da matriz local, porque a API ainda não tem rota que devolva o usuário autenticado com suas permissões (ver "Em aberto").
 
 ## Rotas e navegação
 
 Os endereços, a permissão de cada tela e os itens do menu ficam em `src/constants/routes.js`; a árvore de rotas, em `src/routes.jsx`.
 
-- **Rota pública:** apenas o login (`/login`). Quem já tem sessão e abre o login vai para a página inicial.
-- **Rotas autenticadas:** ficam dentro de `RequireSession`, que leva ao login quem não tem sessão ou está com a sessão expirada; no segundo caso, o login mostra o aviso de sessão expirada (UC01, fluxo alternativo). Cada rota exige a permissão de leitura da sua tela, por `RequirePermission`: sem ela, aparece a página de acesso negado, e a tela não é montada.
+- **Rotas públicas:** login (`/login`), pedido de recuperação de senha (`/recuperar-senha`) e redefinição pelo link enviado por e-mail (`/redefinir-senha?token=`). Quem já tem sessão e abre o login vai para a página inicial.
+- **Primeiro acesso:** `/primeiro-acesso` só abre com a sessão restrita; sem ela, leva ao login. Depois da troca, a API encerra a sessão restrita, e o login abre com o código da organização e o e-mail preenchidos.
+- **Rotas autenticadas:** ficam dentro de `RequireSession`, que leva ao primeiro acesso quem está com a sessão restrita e ao login quem não tem sessão ou está com a sessão expirada; no segundo caso, o login mostra o aviso de sessão expirada (UC01, fluxo alternativo). Cada rota exige a permissão de leitura da sua tela, por `RequirePermission`: sem ela, aparece a página de acesso negado, e a tela não é montada.
 - **Página inicial:** escolhida por permissão, nesta ordem: painel (`dashboard:read`), organizações (`platform_organizations:read`) e pacientes (`patients:read`).
 - **Menu:** um item por tela, agrupado em Cuidado, Gestão e Plataforma. Só aparece o item cuja permissão a sessão tem, para que o menu não leve a uma página de acesso negado. A mesma lista alimenta o menu lateral, o menu recolhível e a barra inferior.
 - **Celular:** abaixo de 900 px, o menu lateral vira um menu recolhível, aberto pela barra superior. Quem tem `follow_ups:create` (hoje, apenas o cuidador) navega por uma barra inferior, porque registra visitas com o aparelho na mão.
@@ -105,6 +113,8 @@ Os contrastes seguem a fórmula de luminância relativa da WCAG 2.1. O teste `te
 | --- | --- | --- | --- |
 | Login (Figura 31) | E-mail e senha | Código da organização, e-mail e senha | A API autentica o usuário dentro de uma organização. |
 | Login (Figura 31) | Link "Inscreva-se" | Removido | Organizações são cadastradas pelo administrador da plataforma; não existe cadastro público. |
+| Login e recuperação (Figuras 31 e 32) | Foto de uma profissional de saúde na coluna esquerda | Painel azul-marinho com a frase da marca e três destaques | A foto do protótipo não tem licença de uso conhecida. |
+| Recuperação de senha (Figura 32) | Três etapas: e-mail, código de seis dígitos e nova senha | Pedido com código da organização e e-mail, que mostra a orientação da API, e nova senha definida pelo link do e-mail | A API envia um link com token e não tem rota para código; sem servidor de e-mail, orienta a pedir uma senha temporária ao administrador. |
 | Registro de visita (Figuras 38 e 40) | Sem indicação de perfil | Apenas cuidador | Matriz de permissões da API. |
 | Medicamentos (Figura 41) | Percentual de adesão | Não exibido | A API não registra a tomada do medicamento. |
 | Configurações (Figura 46) | Plano "Pro – Clínica" | Planos Basic e Enterprise | Catálogo do Quadro 2 do TCC, adotado pela API. |
@@ -114,7 +124,7 @@ Os contrastes seguem a fórmula de luminância relativa da WCAG 2.1. O teste `te
 | Todas | Item "Dashboard" | Item "Painel" | Nome do requisito (RF015, painel operacional) e interface em português. |
 | Todas | Botão "Logout" no rodapé do menu lateral | "Sair" no menu do usuário, na barra superior | A barra superior existe em todos os layouts; a barra inferior do cuidador no celular não tem menu lateral. |
 
-Telas sem protótipo, necessárias para os fluxos da API: primeiro acesso (troca da senha provisória), equipe de cuidado do paciente, regras de alerta e, para o administrador da plataforma, organizações e planos.
+Telas sem protótipo, necessárias para os fluxos da API: primeiro acesso (troca da senha provisória), redefinição da senha pelo link, equipe de cuidado do paciente, regras de alerta e, para o administrador da plataforma, organizações e planos.
 
 ## Testes
 
@@ -125,7 +135,6 @@ Os testes usam Vitest e Testing Library e ficam em `tests/`, espelhando as pasta
 Situação conforme o `develop` do vitacare-backend em 09/11/2026 (commit `af58a2c`).
 
 - **Usuário autenticado:** o login devolve apenas o estado, o token e os prazos da sessão, e não há rota que devolva o usuário logado com perfil e permissões. Sem ela, o frontend não consegue montar o menu depois da integração.
-- **Recuperação de senha:** o protótipo (Figura 32) usa código de seis dígitos; a API envia por e-mail um link com token e, sem servidor de e-mail configurado, orienta o usuário a pedir uma senha temporária ao administrador. A tela segue o protótipo até a definição.
 - **Painel, relatórios e auditoria:** a API ainda não tem rotas para essas telas.
 - **Nome dos perfis:** a API devolve o nome do perfil sem acentuação ("Profissional de saude"). A interface mostra o nome pelo código do perfil, em `src/data/profiles.js`.
 - **Hospedagem:** o TCC prevê a Vercel; a documentação de deploy do backend reserva a porta 1040 da VPS para o frontend.
