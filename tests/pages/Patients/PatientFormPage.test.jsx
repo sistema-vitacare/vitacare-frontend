@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PATHS, patientPath } from '../../../src/constants/routes.js';
 import { patientFieldLabels as labels } from '../../../src/data/patientFields.js';
 import {
@@ -12,8 +12,22 @@ import {
   failNextRequest,
   resetMockState,
 } from '../../../src/services/mockApi.js';
+import { listEligibleUsers } from '../../../src/services/patientLinkService.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
+
+// A lista de responsáveis passa pelo serviço real; um teste a segura para
+// ver a tela no intervalo em que o paciente já chegou e ela ainda não.
+vi.mock(
+  '../../../src/services/patientLinkService.js',
+  async (importOriginal) => {
+    const original = await importOriginal();
+    return {
+      ...original,
+      listEligibleUsers: vi.fn(original.listEligibleUsers),
+    };
+  },
+);
 
 const DIRCE = '0b639b83-76d0-570a-9017-7b6263d892cf';
 const ALZIRA_INACTIVE = 'a2cacec9-94ff-5eae-b091-c9448add206b';
@@ -42,12 +56,14 @@ function type(name, value) {
   fireEvent.change(field(name), { target: { value } });
 }
 
+// O campo fica desabilitado até a lista de responsáveis chegar; clicar antes
+// disso não abre as opções.
 async function chooseResponsible(name) {
-  fireEvent.mouseDown(
-    screen.getByRole('combobox', {
-      name: new RegExp(labels.responsibleUserId),
-    }),
-  );
+  const responsible = screen.getByRole('combobox', {
+    name: new RegExp(labels.responsibleUserId),
+  });
+  await waitFor(() => expect(responsible).not.toHaveAttribute('aria-disabled'));
+  fireEvent.mouseDown(responsible);
   fireEvent.click(
     await screen.findByRole('option', { name: new RegExp(name) }),
   );
@@ -65,6 +81,7 @@ async function fillRequired() {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   resetMockState();
   resetViewport();
 });
@@ -211,11 +228,11 @@ describe('PatientFormPage na edição', () => {
     );
     expect(field('cpf')).toHaveValue('040.646.054-03');
     expect(
-      within(
+      await within(
         screen.getByRole('combobox', {
           name: new RegExp(labels.responsibleUserId),
         }),
-      ).getByText(/Rafael Moura Brandão/),
+      ).findByText(/Rafael Moura Brandão/),
     ).toBeInTheDocument();
 
     type('phone', '16990001111');
@@ -224,6 +241,39 @@ describe('PatientFormPage na edição', () => {
     await waitFor(() =>
       expect(router.state.location.pathname).toBe(patientPath(DIRCE)),
     );
+  });
+
+  it('espera a lista de responsáveis para mostrar o escolhido', async () => {
+    const { listEligibleUsers: original } = await vi.importActual(
+      '../../../src/services/patientLinkService.js',
+    );
+    let release;
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    listEligibleUsers.mockImplementationOnce(async (query) => {
+      await gate;
+      return original(query);
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    renderForm(patientPath(DIRCE, 'edit'));
+
+    await waitFor(() =>
+      expect(field('name')).toHaveValue('Dirce Albuquerque Moraes'),
+    );
+    const responsible = screen.getByRole('combobox', {
+      name: new RegExp(labels.responsibleUserId),
+    });
+    expect(responsible).toHaveAttribute('aria-disabled', 'true');
+    expect(warn).not.toHaveBeenCalledWith(
+      expect.stringContaining('out-of-range'),
+    );
+
+    release();
+    expect(
+      await within(responsible).findByText(/Rafael Moura Brandão/),
+    ).toBeInTheDocument();
+    expect(responsible).not.toHaveAttribute('aria-disabled');
   });
 
   it('não abre a edição de paciente inativo', async () => {

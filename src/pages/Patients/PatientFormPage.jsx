@@ -190,6 +190,12 @@ function PatientForm({ patient }) {
 
   const cancelTo = editing ? patientPath(patient.id) : PATHS.PATIENTS;
   const responsibleOptions = responsibles.data ?? [];
+  // Na edição o paciente chega antes da lista de responsáveis. Até a lista
+  // chegar, o campo fica vazio e desabilitado: um valor fora das opções
+  // deixaria o campo em branco sem explicação e faz o MUI avisar no console.
+  const responsibleKnown = responsibleOptions.some(
+    (user) => user.id === values.responsibleUserId,
+  );
 
   return (
     <Box component="form" noValidate onSubmit={handleSubmit}>
@@ -300,6 +306,8 @@ function PatientForm({ patient }) {
           </Box>
           <TextField
             {...fieldProps('responsibleUserId')}
+            value={responsibleKnown ? values.responsibleUserId : ''}
+            disabled={responsibles.status === 'loading'}
             select
             required
             helperText={
