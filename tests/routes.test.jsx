@@ -5,11 +5,19 @@ import { RouterProvider } from 'react-router/dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import SessionProvider from '../src/components/SessionProvider.jsx';
 import { PATHS } from '../src/constants/routes.js';
+import { accessFields } from '../src/data/access.js';
+import { firstAccessContent } from '../src/data/firstAccess.js';
 import { loginContent } from '../src/data/login.js';
+import {
+  DEMO_PASSWORD,
+  DEMO_RESET_LINK,
+} from '../src/data/mocks/credentials.js';
 import { navLabels } from '../src/data/navigation.js';
+import { recoveryContent, resetContent } from '../src/data/passwordRecovery.js';
 import { profileLabels } from '../src/data/profiles.js';
 import { statusContent } from '../src/data/status.js';
 import { appRoutes } from '../src/routes.jsx';
+import { resetMockState } from '../src/services/mockApi.js';
 import { theme } from '../src/styles/theme.js';
 import { resetViewport, setViewportWidth } from './support/viewport.js';
 
@@ -39,7 +47,25 @@ async function signInAs(profile) {
   );
 }
 
+// Entra pelo formulário de login, com a senha de demonstração.
+async function signInWithForm(email) {
+  await heading(loginContent.title);
+  const values = {
+    organizationCode: 'ipe-amarelo',
+    email,
+    password: DEMO_PASSWORD,
+  };
+  for (const [name, value] of Object.entries(values)) {
+    fireEvent.change(
+      screen.getByLabelText(accessFields[name].label, { selector: 'input' }),
+      { target: { value } },
+    );
+  }
+  fireEvent.click(screen.getByRole('button', { name: loginContent.submit }));
+}
+
 afterEach(() => {
+  resetMockState();
   resetViewport();
   vi.useRealTimers();
   vi.restoreAllMocks();
@@ -182,5 +208,43 @@ describe('rotas', () => {
     expect(await heading(loginContent.title)).toBeInTheDocument();
     expect(screen.queryByText(loginContent.expired)).not.toBeInTheDocument();
     expect(router.state.location.pathname).toBe(PATHS.LOGIN);
+  });
+
+  it('leva ao painel quem entra pelo formulário de login', async () => {
+    const router = renderApp(PATHS.LOGIN);
+
+    await signInWithForm('helena.vasconcelos@ipeamarelo.example');
+
+    expect(await heading(navLabels.dashboard)).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(PATHS.DASHBOARD);
+  });
+
+  it('abre a recuperação de senha pelo link do login, sem sessão', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await heading(loginContent.title);
+
+    fireEvent.click(
+      screen.getByRole('link', { name: loginContent.forgotPassword }),
+    );
+
+    expect(await heading(recoveryContent.title)).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(PATHS.PASSWORD_RECOVERY);
+  });
+
+  it('abre a redefinição de senha pelo endereço do link do e-mail, sem sessão', async () => {
+    renderApp(`${PATHS.PASSWORD_RESET}?token=${DEMO_RESET_LINK.token}`);
+
+    expect(await heading(resetContent.title)).toBeInTheDocument();
+  });
+
+  it('prende a sessão restrita no primeiro acesso', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await signInWithForm('edna.pires@ipeamarelo.example');
+    expect(await heading(firstAccessContent.title)).toBeInTheDocument();
+
+    await act(() => router.navigate(PATHS.PATIENTS));
+
+    expect(await heading(firstAccessContent.title)).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(PATHS.FIRST_ACCESS);
   });
 });
