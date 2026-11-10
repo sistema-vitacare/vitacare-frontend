@@ -41,15 +41,24 @@ git checkout -b fe-11-lista-pacientes
 | `npm run preview` | Serve localmente o conteúdo de `dist/`. |
 | `npm run lint` | ESLint sem tolerância a avisos e conferência de formatação pelo Prettier. |
 | `npm run format` | Formata os arquivos pelo Prettier. Arquivos Markdown ficam de fora. |
-| `npm run verify` | Lint e build, nessa ordem; para no primeiro erro. |
+| `npm test` | Roda todos os testes uma vez. |
+| `npm run verify` | Lint, testes e build, nessa ordem; para no primeiro erro. |
 
-O `npm run verify` precisa terminar sem erro antes da abertura do pull request.
+O `npm run verify` precisa terminar sem erro antes da abertura do pull request. O GitHub Actions roda o mesmo comando, no check `verify`, em todo pull request e push para `develop` e `main`.
+
+## Testes
+
+- Os testes usam Vitest e Testing Library e ficam em `tests/`, espelhando as pastas de `src/`, com o nome do arquivo testado seguido de `.test.js` ou `.test.jsx`.
+- Telas são testadas pelo que o usuário vê: textos, papéis acessíveis (`getByRole`) e o resultado das interações.
+- Lógica é escrita com o teste antes do código. O primeiro teste roda contra uma função que devolve um valor neutro, e só os casos do comportamento novo podem falhar.
+- Três verificações de projeto rodam junto com os testes: todo arquivo solto em `src/` e toda pasta de `src/` até dois níveis precisam de linha na tabela "Estrutura" do README; o marcador `TODO_PREENCHER`, usado para conteúdo ainda não definido, não pode aparecer em `src/`; e nenhuma cor fixa (hexadecimal, `rgb` ou `hsl`) pode aparecer em `src/` fora de `src/styles/`.
 
 ## Pull requests
 
 - Título: identificador do card e o que ele entrega. Exemplo: `FE-11 — Listagem de pacientes`.
 - Corpo: o que muda, como foi verificado e o que ficou de fora.
 - Destino: `develop`. A `main` recebe apenas a `develop`.
+- Merge só com o check `verify` verde.
 - Merge pela opção "Create a merge commit". As opções de squash e rebase reescrevem os commits da branch, e o squash junta todos em um só.
 
 ## Código
@@ -57,6 +66,7 @@ O `npm run verify` precisa terminar sem erro antes da abertura do pull request.
 - Nomes de arquivos, variáveis, funções e componentes em inglês.
 - Comentários, mensagens de teste e descrições de `describe` e `it` em português.
 - Comentário explica o porquê do trecho e o que quebra sem ele, não o que a linha faz.
+- Cores, raios e sombras vêm do tema, em `src/styles/theme.js`. Espaçamento usa a escala do tema no `sx` (`p: 2`, `gap: 1.5`), nunca valor em pixels.
 
 ## Documentação
 
