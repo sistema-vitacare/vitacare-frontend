@@ -16,8 +16,11 @@ As regras de negócio e a proteção dos dados pertencem à API. O frontend apre
 | Vitest 5 e Testing Library | Testes | O Vitest reaproveita a configuração do Vite; a Testing Library testa o que o usuário vê. |
 | Phosphor Icons | Ícones | Conjunto com traço uniforme, licença MIT. |
 | Plus Jakarta Sans | Tipografia | Fonte variável com algarismos tabulares, que alinham valores numéricos em tabelas e cartões; licença OFL. |
+| nginx 1.30, em imagem Docker sem root | Entrega do build em produção | Serve os arquivos estáticos com cache, compressão e cabeçalhos de segurança, sem Node na imagem final. |
 
 O ambiente usa Node.js 24, com versão mínima 24.15, exigida pelo jsdom dos testes.
+
+Em produção, o frontend roda na VPS do backend, na porta 1040, acessado por IP e sem HTTPS, e não na Vercel prevista no TCC. Cada merge na `main` publica uma imagem nova pelo GitHub Actions e pelo Portainer. O endereço da API chega ao app em tempo de execução, por `window.__VITACARE_CONFIG__.apiUrl` (`/config.js`), e não no build. Detalhes em [Deploy na VPS](deploy-vps.md).
 
 ## Camadas
 
@@ -137,4 +140,3 @@ Situação conforme o `develop` do vitacare-backend em 09/11/2026 (commit `af58a
 - **Usuário autenticado:** o login devolve apenas o estado, o token e os prazos da sessão, e não há rota que devolva o usuário logado com perfil e permissões. Sem ela, o frontend não consegue montar o menu depois da integração.
 - **Painel, relatórios e auditoria:** a API ainda não tem rotas para essas telas.
 - **Nome dos perfis:** a API devolve o nome do perfil sem acentuação ("Profissional de saude"). A interface mostra o nome pelo código do perfil, em `src/data/profiles.js`.
-- **Hospedagem:** o TCC prevê a Vercel; a documentação de deploy do backend reserva a porta 1040 da VPS para o frontend.

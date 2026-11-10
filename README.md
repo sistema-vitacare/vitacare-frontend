@@ -19,13 +19,21 @@ npm run dev
 
 O servidor de desenvolvimento abre em `http://localhost:5173`. Os demais scripts estão descritos no [guia de contribuição](CONTRIBUTING.md#scripts).
 
+Em produção, o frontend roda na VPS como um container nginx na porta 1040, publicado a cada merge na `main`. Para ensaiar a imagem de produção localmente, `docker compose up --build` abre em `http://localhost:1040`. O roteiro completo está em [Deploy na VPS](docs/deploy-vps.md).
+
 ## Estrutura
 
 | Caminho | Conteúdo |
 | --- | --- |
-| `.github/workflows/` | Integração contínua: lint, testes e build em cada pull request. |
+| `.github/workflows/` | Integração contínua e deploy: lint, testes, build e smoke da imagem em cada pull request; publicação em produção a cada push na `main`. |
+| `docker/` | Configuração do nginx da imagem de produção e validação do ambiente na subida do container. |
 | `docs/` | Documentação técnica. |
-| `public/` | Arquivos servidos sem processamento, como o ícone da aba e o símbolo do logotipo. |
+| `public/` | Arquivos servidos sem processamento, como o ícone da aba, o símbolo do logotipo e o `config.js` de desenvolvimento. |
+| `scripts/ops/` | Smoke da imagem de produção, usado no CI e no ensaio local. |
+| `Dockerfile` | Imagem de produção: build do Vite com Node e entrega com nginx sem root. |
+| `docker-compose.prod.yml` | Stack do Portainer na VPS, na porta 1040. |
+| `compose.yaml` | Ensaio local da imagem de produção. |
+| `.env.production.example` | Modelo das variáveis da stack de produção. |
 | `index.html` | Página base carregada pelo Vite. |
 | `src/main.jsx` | Ponto de entrada: monta a aplicação na página. |
 | `src/App.jsx` | Componente raiz: cria o roteador a partir da árvore de rotas. |
@@ -52,6 +60,7 @@ Todo arquivo solto em `src/` e toda pasta de `src/` até dois níveis precisam d
 ## Documentação
 
 - [Arquitetura](docs/arquitetura.md): tecnologias, camadas, dados simulados, perfis de acesso e identidade visual.
+- [Deploy na VPS](docs/deploy-vps.md): imagem, stack do Portainer, configuração, segurança e operação em produção.
 - [Como contribuir](CONTRIBUTING.md): branches, mensagens de commit, pull requests e documentação.
 
 ## Equipe
