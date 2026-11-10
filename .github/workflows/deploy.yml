@@ -1,19 +1,43 @@
-# Integração contínua: roda o mesmo `npm run verify` exigido antes de todo
-# pull request (lint, testes e build). Um erro em qualquer etapa deixa o
-# check vermelho no pull request.
-name: CI
+# CI e deploy de produção, no molde do vitacare-backend.
+#
+#   push/PR em develop ou PR para main → verify e imagem (build e smoke, sem push)
+#   push na main (o merge da develop)  → verify → imagem (+ push no GHCR) → deploy
+#
+#   1. verify: checagens do compose de produção e `npm run verify` (lint,
+#      testes e build), o mesmo comando exigido antes de todo pull request.
+#      É o nome do check obrigatório para o merge.
+#   2. imagem: build da imagem de produção e smoke com as restrições da stack
+#      (scripts/ops/smoke-image.sh). Na main, a MESMA imagem testada vai para
+#      o GHCR (ghcr.io/sistema-vitacare/vitacare-frontend).
+#   3. deploy: POST no webhook da stack; o Portainer baixa a imagem e recria o
+#      container, e o job espera /version.txt mostrar este commit.
+# Qualquer etapa que falha interrompe as seguintes.
+#
+# Actions fixadas por SHA do commit (a tag pode ser movida; o SHA, não). Para
+# atualizar: `git ls-remote --tags https://github.com/<dono>/<action>`.
+#
+# Configuração no GitHub (Settings → Secrets and variables → Actions):
+#   Secret   PORTAINER_WEBHOOK_URL   URL do webhook da stack (obrigatório)
+#   Variable APP_URL                 http://<IP>:1040 (acesso só por IP), sem /
+#                                    no fim (opcional; sem ela o job não confere
+#                                    se a versão nova entrou no ar)
+name: CI e deploy
 
 on:
   pull_request:
     branches: [develop, main]
   push:
     branches: [develop, main]
+  # Manual: no Portainer CE o webhook só redeploya se a main tiver commit novo.
+  # Sem commit novo, use "Pull and redeploy" na stack.
+  workflow_dispatch:
 
-# Um push novo na mesma branch cancela a verificação anterior, que já não
+# Dois merges seguidos não fazem dois deploys simultâneos; o segundo espera.
+# Fora da main, um push novo cancela a verificação do anterior, que já não
 # representa o código atual.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.ref == 'refs/heads/main' && 'deploy-producao' || format('ci-{0}', github.ref) }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
@@ -24,13 +48,35 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # O job só lê o código; sem isso, o token do GitHub ficaria gravado
           # na configuração do git do runner durante toda a execução.
           persist-credentials: false
 
-      - uses: actions/setup-node@v7
+      # O Dockerfile não lê o .nvmrc: a versão principal tem que bater à mão.
+      - name: Node do Dockerfile igual ao .nvmrc
+        run: |
+          nvmrc=$(cut -d. -f1 .nvmrc | tr -d 'v[:space:]')
+          dockerfile=$(sed -n 's/^ARG NODE_VERSION=\([0-9]*\).*/\1/p' Dockerfile)
+          if [ "$nvmrc" != "$dockerfile" ]; then
+            echo "::error::.nvmrc pede Node $nvmrc e o Dockerfile usa $dockerfile"; exit 1
+          fi
+
+      # `${A:-${B:?msg}}`: o docker compose aceita, o Portainer CE recusa a
+      # stack (avalia o `:?` de dentro mesmo com A definida).
+      - name: Compose de produção sem interpolação aninhada com :?
+        run: |
+          if grep -nE '\$\{[A-Za-z_]+:-\$\{[A-Za-z_]+:\?' docker-compose.prod.yml; then
+            echo "::error::Interpolação aninhada com :? — o Portainer recusa a stack."; exit 1
+          fi
+
+      - name: Compose de produção válido
+        run: docker compose -f docker-compose.prod.yml config --quiet
+        env:
+          API_URL: http://ci.invalid:1050
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -38,3 +84,110 @@ jobs:
       - run: npm ci
 
       - run: npm run verify
+
+  imagem:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      # Push no GHCR com o GITHUB_TOKEN, sem token extra. Só é usado no push da
+      # main; em pull request de fork o GitHub entrega o token só de leitura.
+      packages: write
+    env:
+      PUBLICA: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # O GHCR exige minúsculo.
+      - run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # Primeiro só build e carga local, para o smoke testar a imagem antes de
+      # qualquer push.
+      - name: Build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: runtime
+          load: true
+          build-args: GIT_SHA=${{ github.sha }}
+          tags: vitacare-frontend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke da imagem (restrições da stack de produção)
+        run: sh scripts/ops/smoke-image.sh
+        env:
+          IMAGE: vitacare-frontend:ci
+          EXPECT_VERSION: ${{ github.sha }}
+
+      - if: env.PUBLICA == 'true'
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Mesmas entradas do build acima: todas as camadas vêm do cache do
+      # builder, então o que sobe é a imagem que passou no smoke. :latest é o
+      # que a stack usa; :sha-<commit> fica para rollback.
+      - name: Push no GHCR
+        if: env.PUBLICA == 'true'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: runtime
+          push: true
+          build-args: GIT_SHA=${{ github.sha }}
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:sha-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          # Atestados de procedência e SBOM junto da imagem no GHCR.
+          provenance: mode=max
+          sbom: true
+
+  deploy:
+    needs: imagem
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+
+    steps:
+      # -k: o Portainer responde em https://IP:9443 com certificado autoassinado.
+      - name: Dispara o webhook da stack no Portainer
+        env:
+          PORTAINER_WEBHOOK_URL: ${{ secrets.PORTAINER_WEBHOOK_URL }}
+        run: |
+          if [ -z "$PORTAINER_WEBHOOK_URL" ]; then
+            echo "::error::Secret PORTAINER_WEBHOOK_URL não configurado"
+            exit 1
+          fi
+          curl -fsS -k -X POST --max-time 300 -o /dev/null "$PORTAINER_WEBHOOK_URL"
+
+      # /healthz responderia 200 também com a versão antiga; /version.txt só
+      # mostra este commit quando o container NOVO está servindo.
+      - name: Espera a versão nova entrar no ar
+        if: ${{ vars.APP_URL != '' }}
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          for i in $(seq 1 36); do
+            no_ar=$(curl -fsS --max-time 10 "$APP_URL/version.txt" 2>/dev/null || true)
+            if [ "$no_ar" = "$GITHUB_SHA" ] && curl -fsS -o /dev/null --max-time 10 "$APP_URL/healthz"; then
+              echo "Versão $GITHUB_SHA no ar em $APP_URL"
+              exit 0
+            fi
+            echo "Tentativa $i: no ar '${no_ar:-sem resposta}', aguardando 10s..."
+            sleep 10
+          done
+          echo "::error::A versão $GITHUB_SHA não entrou no ar em 6 minutos. Ver os logs: Grafana {stack=\"vitacare-frontend\"} ou o container app-vitacare-frontend no Portainer."
+          exit 1
