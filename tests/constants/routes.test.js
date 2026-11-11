@@ -8,6 +8,7 @@ import {
   NAV_ITEMS,
   PATHS,
   homePath,
+  patientPath,
   usesBottomNav,
   visibleNavItems,
 } from '../../src/constants/routes.js';
@@ -96,5 +97,19 @@ describe('barra inferior no celular', () => {
     ['platform_admin', false],
   ])('para o perfil %s: %s', (profile, expected) => {
     expect(usesBottomNav(canFor(profile))).toBe(expected);
+  });
+});
+
+describe('endereços do paciente', () => {
+  it('monta detalhe, edição e histórico a partir do id, com o id codificado', () => {
+    expect(patientPath('abc')).toBe('/pacientes/abc');
+    expect(patientPath('abc', 'edit')).toBe('/pacientes/abc/editar');
+    expect(patientPath('abc', 'history')).toBe('/pacientes/abc/historico');
+    expect(patientPath('a/b')).toBe('/pacientes/a%2Fb');
+  });
+
+  it('mantém o cadastro fora do padrão do detalhe', () => {
+    expect(PATHS.PATIENT_NEW).toBe('/pacientes/novo');
+    expect(PATHS.PATIENT_DETAIL).toBe('/pacientes/:patientId');
   });
 });

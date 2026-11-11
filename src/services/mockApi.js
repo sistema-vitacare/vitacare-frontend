@@ -109,3 +109,24 @@ export async function mockRequest(handler) {
   }
   return handler();
 }
+
+/**
+ * Confere a permissão da sessão como o guard da API: sem sessão, `401`; sem
+ * a permissão, `403`. `viewer` é a sessão simulada de `currentViewer()`.
+ */
+export function requirePermission(viewer, permission) {
+  if (!viewer) {
+    throw new ApiError({
+      status: 401,
+      code: 'AUTH_UNAUTHENTICATED',
+      message: 'Sessão inválida ou expirada.',
+    });
+  }
+  if (!viewer.permissions.includes(permission)) {
+    throw new ApiError({
+      status: 403,
+      code: 'AUTH_FORBIDDEN',
+      message: 'Você não tem permissão para esta ação.',
+    });
+  }
+}

@@ -72,4 +72,28 @@ describe('useSubmit', () => {
     expect(result.current.status).toBe('success');
     expect(result.current.error).toBeNull();
   });
+
+  it('devolve a quem chamou a resposta ou o erro do envio', async () => {
+    let fail = false;
+    const action = async () => {
+      if (fail) {
+        throw conflict();
+      }
+      return respond({ id: 'p1' });
+    };
+    const { result } = renderHook(() => useSubmit(action));
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.submit();
+    });
+    expect(outcome).toEqual({ data: { id: 'p1' }, error: null });
+
+    fail = true;
+    await act(async () => {
+      outcome = await result.current.submit();
+    });
+    expect(outcome.data).toBeNull();
+    expect(outcome.error.code).toBe('CONFLICT');
+  });
 });
