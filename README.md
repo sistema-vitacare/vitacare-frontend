@@ -19,36 +19,49 @@ npm run dev
 
 O servidor de desenvolvimento abre em `http://localhost:5173`. Os demais scripts estão descritos no [guia de contribuição](CONTRIBUTING.md#scripts).
 
+Em produção, o frontend roda na VPS como um container nginx na porta 1040, publicado a cada merge na `main`. Para ensaiar a imagem de produção localmente, `docker compose up --build` abre em `http://localhost:1040`. O roteiro completo está em [Deploy na VPS](docs/deploy-vps.md).
+
 ## Estrutura
 
 | Caminho | Conteúdo |
 | --- | --- |
-| `.github/workflows/` | Integração contínua: lint, testes e build em cada pull request. |
+| `.github/workflows/` | Integração contínua e deploy: lint, testes, build e smoke da imagem em cada pull request; publicação em produção a cada push na `main`. |
+| `docker/` | Configuração do nginx da imagem de produção e validação do ambiente na subida do container. |
 | `docs/` | Documentação técnica. |
-| `public/` | Arquivos servidos sem processamento, como o ícone da aba e o símbolo do logotipo. |
+| `public/` | Arquivos servidos sem processamento, como o ícone da aba, o símbolo do logotipo e o `config.js` de desenvolvimento. |
+| `scripts/ops/` | Smoke da imagem de produção, usado no CI e no ensaio local. |
+| `Dockerfile` | Imagem de produção: build do Vite com Node e entrega com nginx sem root. |
+| `docker-compose.prod.yml` | Stack do Portainer na VPS, na porta 1040. |
+| `compose.yaml` | Ensaio local da imagem de produção. |
+| `.env.production.example` | Modelo das variáveis da stack de produção. |
 | `index.html` | Página base carregada pelo Vite. |
 | `src/main.jsx` | Ponto de entrada: monta a aplicação na página. |
 | `src/App.jsx` | Componente raiz: cria o roteador a partir da árvore de rotas. |
 | `src/routes.jsx` | Árvore de rotas: layout, proteções por sessão e permissão e página de cada endereço. |
-| `src/components/` | Componentes usados em mais de um lugar, como o layout autenticado, o provedor de sessão e as proteções por sessão e por permissão. |
+| `src/components/` | Componentes usados em mais de um lugar, como o layout autenticado, o layout das telas de acesso, o cabeçalho de página, os estados de carregamento, vazio e erro, o provedor de sessão e as proteções por sessão e por permissão. |
 | `src/constants/` | Listas fechadas, como os endereços do sistema, os itens do menu e a matriz de permissões dos perfis. |
 | `src/data/` | Textos da interface. |
-| `src/data/mocks/` | Dados simulados de organização, usuários e pacientes, no formato da API. |
+| `src/data/mocks/` | Dados simulados no formato da API: organização, usuários, pacientes, credenciais de demonstração, vínculos de cuidado, formulários, registros, medicamentos e alertas. |
 | `src/pages/` | Telas, uma pasta por tela. |
 | `src/pages/Login/` | Entrada no sistema. |
+| `src/pages/Patients/` | Pacientes: listagem, cadastro e edição, detalhe com a equipe de cuidado e histórico com a evolução. |
+| `src/pages/PasswordRecovery/` | Pedido de recuperação de senha. |
+| `src/pages/PasswordReset/` | Redefinição da senha pelo link de recuperação. |
+| `src/pages/FirstAccess/` | Troca obrigatória da senha provisória no primeiro acesso. |
 | `src/pages/Status/` | Páginas de não encontrada, acesso negado, erro inesperado e tela em construção. |
-| `src/hooks/` | Hooks que ligam as telas aos serviços, como o `useResource`. |
+| `src/hooks/` | Hooks que ligam as telas aos serviços, como o `useResource`, para leitura, e o `useSubmit`, para envio. |
 | `src/services/` | Único ponto de acesso a dados; hoje responde com os dados simulados. |
 | `src/styles/` | Tema do Material UI: cores, tipografia, raios, sombras e movimento. |
-| `src/utils/` | Funções puras, como a validação de CPF e as iniciais do avatar. |
+| `src/utils/` | Funções puras: validações (CPF, campos de acesso, cadastro de paciente), máscaras, formatação de datas e os indicadores de evolução. |
 | `tests/` | Testes automatizados, espelhando as pastas de `src/`. |
-| `tests/support/` | Verificações de projeto usadas pelos testes. |
+| `tests/support/` | Apoio dos testes: verificações de projeto, cálculo de contraste, largura de tela simulada e renderização de telas com sessão de demonstração. |
 
 Todo arquivo solto em `src/` e toda pasta de `src/` até dois níveis precisam de uma linha nesta tabela; um teste falha quando falta alguma.
 
 ## Documentação
 
 - [Arquitetura](docs/arquitetura.md): tecnologias, camadas, dados simulados, perfis de acesso e identidade visual.
+- [Deploy na VPS](docs/deploy-vps.md): imagem, stack do Portainer, configuração, segurança e operação em produção.
 - [Como contribuir](CONTRIBUTING.md): branches, mensagens de commit, pull requests e documentação.
 
 ## Equipe

@@ -2,14 +2,61 @@ import AppShell from './components/AppShell.jsx';
 import HomeRedirect from './components/HomeRedirect.jsx';
 import RequirePermission from './components/RequirePermission.jsx';
 import RequireSession from './components/RequireSession.jsx';
+import { PERMISSIONS as P } from './constants/permissions.js';
 import { NAV_ITEMS, PATHS } from './constants/routes.js';
 import { navLabels } from './data/navigation.js';
+import FirstAccessPage from './pages/FirstAccess/FirstAccessPage.jsx';
 import LoginPage from './pages/Login/LoginPage.jsx';
+import PasswordRecoveryPage from './pages/PasswordRecovery/PasswordRecoveryPage.jsx';
+import PasswordResetPage from './pages/PasswordReset/PasswordResetPage.jsx';
+import PatientDetailPage from './pages/Patients/PatientDetailPage.jsx';
+import PatientFormPage from './pages/Patients/PatientFormPage.jsx';
+import PatientHistoryPage from './pages/Patients/PatientHistoryPage.jsx';
+import PatientListPage from './pages/Patients/PatientListPage.jsx';
 import StatusPage from './pages/Status/StatusPage.jsx';
 
 // Página de cada item do menu. Item sem página ainda mostra "em construção"
 // com o nome da tela; cada tela nova entra aqui.
-const screens = {};
+const screens = {
+  patients: <PatientListPage />,
+};
+
+// Telas abaixo de um item do menu, cada uma com a permissão que a API exige
+// para a ação dela. O cadastro (`/pacientes/novo`) vence o detalhe
+// (`/pacientes/:patientId`) porque o roteador prefere o trecho fixo.
+const subpages = [
+  {
+    path: PATHS.PATIENT_NEW,
+    permission: P.PATIENTS_CREATE,
+    element: <PatientFormPage />,
+  },
+  {
+    path: PATHS.PATIENT_DETAIL,
+    permission: P.PATIENTS_READ,
+    element: <PatientDetailPage />,
+  },
+  {
+    path: PATHS.PATIENT_EDIT,
+    permission: P.PATIENTS_UPDATE,
+    element: <PatientFormPage />,
+  },
+  {
+    path: PATHS.PATIENT_HISTORY,
+    permission: P.PATIENT_HISTORY_READ,
+    element: <PatientHistoryPage />,
+  },
+];
+
+function protect(permission, element) {
+  return (
+    <RequirePermission
+      permission={permission}
+      fallback={<StatusPage kind="accessDenied" />}
+    >
+      {element}
+    </RequirePermission>
+  );
+}
 
 function screenFor(item) {
   return (
@@ -25,7 +72,12 @@ export const appRoutes = [
     // pode ser justamente o que falhou.
     errorElement: <StatusPage kind="error" />,
     children: [
+      // Fora do `RequireSession`: quem esqueceu a senha não tem sessão, e o
+      // primeiro acesso usa a sessão restrita, que a própria tela confere.
       { path: PATHS.LOGIN, element: <LoginPage /> },
+      { path: PATHS.PASSWORD_RECOVERY, element: <PasswordRecoveryPage /> },
+      { path: PATHS.PASSWORD_RESET, element: <PasswordResetPage /> },
+      { path: PATHS.FIRST_ACCESS, element: <FirstAccessPage /> },
       {
         element: <RequireSession />,
         children: [
@@ -40,14 +92,11 @@ export const appRoutes = [
               },
               ...NAV_ITEMS.map((item) => ({
                 path: item.path,
-                element: (
-                  <RequirePermission
-                    permission={item.permission}
-                    fallback={<StatusPage kind="accessDenied" />}
-                  >
-                    {screenFor(item)}
-                  </RequirePermission>
-                ),
+                element: protect(item.permission, screenFor(item)),
+              })),
+              ...subpages.map((page) => ({
+                path: page.path,
+                element: protect(page.permission, page.element),
               })),
               { path: '*', element: <StatusPage kind="notFound" /> },
             ],

@@ -15,9 +15,16 @@ import { PERMISSIONS as P } from './permissions.js';
 
 export const PATHS = Object.freeze({
   LOGIN: '/login',
+  PASSWORD_RECOVERY: '/recuperar-senha',
+  PASSWORD_RESET: '/redefinir-senha',
+  FIRST_ACCESS: '/primeiro-acesso',
   HOME: '/',
   DASHBOARD: '/painel',
   PATIENTS: '/pacientes',
+  PATIENT_NEW: '/pacientes/novo',
+  PATIENT_DETAIL: '/pacientes/:patientId',
+  PATIENT_EDIT: '/pacientes/:patientId/editar',
+  PATIENT_HISTORY: '/pacientes/:patientId/historico',
   RECORDS: '/registros',
   MEDICATIONS: '/medicamentos',
   ALERTS: '/alertas',
@@ -140,4 +147,18 @@ export function homePath(can) {
  */
 export function usesBottomNav(can) {
   return can(P.FOLLOW_UPS_CREATE);
+}
+
+const PATIENT_SUBPAGES = Object.freeze({
+  edit: 'editar',
+  history: 'historico',
+});
+
+/**
+ * Endereço de uma página do paciente: detalhe (sem `page`), `edit` ou
+ * `history`. O id é codificado porque vem da API, e não do código.
+ */
+export function patientPath(patientId, page) {
+  const base = `${PATHS.PATIENTS}/${encodeURIComponent(patientId)}`;
+  return page ? `${base}/${PATIENT_SUBPAGES[page]}` : base;
 }

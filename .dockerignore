@@ -1,0 +1,11 @@
+# Lista de permissão: só entra no contexto do build o que o Dockerfile copia.
+# Qualquer arquivo novo (.env, chave, dump) fica de fora por padrão.
+*
+!package.json
+!package-lock.json
+!.npmrc
+!index.html
+!vite.config.js
+!public/
+!src/
+!docker/

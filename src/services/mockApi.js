@@ -34,8 +34,9 @@ function buildMeta(extra = {}) {
   };
 }
 
-export function respond(data) {
-  return { data, meta: buildMeta() };
+/** Resposta de sucesso; `meta` acrescenta campos, como a `message` da API. */
+export function respond(data, meta = {}) {
+  return { data, meta: buildMeta(meta) };
 }
 
 export function paginate(
@@ -84,8 +85,17 @@ export function failNextRequest(error = serverError()) {
   pendingFailure = error;
 }
 
+// Serviços com estado próprio (bloqueio de login, senha trocada) registram
+// aqui como voltar ao início, para que um teste não herde o estado do outro.
+const stateResets = new Set();
+
+export function registerMockState(reset) {
+  stateResets.add(reset);
+}
+
 export function resetMockState() {
   pendingFailure = null;
+  stateResets.forEach((reset) => reset());
 }
 
 export async function mockRequest(handler) {
@@ -98,4 +108,25 @@ export async function mockRequest(handler) {
     throw error;
   }
   return handler();
+}
+
+/**
+ * Confere a permissão da sessão como o guard da API: sem sessão, `401`; sem
+ * a permissão, `403`. `viewer` é a sessão simulada de `currentViewer()`.
+ */
+export function requirePermission(viewer, permission) {
+  if (!viewer) {
+    throw new ApiError({
+      status: 401,
+      code: 'AUTH_UNAUTHENTICATED',
+      message: 'Sessão inválida ou expirada.',
+    });
+  }
+  if (!viewer.permissions.includes(permission)) {
+    throw new ApiError({
+      status: 403,
+      code: 'AUTH_FORBIDDEN',
+      message: 'Você não tem permissão para esta ação.',
+    });
+  }
 }

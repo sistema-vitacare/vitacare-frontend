@@ -4,16 +4,28 @@ import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import SessionProvider from '../src/components/SessionProvider.jsx';
-import { PATHS } from '../src/constants/routes.js';
+import { PATHS, patientPath } from '../src/constants/routes.js';
+import { accessFields } from '../src/data/access.js';
+import { firstAccessContent } from '../src/data/firstAccess.js';
 import { loginContent } from '../src/data/login.js';
+import {
+  DEMO_PASSWORD,
+  DEMO_RESET_LINK,
+} from '../src/data/mocks/credentials.js';
 import { navLabels } from '../src/data/navigation.js';
+import { patientFormContent } from '../src/data/patientForm.js';
+import { patientHistoryContent } from '../src/data/patientHistory.js';
+import { recoveryContent, resetContent } from '../src/data/passwordRecovery.js';
 import { profileLabels } from '../src/data/profiles.js';
 import { statusContent } from '../src/data/status.js';
 import { appRoutes } from '../src/routes.jsx';
+import { resetMockState } from '../src/services/mockApi.js';
 import { theme } from '../src/styles/theme.js';
 import { resetViewport, setViewportWidth } from './support/viewport.js';
 
 const HOUR = 60 * 60 * 1000;
+
+const DIRCE = '0b639b83-76d0-570a-9017-7b6263d892cf';
 
 function renderApp(path, routes = appRoutes) {
   setViewportWidth(1440);
@@ -39,7 +51,25 @@ async function signInAs(profile) {
   );
 }
 
+// Entra pelo formulário de login, com a senha de demonstração.
+async function signInWithForm(email) {
+  await heading(loginContent.title);
+  const values = {
+    organizationCode: 'ipe-amarelo',
+    email,
+    password: DEMO_PASSWORD,
+  };
+  for (const [name, value] of Object.entries(values)) {
+    fireEvent.change(
+      screen.getByLabelText(accessFields[name].label, { selector: 'input' }),
+      { target: { value } },
+    );
+  }
+  fireEvent.click(screen.getByRole('button', { name: loginContent.submit }));
+}
+
 afterEach(() => {
+  resetMockState();
   resetViewport();
   vi.useRealTimers();
   vi.restoreAllMocks();
@@ -57,7 +87,8 @@ describe('rotas', () => {
     ['admin', PATHS.DASHBOARD, navLabels.dashboard],
     ['professional', PATHS.PATIENTS, navLabels.patients],
     ['caregiver', PATHS.PATIENTS, navLabels.patients],
-    ['family', PATHS.PATIENTS, navLabels.patients],
+    // A familiar com um único paciente vai direto ao acompanhamento dele.
+    ['family', patientPath(DIRCE, 'history'), patientHistoryContent.title],
     ['platform_admin', PATHS.ORGANIZATIONS, navLabels.organizations],
   ])(
     'leva o perfil %s, depois do atalho, para a página inicial %s',
@@ -119,7 +150,7 @@ describe('rotas', () => {
 
   it('mostra acesso negado na rota sem permissão', async () => {
     const router = renderApp(PATHS.LOGIN);
-    await signInAs('family');
+    await signInAs('caregiver');
     await heading(navLabels.patients);
 
     await act(() => router.navigate(PATHS.USERS));
@@ -129,7 +160,7 @@ describe('rotas', () => {
 
   it('não monta a tela da rota sem permissão', async () => {
     const router = renderApp(PATHS.LOGIN);
-    await signInAs('family');
+    await signInAs('caregiver');
     await heading(navLabels.patients);
 
     await act(() => router.navigate(PATHS.USERS));
@@ -182,5 +213,70 @@ describe('rotas', () => {
     expect(await heading(loginContent.title)).toBeInTheDocument();
     expect(screen.queryByText(loginContent.expired)).not.toBeInTheDocument();
     expect(router.state.location.pathname).toBe(PATHS.LOGIN);
+  });
+
+  it('leva ao painel quem entra pelo formulário de login', async () => {
+    const router = renderApp(PATHS.LOGIN);
+
+    await signInWithForm('helena.vasconcelos@ipeamarelo.example');
+
+    expect(await heading(navLabels.dashboard)).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(PATHS.DASHBOARD);
+  });
+
+  it('abre a recuperação de senha pelo link do login, sem sessão', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await heading(loginContent.title);
+
+    fireEvent.click(
+      screen.getByRole('link', { name: loginContent.forgotPassword }),
+    );
+
+    expect(await heading(recoveryContent.title)).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(PATHS.PASSWORD_RECOVERY);
+  });
+
+  it('abre a redefinição de senha pelo endereço do link do e-mail, sem sessão', async () => {
+    renderApp(`${PATHS.PASSWORD_RESET}?token=${DEMO_RESET_LINK.token}`);
+
+    expect(await heading(resetContent.title)).toBeInTheDocument();
+  });
+
+  it('prende a sessão restrita no primeiro acesso', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await signInWithForm('edna.pires@ipeamarelo.example');
+    expect(await heading(firstAccessContent.title)).toBeInTheDocument();
+
+    await act(() => router.navigate(PATHS.PATIENTS));
+
+    expect(await heading(firstAccessContent.title)).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(PATHS.FIRST_ACCESS);
+  });
+
+  it('liga a lista de pacientes ao detalhe, ao cadastro e ao histórico', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await signInAs('professional');
+    expect(await heading(navLabels.patients)).toBeInTheDocument();
+
+    fireEvent.click(
+      await screen.findByRole('link', { name: 'Dirce Albuquerque Moraes' }),
+    );
+    expect(await heading('Dirce Albuquerque Moraes')).toBeInTheDocument();
+
+    await act(() => router.navigate(patientPath(DIRCE, 'history')));
+    expect(await heading(patientHistoryContent.title)).toBeInTheDocument();
+
+    await act(() => router.navigate(PATHS.PATIENT_NEW));
+    expect(await heading(patientFormContent.newTitle)).toBeInTheDocument();
+  });
+
+  it('protege o cadastro de paciente pela permissão de cadastrar', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await signInAs('caregiver');
+    await heading(navLabels.patients);
+
+    await act(() => router.navigate(PATHS.PATIENT_NEW));
+
+    expect(await heading(statusContent.accessDenied.title)).toBeInTheDocument();
   });
 });
