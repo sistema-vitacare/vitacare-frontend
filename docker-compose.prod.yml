@@ -1,0 +1,83 @@
+# Compose de PRODUÇÃO: é este arquivo que a stack do Portainer lê
+# (Stacks → Repository → Compose path: docker-compose.prod.yml).
+# O compose.yaml é o ensaio local da mesma imagem (build na máquina).
+#
+# Fluxo do deploy (docs/deploy-vps.md):
+#   merge develop → main → GitHub Actions: verify → imagem (build, smoke, GHCR)
+#   → webhook → Portainer baixa a imagem e recria o container app-vitacare-frontend
+#   → nginx sem root serve o build do Vite na porta 1040
+#
+# Container único e sem estado: nada de banco, Redis nem volume. O frontend
+# fala só com a API (API_URL), pelo navegador do usuário.
+#
+# Nenhum .env vai para a imagem (.dockerignore) nem para o repositório. Os
+# valores ficam nas "Environment variables" da stack no Portainer, e o Compose
+# os interpola abaixo. Modelo: .env.production.example.
+# Variável com `:?` é obrigatória: sem ela a stack nem sobe, com a mensagem.
+# Nunca pôr um `:?` dentro do default de outra variável: o Portainer CE recusa
+# a stack mesmo com a variável de fora definida. O CI barra esse padrão.
+services:
+  app:
+    # Imagem buildada pelo GitHub Actions, sem `build:`: o Portainer não
+    # rebuilda no webhook. Rollback: APP_IMAGE=...:sha-<commit> na stack.
+    image: ${APP_IMAGE:-ghcr.io/sistema-vitacare/vitacare-frontend:latest}
+    # Todo `compose up` (o redeploy do webhook) baixa a imagem; faz o papel do
+    # "Re-pull image", pago no Portainer CE.
+    pull_policy: always
+    container_name: app-vitacare-frontend
+    restart: unless-stopped
+    environment:
+      # Origem da API, sem / no fim. Vira o /config.js lido pelo app e o
+      # connect-src da Content-Security-Policy. Valor inválido: o container
+      # não sobe e o log diz por quê.
+      API_URL: ${API_URL:?Defina API_URL com a origem da API (http://<IP-da-VPS>:1050)}
+    ports:
+      # 127.0.0.1 por padrão. O acesso é sempre por http://IP:1040, sem
+      # domínio nem HTTPS (decisão de 2026-11-10): a stack usa APP_BIND=0.0.0.0.
+      - '${APP_BIND:-127.0.0.1}:1040:1040'
+    labels:
+      # Vira o label `stack` no Loki; igual ao nome da stack no Portainer.
+      stack: vitacare-frontend
+    logging:
+      # Sem teto, um loop de erro enche o disco da VPS. O Loki é a memória
+      # longa; este arquivo é só o buffer que o Alloy lê.
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+    # Sistema de arquivos só leitura: uma falha no nginx não grava nada fora
+    # dos dois tmpfs. O conf.d recebe a configuração renderizada na subida.
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+      - /etc/nginx/conf.d:uid=101,gid=101,mode=0700,size=1m
+    # nginx sem root numa porta acima de 1024: nenhuma capability é necessária.
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # Arquivos estáticos: pouca RAM e CPU. O teto protege o resto da VPS.
+    mem_limit: ${APP_MEM_LIMIT:-128m}
+    cpus: ${APP_CPUS:-0.5}
+    pids_limit: 64
+    healthcheck:
+      # Docker não reinicia unhealthy: o alerta "Container unhealthy" avisa.
+      test:
+        [
+          'CMD-SHELL',
+          'wget -qO /dev/null http://127.0.0.1:1040/healthz || exit 1',
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      # Rede padrão das stacks, como no backend; sem uso no acesso por IP. A
+      # `infra` fica de fora: o frontend não precisa enxergar banco nem Redis.
+      - proxy
+
+networks:
+  # Criada pela stack `proxy`.
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:-proxy}

@@ -6,7 +6,7 @@ Este guia define como o código entra no repositório: branches, mensagens de co
 
 | Branch | Função |
 | --- | --- |
-| `main` | Versão estável. Recebe a `develop` uma vez, quando todas as telas estão prontas (fim do Bloco 7). |
+| `main` | Versão estável. Recebe a `develop` uma vez, quando todas as telas estão prontas (fim do Bloco 7). Cada push na `main` publica em produção ([deploy](docs/deploy-vps.md)). |
 | `develop` | Integração. Todo trabalho novo sai dela e volta para ela por pull request. |
 | `bloco-N-assunto` | Uma por bloco de telas do backlog: número do bloco e um resumo curto, em minúsculas e separado por hífens. Os cards do bloco entram nela como commits. Exemplo: `bloco-2-pacientes`. |
 | `fe-NN-assunto` | Uma por card de fundação ou de manutenção, que não pertence a um bloco: identificador do card e um resumo curto. Exemplo: `fe-31-alerta-minimatch`. |
@@ -45,7 +45,7 @@ git checkout -b bloco-2-pacientes
 | `npm test` | Roda todos os testes uma vez. |
 | `npm run verify` | Lint, testes e build, nessa ordem; para no primeiro erro. |
 
-O `npm run verify` precisa terminar sem erro antes da abertura do pull request. O GitHub Actions roda o mesmo comando, no check `verify`, em todo pull request e push para `develop` e `main`.
+O `npm run verify` precisa terminar sem erro antes da abertura do pull request. O GitHub Actions roda o mesmo comando, no check `verify`, em todo pull request e push para `develop` e `main`; em seguida, o job `imagem` gera a imagem de produção e a testa com `scripts/ops/smoke-image.sh`. Na `main`, a imagem testada é publicada e o job `deploy` a coloca no ar.
 
 ## Testes
 
