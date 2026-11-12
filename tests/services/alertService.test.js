@@ -1,6 +1,10 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { listPatientAlerts } from '../../src/services/alertService.js';
+import {
+  getAlert,
+  listPatientAlerts,
+  resolveAlert,
+} from '../../src/services/alertService.js';
 import { startDemoSession } from '../../src/services/authService.js';
 import { createFollowUp } from '../../src/services/followUpService.js';
 import { resetMockState } from '../../src/services/mockApi.js';
@@ -78,5 +82,90 @@ describe('listPatientAlerts', () => {
     await expect(listPatientAlerts({ patientId: DIRCE })).rejects.toMatchObject(
       { status: 403 },
     );
+  });
+});
+
+async function firstOpenAlert(patientId) {
+  const { data } = await listPatientAlerts({ patientId, status: 'open' });
+  return data[0];
+}
+
+describe('getAlert', () => {
+  it('devolve o alerta de um paciente ao alcance, de qualquer origem', async () => {
+    await startDemoSession('professional');
+    const { data: list } = await listPatientAlerts({ patientId: OSVALDO });
+
+    const { data } = await getAlert(list[0].id);
+
+    expect(data).toEqual(list[0]);
+  });
+
+  it('responde 404 para alerta inexistente ou de paciente fora do alcance, e 403 sem a permissão', async () => {
+    await startDemoSession('professional');
+    const outside = await firstOpenAlert(IOLANDA);
+
+    await startDemoSession('caregiver');
+    await expect(getAlert(outside.id)).rejects.toMatchObject({
+      status: 404,
+      code: 'ALERT_NOT_FOUND',
+    });
+    await expect(getAlert('nao-existe')).rejects.toMatchObject({
+      status: 404,
+    });
+
+    await startDemoSession('platform_admin');
+    await expect(getAlert(outside.id)).rejects.toMatchObject({ status: 403 });
+  });
+});
+
+describe('resolveAlert', () => {
+  it('resolve para todos, com quem resolveu e quando, e o alerta passa aos resolvidos', async () => {
+    await startDemoSession('caregiver');
+    const open = await firstOpenAlert(OSVALDO);
+
+    const { data } = await resolveAlert(open.id);
+
+    expect(data).toMatchObject({
+      id: open.id,
+      status: 'resolved',
+      resolution: {
+        resolvedAt: NOW.toISOString(),
+        resolvedBy: { name: 'Rosângela Prado' },
+      },
+    });
+    await startDemoSession('professional');
+    const resolved = await listPatientAlerts({
+      patientId: OSVALDO,
+      status: 'resolved',
+    });
+    expect(resolved.data.map((alert) => alert.id)).toContain(open.id);
+  });
+
+  it('responde 409 ao alerta já resolvido, por qualquer pessoa', async () => {
+    await startDemoSession('professional');
+    const open = await firstOpenAlert(OSVALDO);
+    await resolveAlert(open.id);
+
+    await startDemoSession('caregiver');
+    await expect(resolveAlert(open.id)).rejects.toMatchObject({
+      status: 409,
+      code: 'ALERT_ALREADY_RESOLVED',
+    });
+  });
+
+  it('não deixa o familiar resolver e responde 404 fora do alcance', async () => {
+    await startDemoSession('professional');
+    const dirce = await firstOpenAlert(DIRCE);
+    const iolanda = await firstOpenAlert(IOLANDA);
+
+    await startDemoSession('family');
+    await expect(resolveAlert(dirce.id)).rejects.toMatchObject({
+      status: 403,
+    });
+    await startDemoSession('caregiver');
+    await expect(resolveAlert(iolanda.id)).rejects.toMatchObject({
+      status: 404,
+      code: 'ALERT_NOT_FOUND',
+    });
   });
 });

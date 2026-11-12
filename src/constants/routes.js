@@ -30,6 +30,7 @@ export const PATHS = Object.freeze({
   RECORD_DETAIL: '/registros/:followUpId',
   MEDICATIONS: '/medicamentos',
   ALERTS: '/alertas',
+  ALERT_DETAIL: '/alertas/:alertId',
   FORMS: '/formularios',
   FORM_NEW: '/formularios/novo',
   FORM_DETAIL: '/formularios/:formId',
@@ -179,15 +180,34 @@ export function recordPath(followUpId) {
   return `${PATHS.RECORDS}/${encodeURIComponent(followUpId)}`;
 }
 
-// Paciente da lista de registros, no endereço: a API pede o paciente, e o
-// "voltar" do navegador e o detalhe do registro trazem a lista de volta.
-export const RECORDS_PATIENT_PARAM = 'paciente';
+/** Detalhe do alerta; o id vem da API e é codificado. */
+export function alertPath(alertId) {
+  return `${PATHS.ALERTS}/${encodeURIComponent(alertId)}`;
+}
+
+// Paciente das listas que a API só devolve por paciente (registros,
+// medicamentos e alertas), no endereço: o "voltar" do navegador e os links
+// das outras telas trazem a lista dele de volta.
+export const PATIENT_PARAM = 'paciente';
+
+function withPatient(path, patientId) {
+  if (!patientId) {
+    return path;
+  }
+  return `${path}?${new URLSearchParams([[PATIENT_PARAM, patientId]])}`;
+}
 
 /** Lista de registros, já com o paciente escolhido quando há um. */
 export function recordsPath(patientId) {
-  if (!patientId) {
-    return PATHS.RECORDS;
-  }
-  const query = new URLSearchParams([[RECORDS_PATIENT_PARAM, patientId]]);
-  return `${PATHS.RECORDS}?${query}`;
+  return withPatient(PATHS.RECORDS, patientId);
+}
+
+/** Medicamentos, já com o paciente escolhido quando há um. */
+export function medicationsPath(patientId) {
+  return withPatient(PATHS.MEDICATIONS, patientId);
+}
+
+/** Alertas, já com o paciente escolhido quando há um. */
+export function alertsPath(patientId) {
+  return withPatient(PATHS.ALERTS, patientId);
 }

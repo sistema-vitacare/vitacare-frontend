@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Card, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Stack, Typography } from '@mui/material';
 import { useCallback, useState } from 'react';
 import {
   Link as RouterLink,
@@ -10,6 +10,7 @@ import ConfirmDialog from '../../components/ConfirmDialog.jsx';
 import FormStatusChip from '../../components/FormStatusChip.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import ResourceState from '../../components/ResourceState.jsx';
+import SectionCard from '../../components/SectionCard.jsx';
 import { PERMISSIONS as P } from '../../constants/permissions.js';
 import { PATHS, formPath } from '../../constants/routes.js';
 import { formPageContent as content } from '../../data/formPage.js';
@@ -37,6 +38,7 @@ import {
   validateFormData,
 } from '../../utils/formEditor.js';
 import { formatDate, formatDateTime } from '../../utils/format.js';
+import AlertRulesSection from './AlertRulesSection.jsx';
 import FieldsEditor from './FieldsEditor.jsx';
 import FormDataFields, { FormDataSummary } from './FormDataFields.jsx';
 
@@ -66,17 +68,6 @@ function errorMessage(error) {
     return content.errors.invalidFields;
   }
   return content.errors.unexpected;
-}
-
-function SectionCard({ title, children }) {
-  return (
-    <Card sx={{ p: { xs: 2, md: 3 } }}>
-      <Typography variant="h2" sx={{ mb: 2 }}>
-        {title}
-      </Typography>
-      {children}
-    </Card>
-  );
 }
 
 function StatusAction({ form, onChanged }) {
@@ -436,6 +427,9 @@ function FormEditor({ initialForm, initialNotice }) {
             ) : null}
           </Stack>
         </SectionCard>
+        {!isNew && can(P.ALERT_RULES_MANAGE) ? (
+          <AlertRulesSection form={form} />
+        ) : null}
       </Stack>
       {published ? (
         <ConfirmDialog

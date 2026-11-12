@@ -39,18 +39,6 @@ export const patientFieldLabels = {
 /** Texto no lugar de um campo que a API oculta para o familiar. */
 export const maskedFieldText = 'Não exibido para o seu perfil';
 
-export const doseUnitLabels = {
-  mg: 'mg',
-  mcg: 'mcg',
-  g: 'g',
-  ml: 'ml',
-  iu: 'UI',
-  drops: 'gotas',
-  tablet: 'comprimido',
-  capsule: 'cápsula',
-  application: 'aplicação',
-};
-
 export const severityLabels = {
   critical: 'Crítico',
   warning: 'Atenção',

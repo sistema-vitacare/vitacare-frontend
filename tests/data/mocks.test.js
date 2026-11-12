@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { alertRules, alertsAsOf } from '../../src/data/mocks/alerts.js';
+import { alertRules } from '../../src/data/mocks/alertRules.js';
+import { alertsAsOf } from '../../src/data/mocks/alerts.js';
 import { attachmentsAsOf } from '../../src/data/mocks/attachments.js';
 import { forms } from '../../src/data/mocks/forms.js';
 import { followUpsAsOf } from '../../src/data/mocks/followUps.js';
@@ -13,7 +14,15 @@ import {
   platformOrganization,
 } from '../../src/data/mocks/platform.js';
 import { users } from '../../src/data/mocks/users.js';
+import { matchesOperator } from '../../src/utils/alertRules.js';
+import {
+  absenceMessage,
+  reminderMessage,
+} from '../../src/utils/alertMessages.js';
 import { isValidCpf } from '../../src/utils/cpf.js';
+import { todayInSaoPaulo } from '../../src/utils/format.js';
+import { medicationErrors } from '../../src/utils/medicationFields.js';
+import { occurrencesBetween } from '../../src/utils/medicationSchedule.js';
 
 const people = [...users, ...patients];
 
@@ -235,16 +244,142 @@ describe('dados simulados de acompanhamento', () => {
     expect(wrong.map((attachment) => attachment.id)).toEqual([]);
   });
 
-  it('geram alerta de leitura só quando o valor passa da referência da regra', () => {
-    const rules = new Map(alertRules.map((rule) => [rule.id, rule]));
-    const wrong = alertsAsOf(now)
-      .filter((alert) => alert.source === 'reading')
-      .filter(
-        (alert) =>
-          !(Number(alert.value) > rules.get(alert.rule.id).referenceValue),
+  it('têm regras sobre campo numérico ou de escala da versão vigente de formulário ativo', () => {
+    const formById = new Map(forms.map((form) => [form.id, form]));
+    const wrong = alertRules.filter((rule) => {
+      const form = formById.get(rule.form.id);
+      const field = form?.versions
+        .at(-1)
+        ?.fields.find((item) => item.fieldKey === rule.field.key);
+      return (
+        form?.status !== 'active' ||
+        !['number', 'scale'].includes(field?.fieldType) ||
+        field.name !== rule.field.name ||
+        field.unit !== rule.field.unit ||
+        rule.form.name !== form.name
       );
+    });
 
-    expect(wrong).toEqual([]);
+    expect(wrong.map((rule) => rule.name)).toEqual([]);
+  });
+
+  it('têm regra de paciente só para paciente ativo a que o formulário se aplica', () => {
+    const formById = new Map(forms.map((form) => [form.id, form]));
+    const own = alertRules.filter((rule) => rule.patient);
+    const wrong = own.filter((rule) => {
+      const form = formById.get(rule.form.id);
+      const patient = patientById.get(rule.patient.id);
+      return (
+        patient?.status !== 'active' ||
+        patient.name !== rule.patient.name ||
+        (form.audience !== 'organization' &&
+          !form.patientIds.includes(patient.id))
+      );
+    });
+
+    expect(own.length).toBeGreaterThan(0);
+    expect(wrong.map((rule) => rule.name)).toEqual([]);
+  });
+
+  it('têm regras criadas antes de todos os registros simulados, e a inativa com data de desativação', () => {
+    const first = followUpsAsOf(now)
+      .map((followUp) => followUp.submittedAt)
+      .sort()[0];
+    const wrong = alertRules.filter(
+      (rule) =>
+        rule.createdAt >= first ||
+        (rule.status === 'inactive') !== (rule.deactivatedAt !== null),
+    );
+
+    expect(alertRules.some((rule) => rule.status === 'inactive')).toBe(true);
+    expect(wrong.map((rule) => rule.name)).toEqual([]);
+  });
+
+  it('geram alerta de leitura só quando o valor satisfaz a regra, com a severidade dela', () => {
+    const rules = new Map(alertRules.map((rule) => [rule.id, rule]));
+    const reading = alertsAsOf(now).filter(
+      (alert) => alert.source === 'reading',
+    );
+    const wrong = reading.filter((alert) => {
+      const rule = rules.get(alert.rule.id);
+      return (
+        !matchesOperator(
+          rule.operator,
+          Number(alert.value),
+          rule.referenceValue,
+        ) ||
+        alert.severity !== rule.severity ||
+        alert.operator !== rule.operator ||
+        (rule.patient && rule.patient.id !== alert.patient.id)
+      );
+    });
+
+    expect(reading.some((alert) => alert.operator === 'lt')).toBe(true);
+    expect(wrong.map((alert) => alert.id)).toEqual([]);
+  });
+
+  it('geram lembretes só dos medicamentos ativos com lembrete, nos horários das últimas 24 horas', () => {
+    const medicationById = new Map(
+      medications.map((medication) => [medication.id, medication]),
+    );
+    const from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const reminders = alertsAsOf(now).filter(
+      (alert) => alert.source === 'medication_reminder',
+    );
+    const wrong = reminders.filter((alert) => {
+      const medication = medicationById.get(
+        alert.medicationReminder.medication.id,
+      );
+      const { scheduledAt } = alert.medicationReminder;
+      return (
+        medication.status !== 'active' ||
+        !medication.remindersEnabled ||
+        alert.patient.id !== medication.patientId ||
+        alert.severity !== 'info' ||
+        !occurrencesBetween(medication.schedule, from, now)
+          .map((instant) => instant.toISOString())
+          .includes(scheduledAt) ||
+        alert.generatedAt < scheduledAt ||
+        alert.generatedAt > now.toISOString() ||
+        alert.message !==
+          reminderMessage({
+            medicationName: medication.name,
+            doseAmount: medication.doseAmount,
+            doseUnit: medication.doseUnit,
+            scheduledAt,
+          })
+      );
+    });
+
+    expect(reminders.length).toBeGreaterThan(0);
+    expect(wrong.map((alert) => alert.id)).toEqual([]);
+  });
+
+  it('geram a ausência de formulário com frequência que vale para o paciente, com a mensagem da API', () => {
+    const formById = new Map(forms.map((form) => [form.id, form]));
+    const absences = alertsAsOf(now).filter(
+      (alert) => alert.source === 'absence',
+    );
+    const wrong = absences.filter((alert) => {
+      const form = formById.get(alert.absence.form.id);
+      return (
+        !form.frequency ||
+        (form.audience !== 'organization' &&
+          !form.patientIds.includes(alert.patient.id)) ||
+        alert.severity !== 'warning' ||
+        alert.absence.dueAt <= alert.absence.since ||
+        alert.generatedAt < alert.absence.dueAt ||
+        alert.message !==
+          absenceMessage({
+            formName: form.name,
+            since: alert.absence.since,
+            frequency: form.frequency,
+          })
+      );
+    });
+
+    expect(absences).toHaveLength(1);
+    expect(wrong.map((alert) => alert.id)).toEqual([]);
   });
 
   it('geram cada alerta de leitura depois do envio do registro de origem', () => {
@@ -267,41 +402,42 @@ describe('dados simulados de acompanhamento', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('têm medicamentos de pacientes ativos, com unidade e via aceitas pela API', () => {
-    const units = [
-      'mg',
-      'mcg',
-      'g',
-      'ml',
-      'iu',
-      'drops',
-      'tablet',
-      'capsule',
-      'application',
-    ];
-    const routes = [
-      'oral',
-      'sublingual',
-      'topical',
-      'transdermal',
-      'inhalation',
-      'nasal',
-      'ophthalmic',
-      'otic',
-      'rectal',
-      'vaginal',
-      'subcutaneous',
-      'intramuscular',
-      'intravenous',
-      'other',
-    ];
+  it('têm medicamentos de pacientes ativos, com os campos que a API aceita', () => {
+    const today = todayInSaoPaulo(now);
     const wrong = medications.filter(
       (medication) =>
         patientById.get(medication.patientId)?.status !== 'active' ||
-        !units.includes(medication.doseUnit) ||
-        !routes.includes(medication.route),
+        medicationErrors(
+          {
+            patientId: medication.patientId,
+            name: medication.name,
+            doseAmount: medication.doseAmount,
+            doseUnit: medication.doseUnit,
+            route: medication.route,
+            notes: medication.notes,
+            startDate: medication.schedule.startDate,
+            endDate: medication.schedule.endDate,
+            intervalDays: medication.schedule.intervalDays,
+            times: medication.schedule.times,
+            remindersEnabled: medication.remindersEnabled,
+          },
+          { today },
+        ).length > 0,
     );
 
+    expect(wrong.map((medication) => medication.name)).toEqual([]);
+  });
+
+  it('têm medicamentos com situação coerente com a inativação e pelo menos um inativo', () => {
+    const wrong = medications.filter(
+      (medication) =>
+        (medication.status === 'inactive') !==
+          (medication.deactivatedAt !== null) ||
+        medication.createdAt >
+          (medication.deactivatedAt ?? medication.createdAt),
+    );
+
+    expect(medications.some((item) => item.status === 'inactive')).toBe(true);
     expect(wrong.map((medication) => medication.name)).toEqual([]);
   });
 });

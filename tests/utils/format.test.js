@@ -6,6 +6,7 @@ import {
   formatAnswer,
   formatDate,
   formatDateTime,
+  formatDose,
   formatNumber,
   isMasked,
   todayInSaoPaulo,
@@ -92,5 +93,20 @@ describe('formatAnswer', () => {
     expect(
       formatAnswer(answer('multiple_choice', ['Banho', 'Curativo']), labels),
     ).toBe('Banho, Curativo');
+  });
+});
+
+describe('formatDose', () => {
+  const labels = {
+    mg: { one: 'mg', many: 'mg' },
+    tablet: { one: 'comprimido', many: 'comprimidos' },
+  };
+
+  it('usa vírgula decimal, até três casas, e o plural acima de um', () => {
+    expect(formatDose(0.5, 'tablet', labels)).toBe('0,5 comprimido');
+    expect(formatDose(1, 'tablet', labels)).toBe('1 comprimido');
+    expect(formatDose(2, 'tablet', labels)).toBe('2 comprimidos');
+    expect(formatDose(0.125, 'mg', labels)).toBe('0,125 mg');
+    expect(formatDose(850, 'mg', labels)).toBe('850 mg');
   });
 });

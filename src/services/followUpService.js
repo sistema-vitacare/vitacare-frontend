@@ -4,6 +4,7 @@
 import { PERMISSIONS as P } from '../constants/permissions.js';
 import { checkAnswers } from '../utils/followUpAnswers.js';
 import { todayInSaoPaulo } from '../utils/format.js';
+import { recordFollowUpAlerts } from './alertStore.js';
 import { currentViewer } from './authService.js';
 import {
   addFollowUp,
@@ -250,6 +251,7 @@ export function createFollowUp(body) {
         })),
     };
     addFollowUp(followUp);
+    recordFollowUpAlerts(followUp);
     return respond(followUp);
   });
 }

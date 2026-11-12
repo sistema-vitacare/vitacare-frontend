@@ -16,12 +16,19 @@ import ConfirmDialog from '../../components/ConfirmDialog.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import PatientSummary from '../../components/PatientSummary.jsx';
 import ResourceState from '../../components/ResourceState.jsx';
+import SectionCard from '../../components/SectionCard.jsx';
+import { SEVERITY_TONE } from '../../constants/alerts.js';
 import { PERMISSIONS as P } from '../../constants/permissions.js';
-import { PATHS, patientPath } from '../../constants/routes.js';
+import {
+  PATHS,
+  alertsPath,
+  medicationsPath,
+  patientPath,
+} from '../../constants/routes.js';
+import { doseUnitNames } from '../../data/medicationPages.js';
 import { navLabels } from '../../data/navigation.js';
 import { patientDetailContent as content } from '../../data/patientDetail.js';
 import {
-  doseUnitLabels,
   patientFieldLabels as labels,
   maskedFieldText,
   severityLabels,
@@ -38,31 +45,12 @@ import {
 import {
   formatDate,
   formatDateTime,
+  formatDose,
   formatNumber,
   isMasked,
 } from '../../utils/format.js';
 import { maskZipCode } from '../../utils/masks.js';
 import CareTeamSection from './CareTeamSection.jsx';
-
-const SEVERITY_COLOR = {
-  critical: 'error.main',
-  warning: 'warning.main',
-  info: 'info.main',
-};
-
-function SectionCard({ title, subtitle, children }) {
-  return (
-    <Card sx={{ p: { xs: 2, md: 3 } }}>
-      <Typography variant="h2">{title}</Typography>
-      {subtitle ? (
-        <Typography variant="body2" color="text.secondary">
-          {subtitle}
-        </Typography>
-      ) : null}
-      <Box sx={{ mt: 2 }}>{children}</Box>
-    </Card>
-  );
-}
 
 function withUnit(value, unit) {
   return unit ? `${formatNumber(value)} ${unit}` : formatNumber(value);
@@ -182,8 +170,12 @@ function Medications({ medications }) {
             {medication.name}
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            {medication.doseAmount} {doseUnitLabels[medication.doseUnit]} ·{' '}
-            {content.medications.times(medication.schedule.times)}
+            {formatDose(
+              medication.doseAmount,
+              medication.doseUnit,
+              doseUnitNames,
+            )}{' '}
+            · {content.medications.times(medication.schedule.times)}
           </Typography>
         </Box>
       ))}
@@ -208,7 +200,7 @@ function Alerts({ alerts }) {
               height: 10,
               mt: 0.75,
               borderRadius: '50%',
-              bgcolor: SEVERITY_COLOR[alert.severity],
+              bgcolor: `${SEVERITY_TONE[alert.severity]}.main`,
               flexShrink: 0,
             }}
           />
@@ -308,7 +300,18 @@ function Overview({ patientId }) {
                 </SectionCard>
               ) : null}
               {data.recentAlerts ? (
-                <SectionCard title={content.alerts.title}>
+                <SectionCard
+                  title={content.alerts.title}
+                  action={
+                    <Button
+                      component={RouterLink}
+                      to={alertsPath(patientId)}
+                      size="small"
+                    >
+                      {content.alerts.viewAll}
+                    </Button>
+                  }
+                >
                   <Alerts alerts={data.recentAlerts} />
                 </SectionCard>
               ) : null}
@@ -380,6 +383,15 @@ function PatientDetail({ patient, reload }) {
           variant="outlined"
         >
           {content.actions.history}
+        </Button>
+      ) : null}
+      {can(P.MEDICATIONS_READ) ? (
+        <Button
+          component={RouterLink}
+          to={medicationsPath(patient.id)}
+          variant="outlined"
+        >
+          {content.actions.medications}
         </Button>
       ) : null}
       {can(P.PATIENTS_DEACTIVATE) ? (

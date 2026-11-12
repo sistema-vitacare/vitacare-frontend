@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { followUpsAsOf } from '../../src/data/mocks/followUps.js';
 import {
   addFollowUp,
-  allAlerts,
   allFollowUps,
   annulFollowUp,
   findFollowUp,
@@ -93,35 +92,5 @@ describe('followUpStore', () => {
     resetMockState();
 
     expect(allFollowUps(NOW)).toEqual(followUpsAsOf(NOW));
-  });
-
-  it('gera o alerta do registro novo cujo valor passa da regra', () => {
-    const followUp = newFollowUp();
-    addFollowUp(followUp);
-
-    const generated = allAlerts(NOW).filter(
-      (alert) => alert.followUp?.id === followUp.id,
-    );
-
-    expect(generated).toHaveLength(1);
-    expect(generated[0]).toMatchObject({
-      severity: 'critical',
-      status: 'open',
-      value: '172',
-      patient: { id: DIRCE },
-    });
-  });
-
-  it('mantém o alerta do registro anulado depois de gerado, com a origem anulada', () => {
-    const followUp = newFollowUp();
-    addFollowUp(followUp);
-
-    annulFollowUp(followUp.id, annulment('2026-11-10T14:58:00.000Z'));
-
-    const generated = allAlerts(NOW).filter(
-      (alert) => alert.followUp?.id === followUp.id,
-    );
-    expect(generated).toHaveLength(1);
-    expect(generated[0].followUp.status).toBe('annulled');
   });
 });
