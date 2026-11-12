@@ -4,6 +4,9 @@
 
 export const TIME_ZONE = 'America/Sao_Paulo';
 
+// Brasília está em UTC−3 o ano todo desde 2019, sem horário de verão.
+export const SAO_PAULO_OFFSET = '-03:00';
+
 /** Máscara fixa que a API aplica aos campos ocultos do familiar. */
 export const MASKED_VALUE = '********';
 
@@ -85,4 +88,18 @@ export function formatAnswer(answer, { yes, no }) {
     return answer.unit ? `${value} ${answer.unit}` : value;
   }
   return answer.value;
+}
+
+// A dose aceita até três casas (0,125 mg); o resto da tela usa duas.
+const doseFormatter = new Intl.NumberFormat('pt-BR', {
+  maximumFractionDigits: 3,
+});
+
+/**
+ * Dose com vírgula decimal e a unidade no singular ou no plural, como a
+ * mensagem do lembrete da API: `0,5 comprimido`, `2 comprimidos`.
+ */
+export function formatDose(amount, unit, labels) {
+  const label = amount > 1 ? labels[unit].many : labels[unit].one;
+  return `${doseFormatter.format(amount)} ${label}`;
 }
