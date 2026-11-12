@@ -2,7 +2,6 @@ import {
   Alert,
   Box,
   Button,
-  Card,
   Chip,
   Dialog,
   DialogActions,
@@ -16,8 +15,11 @@ import {
 } from '@mui/material';
 import { useCallback, useId, useState } from 'react';
 import { Link as RouterLink, useLocation, useParams } from 'react-router';
+import DefinitionList from '../../components/DefinitionList.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import ResourceState from '../../components/ResourceState.jsx';
+import SectionCard from '../../components/SectionCard.jsx';
+import { SEVERITY_TONE } from '../../constants/alerts.js';
 import { PERMISSIONS as P } from '../../constants/permissions.js';
 import { PATHS, patientPath, recordsPath } from '../../constants/routes.js';
 import { followUpDetailContent as content } from '../../data/followUpPages.js';
@@ -36,57 +38,11 @@ import AttachmentsSection from './AttachmentsSection.jsx';
 const ALERTS_LIMIT = 100;
 const MAX_REASON_LENGTH = 500;
 
-const SEVERITY_COLOR = {
-  critical: 'error.main',
-  warning: 'warning.main',
-  info: 'info.main',
-};
-
-function SectionCard({ title, children }) {
-  return (
-    <Card sx={{ p: { xs: 2, md: 3 } }}>
-      <Typography variant="h2" sx={{ mb: 1.5 }}>
-        {title}
-      </Typography>
-      {children}
-    </Card>
-  );
-}
-
-function Definitions({ rows }) {
-  return (
-    <Box
-      component="dl"
-      sx={{
-        m: 0,
-        display: 'grid',
-        gap: 1.5,
-        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
-      }}
-    >
-      {rows.map(([label, value]) => (
-        <Box key={label} sx={{ minWidth: 0 }}>
-          <Typography component="dt" variant="caption" color="text.secondary">
-            {label}
-          </Typography>
-          <Typography
-            component="dd"
-            variant="body2"
-            sx={{ m: 0, fontWeight: 600, overflowWrap: 'anywhere' }}
-          >
-            {value}
-          </Typography>
-        </Box>
-      ))}
-    </Box>
-  );
-}
-
 function Summary({ record, patient }) {
   const { summary, status } = content;
   return (
     <SectionCard title={summary.title}>
-      <Definitions
+      <DefinitionList
         rows={[
           [
             summary.patient,
@@ -137,7 +93,7 @@ function Answers({ record }) {
             <Typography variant="h3" sx={{ mb: 1 }}>
               {group.section ?? content.answers.noSection}
             </Typography>
-            <Definitions
+            <DefinitionList
               rows={group.items.map((answer) => [
                 answer.name,
                 formatAnswer(answer, content.answers),
@@ -194,7 +150,7 @@ function GeneratedAlerts({ record }) {
                     height: 10,
                     mt: 0.75,
                     borderRadius: '50%',
-                    bgcolor: SEVERITY_COLOR[alert.severity],
+                    bgcolor: `${SEVERITY_TONE[alert.severity]}.main`,
                     flexShrink: 0,
                   }}
                 />
