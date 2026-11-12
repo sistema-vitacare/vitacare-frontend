@@ -6,11 +6,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import SessionProvider from '../src/components/SessionProvider.jsx';
 import {
   PATHS,
+  alertPath,
   formPath,
+  medicationsPath,
   patientPath,
   recordPath,
 } from '../src/constants/routes.js';
 import { accessFields } from '../src/data/access.js';
+import { alertDetailContent } from '../src/data/alertPages.js';
+import { medicationListContent } from '../src/data/medicationPages.js';
 import { firstAccessContent } from '../src/data/firstAccess.js';
 import { followUpDetailContent } from '../src/data/followUpPages.js';
 import { formPageContent } from '../src/data/formPage.js';
@@ -345,5 +349,46 @@ describe('rotas', () => {
       router.navigate(recordPath('f0110000-0000-5000-8000-000100000013')),
     );
     expect(await heading(followUpDetailContent.title)).toBeInTheDocument();
+  });
+
+  it('abre medicamentos e alertas pelo menu, com o paciente do endereço', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await signInAs('caregiver');
+    await heading(navLabels.patients);
+
+    await act(() => router.navigate(medicationsPath(DIRCE)));
+    expect(await heading(navLabels.medications)).toBeInTheDocument();
+    expect(
+      await screen.findByText(medicationListContent.count(4)),
+    ).toBeInTheDocument();
+
+    await act(() => router.navigate(PATHS.ALERTS));
+    expect(await heading(navLabels.alerts)).toBeInTheDocument();
+  });
+
+  it('abre o detalhe do alerta a quem lê alertas e o nega à plataforma', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await signInAs('professional');
+    await heading(navLabels.patients);
+
+    await act(() =>
+      router.navigate(alertPath('a1e70000-0000-5000-8009-000000000001')),
+    );
+    expect(await heading('Ausência de registro')).toBeInTheDocument();
+
+    await act(() => router.navigate(alertPath('nao-existe')));
+    expect(await heading(alertDetailContent.notFound)).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Rafael Moura Brandão/ }),
+    );
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Sair' }));
+    await signInAs('platform_admin');
+    // A página inicial da plataforma são as organizações, ainda em construção.
+    await heading(navLabels.organizations);
+    await act(() =>
+      router.navigate(alertPath('a1e70000-0000-5000-8009-000000000001')),
+    );
+    expect(await heading(statusContent.accessDenied.title)).toBeInTheDocument();
   });
 });

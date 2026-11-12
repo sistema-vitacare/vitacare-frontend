@@ -5,6 +5,8 @@ import RequireSession from './components/RequireSession.jsx';
 import { PERMISSIONS as P } from './constants/permissions.js';
 import { NAV_ITEMS, PATHS } from './constants/routes.js';
 import { navLabels } from './data/navigation.js';
+import AlertDetailPage from './pages/Alerts/AlertDetailPage.jsx';
+import AlertListPage from './pages/Alerts/AlertListPage.jsx';
 import FirstAccessPage from './pages/FirstAccess/FirstAccessPage.jsx';
 import FollowUpDetailPage from './pages/FollowUps/FollowUpDetailPage.jsx';
 import FollowUpListPage from './pages/FollowUps/FollowUpListPage.jsx';
@@ -12,6 +14,7 @@ import VisitPage from './pages/FollowUps/VisitPage.jsx';
 import FormListPage from './pages/Forms/FormListPage.jsx';
 import FormPage from './pages/Forms/FormPage.jsx';
 import LoginPage from './pages/Login/LoginPage.jsx';
+import MedicationListPage from './pages/Medications/MedicationListPage.jsx';
 import PasswordRecoveryPage from './pages/PasswordRecovery/PasswordRecoveryPage.jsx';
 import PasswordResetPage from './pages/PasswordReset/PasswordResetPage.jsx';
 import PatientDetailPage from './pages/Patients/PatientDetailPage.jsx';
@@ -25,6 +28,8 @@ import StatusPage from './pages/Status/StatusPage.jsx';
 const screens = {
   patients: <PatientListPage />,
   records: <FollowUpListPage />,
+  medications: <MedicationListPage />,
+  alerts: <AlertListPage />,
   forms: <FormListPage />,
 };
 
@@ -62,6 +67,11 @@ const subpages = [
     path: PATHS.RECORD_DETAIL,
     permission: P.PATIENT_HISTORY_READ,
     element: <FollowUpDetailPage />,
+  },
+  {
+    path: PATHS.ALERT_DETAIL,
+    permission: P.ALERTS_READ,
+    element: <AlertDetailPage />,
   },
   {
     path: PATHS.FORM_NEW,

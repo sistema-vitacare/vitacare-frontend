@@ -6,6 +6,7 @@ export const patientDetailContent = {
   actions: {
     visit: 'Registrar visita',
     history: 'Histórico e evolução',
+    medications: 'Medicamentos',
     edit: 'Editar',
     deactivate: 'Inativar',
     reactivate: 'Reativar',
@@ -46,6 +47,7 @@ export const patientDetailContent = {
     empty: 'Nenhum alerta para este paciente.',
     resolved: 'Resolvido',
     open: 'Aberto',
+    viewAll: 'Ver alertas',
   },
   deactivateDialog: {
     title: 'Inativar paciente?',
