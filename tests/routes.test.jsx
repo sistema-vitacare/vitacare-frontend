@@ -4,9 +4,16 @@ import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import SessionProvider from '../src/components/SessionProvider.jsx';
-import { PATHS, patientPath } from '../src/constants/routes.js';
+import {
+  PATHS,
+  formPath,
+  patientPath,
+  recordPath,
+} from '../src/constants/routes.js';
 import { accessFields } from '../src/data/access.js';
 import { firstAccessContent } from '../src/data/firstAccess.js';
+import { followUpDetailContent } from '../src/data/followUpPages.js';
+import { formPageContent } from '../src/data/formPage.js';
 import { loginContent } from '../src/data/login.js';
 import {
   DEMO_PASSWORD,
@@ -18,6 +25,7 @@ import { patientHistoryContent } from '../src/data/patientHistory.js';
 import { recoveryContent, resetContent } from '../src/data/passwordRecovery.js';
 import { profileLabels } from '../src/data/profiles.js';
 import { statusContent } from '../src/data/status.js';
+import { visitRecordContent } from '../src/data/visitRecord.js';
 import { appRoutes } from '../src/routes.jsx';
 import { resetMockState } from '../src/services/mockApi.js';
 import { theme } from '../src/styles/theme.js';
@@ -278,5 +286,64 @@ describe('rotas', () => {
     await act(() => router.navigate(PATHS.PATIENT_NEW));
 
     expect(await heading(statusContent.accessDenied.title)).toBeInTheDocument();
+  });
+
+  it('liga os formulários à página do formulário e ao formulário novo', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await signInAs('professional');
+    await heading(navLabels.patients);
+
+    await act(() => router.navigate(PATHS.FORMS));
+    expect(await heading(navLabels.forms)).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('link', { name: 'Sinais vitais' }));
+    expect(await heading('Sinais vitais')).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(
+      formPath('8c0342e9-d9e9-58c2-a229-1c32168a8bf2'),
+    );
+
+    await act(() => router.navigate(PATHS.FORM_NEW));
+    expect(await heading(formPageContent.newTitle)).toBeInTheDocument();
+  });
+
+  it('protege o formulário novo pela permissão de criar e os formulários pela de ler', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await signInAs('caregiver');
+    await heading(navLabels.patients);
+
+    await act(() => router.navigate(PATHS.FORM_NEW));
+    expect(await heading(statusContent.accessDenied.title)).toBeInTheDocument();
+
+    await act(() => router.navigate(PATHS.FORMS));
+    expect(await heading(navLabels.forms)).toBeInTheDocument();
+  });
+
+  it('abre o registro de visita para a cuidadora e o nega a quem não registra', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await signInAs('caregiver');
+    await heading(navLabels.patients);
+
+    await act(() => router.navigate(patientPath(DIRCE, 'visit')));
+    expect(await heading(visitRecordContent.title)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Rosângela Prado/ }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Sair' }));
+    await signInAs('professional');
+    await heading(navLabels.patients);
+    await act(() => router.navigate(patientPath(DIRCE, 'visit')));
+    expect(await heading(statusContent.accessDenied.title)).toBeInTheDocument();
+  });
+
+  it('liga a lista de registros ao detalhe do registro', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await signInAs('family');
+    // A familiar de um paciente só entra direto no histórico dele.
+    await heading(patientHistoryContent.title);
+
+    await act(() => router.navigate(PATHS.RECORDS));
+    expect(await heading(navLabels.records)).toBeInTheDocument();
+    await act(() =>
+      router.navigate(recordPath('f0110000-0000-5000-8000-000100000013')),
+    );
+    expect(await heading(followUpDetailContent.title)).toBeInTheDocument();
   });
 });

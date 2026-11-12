@@ -4,6 +4,7 @@ export const patientDetailContent = {
     'O paciente não existe ou não está vinculado ao seu usuário. Volte à lista para escolher outro.',
   backToList: 'Voltar à lista de pacientes',
   actions: {
+    visit: 'Registrar visita',
     history: 'Histórico e evolução',
     edit: 'Editar',
     deactivate: 'Inativar',

@@ -7,8 +7,11 @@ import {
 import {
   NAV_ITEMS,
   PATHS,
+  formPath,
   homePath,
   patientPath,
+  recordPath,
+  recordsPath,
   usesBottomNav,
   visibleNavItems,
 } from '../../src/constants/routes.js';
@@ -105,11 +108,34 @@ describe('endereços do paciente', () => {
     expect(patientPath('abc')).toBe('/pacientes/abc');
     expect(patientPath('abc', 'edit')).toBe('/pacientes/abc/editar');
     expect(patientPath('abc', 'history')).toBe('/pacientes/abc/historico');
+    expect(patientPath('abc', 'visit')).toBe('/pacientes/abc/registrar');
     expect(patientPath('a/b')).toBe('/pacientes/a%2Fb');
   });
 
   it('mantém o cadastro fora do padrão do detalhe', () => {
     expect(PATHS.PATIENT_NEW).toBe('/pacientes/novo');
     expect(PATHS.PATIENT_DETAIL).toBe('/pacientes/:patientId');
+  });
+});
+
+describe('endereços de formulários e registros', () => {
+  it('monta a página do formulário e o detalhe do registro, com o id codificado', () => {
+    expect(formPath('abc')).toBe('/formularios/abc');
+    expect(formPath('a/b')).toBe('/formularios/a%2Fb');
+    expect(recordPath('abc')).toBe('/registros/abc');
+    expect(recordPath('a/b')).toBe('/registros/a%2Fb');
+  });
+
+  it('leva à lista de registros com o paciente no endereço', () => {
+    expect(recordsPath('abc')).toBe('/registros?paciente=abc');
+    expect(recordsPath('a&b')).toBe('/registros?paciente=a%26b');
+    expect(recordsPath()).toBe('/registros');
+  });
+
+  it('mantém o formulário novo fora do padrão da página do formulário', () => {
+    expect(PATHS.FORM_NEW).toBe('/formularios/novo');
+    expect(PATHS.FORM_DETAIL).toBe('/formularios/:formId');
+    expect(PATHS.PATIENT_VISIT).toBe('/pacientes/:patientId/registrar');
+    expect(PATHS.RECORD_DETAIL).toBe('/registros/:followUpId');
   });
 });

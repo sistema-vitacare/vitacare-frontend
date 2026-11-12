@@ -1,6 +1,11 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { PATHS, patientPath } from '../../../src/constants/routes.js';
+import {
+  PATHS,
+  patientPath,
+  recordPath,
+} from '../../../src/constants/routes.js';
+import { followUpRecordsContent as recordsContent } from '../../../src/data/followUpRecords.js';
 import { patientHistoryContent as content } from '../../../src/data/patientHistory.js';
 import PatientHistoryPage from '../../../src/pages/Patients/PatientHistoryPage.jsx';
 import { resetMockState } from '../../../src/services/mockApi.js';
@@ -22,7 +27,7 @@ function renderHistory(patientId, profile = 'professional') {
 }
 
 function recordList() {
-  return screen.getByRole('list', { name: content.records.title });
+  return screen.getByRole('list', { name: recordsContent.list.title });
 }
 
 function records() {
@@ -42,7 +47,7 @@ afterEach(() => {
 describe('PatientHistoryPage', () => {
   it('pagina o histórico de 20 em 20', async () => {
     renderHistory(DIRCE);
-    await screen.findByText(content.records.count(28));
+    await screen.findByText(recordsContent.list.count(28));
     expect(records()).toHaveLength(20);
 
     fireEvent.click(screen.getByRole('button', { name: /página 2/ }));
@@ -53,7 +58,7 @@ describe('PatientHistoryPage', () => {
   it('lista os registros do mais recente ao mais antigo, com data, autor, formulário e valores', async () => {
     renderHistory(DIRCE);
 
-    await screen.findByText(content.records.count(28));
+    await screen.findByText(recordsContent.list.count(28));
     const [newest, second] = records();
     expect(newest).toHaveTextContent('Sinais vitais');
     expect(newest).toHaveTextContent('Rosângela Prado');
@@ -63,14 +68,27 @@ describe('PatientHistoryPage', () => {
     expect(second).toHaveTextContent('Dor: 0');
   });
 
+  it('leva cada registro ao detalhe dele', async () => {
+    renderHistory(DIRCE);
+    await screen.findByText(recordsContent.list.count(28));
+
+    const [newest] = records();
+    const link = within(newest).getByRole('link', { name: /Abrir o registro/ });
+
+    expect(link).toHaveAttribute(
+      'href',
+      recordPath('f0110000-0000-5000-8000-000100000013'),
+    );
+  });
+
   it('identifica o registro anulado, com quem anulou e o motivo', async () => {
     renderHistory(DIRCE);
-    await screen.findByText(content.records.count(28));
+    await screen.findByText(recordsContent.list.count(28));
 
     // O anulado é de 16 dias atrás: o 11º da lista, ainda na primeira página.
     const annulled = await waitFor(() => {
       const found = records().find((item) =>
-        item.textContent.includes(content.records.annulled),
+        item.textContent.includes(recordsContent.list.annulled),
       );
       expect(found).toBeDefined();
       return found;
@@ -81,12 +99,12 @@ describe('PatientHistoryPage', () => {
 
   it('filtra pelo formulário e pelo período', async () => {
     renderHistory(DIRCE);
-    await screen.findByText(content.records.count(28));
+    await screen.findByText(recordsContent.list.count(28));
 
-    await select(content.filters.form, 'Acompanhamento diário');
+    await select(recordsContent.filters.form, 'Acompanhamento diário');
 
     expect(
-      await screen.findByText(content.records.count(14)),
+      await screen.findByText(recordsContent.list.count(14)),
     ).toBeInTheDocument();
     expect(
       records().every((item) =>
@@ -94,15 +112,15 @@ describe('PatientHistoryPage', () => {
       ),
     ).toBe(true);
 
-    fireEvent.change(screen.getByLabelText(content.filters.from), {
+    fireEvent.change(screen.getByLabelText(recordsContent.filters.from), {
       target: { value: '2000-01-01' },
     });
-    fireEvent.change(screen.getByLabelText(content.filters.to), {
+    fireEvent.change(screen.getByLabelText(recordsContent.filters.to), {
       target: { value: '2000-01-31' },
     });
 
     expect(
-      await screen.findByText(content.records.noResults),
+      await screen.findByText(recordsContent.list.noResults),
     ).toBeInTheDocument();
   });
 
@@ -128,7 +146,7 @@ describe('PatientHistoryPage', () => {
 
     expect(await screen.findByText(content.readOnly)).toBeInTheDocument();
     expect(
-      await screen.findByText(content.records.count(27)),
+      await screen.findByText(recordsContent.list.count(27)),
     ).toBeInTheDocument();
     expect(
       await screen.findByRole('region', { name: content.evolution.title }),
@@ -137,7 +155,7 @@ describe('PatientHistoryPage', () => {
 
   it('não mostra a evolução à cuidadora, que não tem essa permissão', async () => {
     renderHistory(DIRCE, 'caregiver');
-    await screen.findByText(content.records.count(28));
+    await screen.findByText(recordsContent.list.count(28));
 
     expect(
       screen.queryByRole('region', { name: content.evolution.title }),
@@ -148,7 +166,9 @@ describe('PatientHistoryPage', () => {
   it('avisa quando o paciente não tem registros nem medições', async () => {
     renderHistory(CLEUSA);
 
-    expect(await screen.findByText(content.records.empty)).toBeInTheDocument();
+    expect(
+      await screen.findByText(recordsContent.list.empty),
+    ).toBeInTheDocument();
     expect(
       await screen.findByText(content.evolution.empty),
     ).toBeInTheDocument();

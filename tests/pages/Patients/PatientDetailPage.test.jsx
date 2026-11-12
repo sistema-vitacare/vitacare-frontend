@@ -103,14 +103,20 @@ describe('PatientDetailPage', () => {
       screen.getByRole('button', { name: content.actions.deactivate }),
     ).toBeVisible();
     expect(
+      screen.queryByRole('link', { name: content.actions.visit }),
+    ).toBeNull();
+    expect(
       await screen.findByRole('heading', { name: careTeamContent.title }),
     ).toBeVisible();
   });
 
-  it('mostra à cuidadora só o histórico, sem editar, inativar nem equipe', async () => {
+  it('mostra à cuidadora o registro de visita e o histórico, sem editar, inativar nem equipe', async () => {
     renderDetail(DIRCE, 'caregiver');
     await heading('Dirce Albuquerque Moraes');
 
+    expect(
+      screen.getByRole('link', { name: content.actions.visit }),
+    ).toHaveAttribute('href', patientPath(DIRCE, 'visit'));
     expect(
       screen.getByRole('link', { name: content.actions.history }),
     ).toBeVisible();

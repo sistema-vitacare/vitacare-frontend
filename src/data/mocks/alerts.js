@@ -1,14 +1,18 @@
 // Alertas simulados, no formato de GET /alerts. Os de leitura não são
-// escritos à mão: saem das regras gerais aplicadas aos registros válidos,
-// como na API, e por isso acompanham as datas relativas dos registros. O de
-// ausência é o do paciente que passou do prazo do formulário semanal.
-import { patients } from './patients.js';
+// escritos à mão: saem das regras gerais aplicadas aos registros, como na
+// API, e por isso acompanham as datas relativas dos registros e incluem os
+// registros feitos na sessão. O de ausência é o do paciente que passou do
+// prazo do formulário semanal.
+import { patients as seedPatients } from './patients.js';
 import { VITAL_SIGNS_FORM } from './forms.js';
 import { followUpsAsOf } from './followUps.js';
 
-const GENERATION_DELAY_MS = 2 * 60 * 1000;
+// A API avalia as regras logo depois de gravar o registro, ainda na mesma
+// requisição: o alerta nasce instantes depois do envio, nunca antes dele.
+const GENERATION_DELAY_MS = 2 * 1000;
 const RESOLVED_AFTER_DAYS = 10;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const ABSENCE_DELAY_MS = 60 * 1000;
 
 // Regras gerais da organização (FE-21 traz o cadastro delas).
 export const alertRules = [
@@ -48,20 +52,22 @@ function readingAlertId(followUpId, ruleIndex) {
 
 const ABSENCE_ALERT_ID = 'a1e70000-0000-5000-8009-000000000001';
 
-const patientById = new Map(patients.map((patient) => [patient.id, patient]));
-
-function base(followUpPatientId) {
-  const patient = patientById.get(followUpPatientId);
-  return {
-    patient: { id: patient.id, name: patient.name },
-    responsible: patient.responsible,
-  };
+function withUnit(value, unit) {
+  return unit ? `${value} ${unit}` : String(value);
 }
 
-function readingAlerts(now) {
+function readingAlerts(now, followUps, patientById) {
   const alerts = [];
-  for (const followUp of followUpsAsOf(now)) {
-    if (followUp.status !== 'valid') {
+  for (const followUp of followUps) {
+    const generatedAt = new Date(
+      Date.parse(followUp.submittedAt) + GENERATION_DELAY_MS,
+    );
+    // Registro anulado antes da avaliação não gera alerta; anulado depois,
+    // continua como origem do alerta já gerado.
+    if (
+      followUp.annulment &&
+      Date.parse(followUp.annulment.annulledAt) <= generatedAt.getTime()
+    ) {
       continue;
     }
     alertRules.forEach((rule, ruleIndex) => {
@@ -71,20 +77,17 @@ function readingAlerts(now) {
       if (!answer || !(answer.value > rule.referenceValue)) {
         return;
       }
-      const generatedAt = new Date(
-        Date.parse(followUp.visitedAt) + GENERATION_DELAY_MS,
-      );
       // Alertas de mais de 10 dias já foram resolvidos pelo responsável.
       const resolved = now - generatedAt > RESOLVED_AFTER_DAYS * DAY_MS;
-      const { patient, responsible } = base(followUp.patientId);
+      const patient = patientById.get(followUp.patientId);
       alerts.push({
         id: readingAlertId(followUp.id, ruleIndex),
-        patient,
+        patient: { id: patient.id, name: patient.name },
         source: 'reading',
         severity: rule.severity,
         status: resolved ? 'resolved' : 'open',
         title: rule.name,
-        message: `${answer.name}: ${answer.value} ${answer.unit} (maior que ${rule.referenceValue} ${answer.unit}).`,
+        message: `${answer.name}: ${withUnit(answer.value, answer.unit)} (maior que ${withUnit(rule.referenceValue, answer.unit)}).`,
         rule: { id: rule.id, name: rule.name },
         followUp: {
           id: followUp.id,
@@ -103,7 +106,10 @@ function readingAlerts(now) {
               resolvedAt: new Date(
                 generatedAt.getTime() + 3 * 60 * 60 * 1000,
               ).toISOString(),
-              resolvedBy: { id: responsible.id, name: responsible.name },
+              resolvedBy: {
+                id: patient.responsible.id,
+                name: patient.responsible.name,
+              },
             }
           : null,
         notification: null,
@@ -113,7 +119,9 @@ function readingAlerts(now) {
   return alerts;
 }
 
-function absenceAlert(now) {
+// Conta só os registros simulados: um registro novo reinicia a contagem da
+// ausência, mas não apaga o alerta que já foi gerado.
+function absenceAlert(now, patientById) {
   const lastVisit = followUpsAsOf(now)
     .filter(
       (followUp) =>
@@ -125,9 +133,10 @@ function absenceAlert(now) {
     .at(-1);
   const since = new Date(lastVisit);
   const dueAt = new Date(since.getTime() + 7 * DAY_MS);
+  const patient = patientById.get(BENEDITO);
   return {
     id: ABSENCE_ALERT_ID,
-    patient: base(BENEDITO).patient,
+    patient: { id: patient.id, name: patient.name },
     source: 'absence',
     severity: 'warning',
     status: 'open',
@@ -143,18 +152,31 @@ function absenceAlert(now) {
       form: { id: VITAL_SIGNS_FORM.id, name: VITAL_SIGNS_FORM.name },
       since: since.toISOString(),
       dueAt: dueAt.toISOString(),
-      frequency: VITAL_SIGNS_FORM.expectedFrequency,
+      frequency: VITAL_SIGNS_FORM.frequency,
     },
     medicationReminder: null,
-    generatedAt: new Date(dueAt.getTime() + GENERATION_DELAY_MS).toISOString(),
+    generatedAt: new Date(dueAt.getTime() + ABSENCE_DELAY_MS).toISOString(),
     resolution: null,
     notification: null,
   };
 }
 
-/** Alertas com as datas calculadas a partir de `now`, do mais novo ao mais antigo. */
-export function alertsAsOf(now) {
-  return [...readingAlerts(now), absenceAlert(now)].sort((a, b) =>
-    b.generatedAt.localeCompare(a.generatedAt),
+/**
+ * Alertas com as datas calculadas a partir de `now`, do mais novo ao mais
+ * antigo. `followUps` e `patients` trazem o estado da sessão (registros e
+ * pacientes novos); sem eles, valem os simulados.
+ */
+export function alertsAsOf(
+  now,
+  followUps = followUpsAsOf(now),
+  patients = seedPatients,
+) {
+  const patientById = new Map(patients.map((patient) => [patient.id, patient]));
+  return [
+    ...readingAlerts(now, followUps, patientById),
+    absenceAlert(now, patientById),
+  ].sort(
+    (a, b) =>
+      b.generatedAt.localeCompare(a.generatedAt) || a.id.localeCompare(b.id),
   );
 }

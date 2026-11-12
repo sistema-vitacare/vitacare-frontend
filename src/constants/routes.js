@@ -25,10 +25,14 @@ export const PATHS = Object.freeze({
   PATIENT_DETAIL: '/pacientes/:patientId',
   PATIENT_EDIT: '/pacientes/:patientId/editar',
   PATIENT_HISTORY: '/pacientes/:patientId/historico',
+  PATIENT_VISIT: '/pacientes/:patientId/registrar',
   RECORDS: '/registros',
+  RECORD_DETAIL: '/registros/:followUpId',
   MEDICATIONS: '/medicamentos',
   ALERTS: '/alertas',
   FORMS: '/formularios',
+  FORM_NEW: '/formularios/novo',
+  FORM_DETAIL: '/formularios/:formId',
   REPORTS: '/relatorios',
   USERS: '/usuarios',
   AUDIT: '/auditoria',
@@ -152,13 +156,38 @@ export function usesBottomNav(can) {
 const PATIENT_SUBPAGES = Object.freeze({
   edit: 'editar',
   history: 'historico',
+  visit: 'registrar',
 });
 
 /**
- * Endereço de uma página do paciente: detalhe (sem `page`), `edit` ou
- * `history`. O id é codificado porque vem da API, e não do código.
+ * Endereço de uma página do paciente: detalhe (sem `page`), `edit`,
+ * `history` ou `visit`. O id é codificado porque vem da API, e não do
+ * código.
  */
 export function patientPath(patientId, page) {
   const base = `${PATHS.PATIENTS}/${encodeURIComponent(patientId)}`;
   return page ? `${base}/${PATIENT_SUBPAGES[page]}` : base;
+}
+
+/** Página do formulário; o id vem da API e é codificado. */
+export function formPath(formId) {
+  return `${PATHS.FORMS}/${encodeURIComponent(formId)}`;
+}
+
+/** Detalhe do registro de acompanhamento; o id vem da API e é codificado. */
+export function recordPath(followUpId) {
+  return `${PATHS.RECORDS}/${encodeURIComponent(followUpId)}`;
+}
+
+// Paciente da lista de registros, no endereço: a API pede o paciente, e o
+// "voltar" do navegador e o detalhe do registro trazem a lista de volta.
+export const RECORDS_PATIENT_PARAM = 'paciente';
+
+/** Lista de registros, já com o paciente escolhido quando há um. */
+export function recordsPath(patientId) {
+  if (!patientId) {
+    return PATHS.RECORDS;
+  }
+  const query = new URLSearchParams([[RECORDS_PATIENT_PARAM, patientId]]);
+  return `${PATHS.RECORDS}?${query}`;
 }

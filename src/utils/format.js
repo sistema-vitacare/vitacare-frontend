@@ -67,3 +67,22 @@ const numberFormatter = new Intl.NumberFormat('pt-BR', {
 export function formatNumber(value) {
   return numberFormatter.format(value);
 }
+
+/**
+ * Valor de uma resposta de registro para leitura: número com vírgula e
+ * unidade, sim ou não pelos rótulos da tela e lista de escolhas separada
+ * por vírgula.
+ */
+export function formatAnswer(answer, { yes, no }) {
+  if (answer.fieldType === 'boolean') {
+    return answer.value ? yes : no;
+  }
+  if (Array.isArray(answer.value)) {
+    return answer.value.join(', ');
+  }
+  if (typeof answer.value === 'number') {
+    const value = formatNumber(answer.value);
+    return answer.unit ? `${value} ${answer.unit}` : value;
+  }
+  return answer.value;
+}

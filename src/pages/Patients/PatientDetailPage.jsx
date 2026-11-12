@@ -394,6 +394,15 @@ function PatientDetail({ patient, reload }) {
           {content.actions.edit}
         </Button>
       ) : null}
+      {active && can(P.FOLLOW_UPS_CREATE) ? (
+        <Button
+          component={RouterLink}
+          to={patientPath(patient.id, 'visit')}
+          variant="contained"
+        >
+          {content.actions.visit}
+        </Button>
+      ) : null}
     </>
   );
   return (

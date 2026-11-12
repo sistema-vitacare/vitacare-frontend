@@ -6,6 +6,11 @@ import { PERMISSIONS as P } from './constants/permissions.js';
 import { NAV_ITEMS, PATHS } from './constants/routes.js';
 import { navLabels } from './data/navigation.js';
 import FirstAccessPage from './pages/FirstAccess/FirstAccessPage.jsx';
+import FollowUpDetailPage from './pages/FollowUps/FollowUpDetailPage.jsx';
+import FollowUpListPage from './pages/FollowUps/FollowUpListPage.jsx';
+import VisitPage from './pages/FollowUps/VisitPage.jsx';
+import FormListPage from './pages/Forms/FormListPage.jsx';
+import FormPage from './pages/Forms/FormPage.jsx';
 import LoginPage from './pages/Login/LoginPage.jsx';
 import PasswordRecoveryPage from './pages/PasswordRecovery/PasswordRecoveryPage.jsx';
 import PasswordResetPage from './pages/PasswordReset/PasswordResetPage.jsx';
@@ -19,11 +24,14 @@ import StatusPage from './pages/Status/StatusPage.jsx';
 // com o nome da tela; cada tela nova entra aqui.
 const screens = {
   patients: <PatientListPage />,
+  records: <FollowUpListPage />,
+  forms: <FormListPage />,
 };
 
 // Telas abaixo de um item do menu, cada uma com a permissão que a API exige
 // para a ação dela. O cadastro (`/pacientes/novo`) vence o detalhe
-// (`/pacientes/:patientId`) porque o roteador prefere o trecho fixo.
+// (`/pacientes/:patientId`) porque o roteador prefere o trecho fixo; o
+// mesmo vale para `/formularios/novo`.
 const subpages = [
   {
     path: PATHS.PATIENT_NEW,
@@ -44,6 +52,26 @@ const subpages = [
     path: PATHS.PATIENT_HISTORY,
     permission: P.PATIENT_HISTORY_READ,
     element: <PatientHistoryPage />,
+  },
+  {
+    path: PATHS.PATIENT_VISIT,
+    permission: P.FOLLOW_UPS_CREATE,
+    element: <VisitPage />,
+  },
+  {
+    path: PATHS.RECORD_DETAIL,
+    permission: P.PATIENT_HISTORY_READ,
+    element: <FollowUpDetailPage />,
+  },
+  {
+    path: PATHS.FORM_NEW,
+    permission: P.FORMS_CREATE,
+    element: <FormPage />,
+  },
+  {
+    path: PATHS.FORM_DETAIL,
+    permission: P.FORMS_READ,
+    element: <FormPage />,
   },
 ];
 
