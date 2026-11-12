@@ -348,10 +348,21 @@ describe('getPatientOverview', () => {
       'Losartana potássica 50 mg',
     ]);
     expect(data.counts.activeMedications).toBe(3);
+    // Medicamento no formato da lista, com o próximo horário: 13:00 de
+    // Brasília, uma hora depois de agora.
+    expect(data.activeMedications[0].nextScheduledAt).toBe(
+      '2026-11-10T16:00:00.000Z',
+    );
+    // Os quatro lembretes das últimas 24 horas e o alerta de pressão, já
+    // resolvido.
     expect(data.recentAlerts.map((item) => item.title)).toEqual([
+      'Lembrete de medicamento',
+      'Lembrete de medicamento',
+      'Lembrete de medicamento',
+      'Lembrete de medicamento',
       'Pressão sistólica acima de 160',
     ]);
-    expect(data.counts.openAlerts).toBe(0);
+    expect(data.counts.openAlerts).toBe(4);
   });
 
   it('não conta o valor de registro anulado', async () => {
@@ -385,7 +396,8 @@ describe('getPatientOverview', () => {
     const { data } = await getPatientOverview(OSVALDO);
 
     expect(data.recentAlerts).toHaveLength(5);
-    expect(data.counts.openAlerts).toBe(2);
+    // Dois alertas de glicemia e três lembretes das últimas 24 horas.
+    expect(data.counts.openAlerts).toBe(5);
   });
 
   it('responde 404 à familiar para paciente sem vínculo', async () => {

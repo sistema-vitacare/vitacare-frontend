@@ -3,11 +3,12 @@
 // passa a chamar a rota correspondente.
 import { PERMISSIONS as P } from '../constants/permissions.js';
 import { forms } from '../data/mocks/forms.js';
-import { medications } from '../data/mocks/medications.js';
 import { buildIndicators } from '../utils/evolution.js';
 import { TIME_ZONE, todayInSaoPaulo } from '../utils/format.js';
 import { currentViewer } from './authService.js';
-import { allAlerts, allFollowUps } from './followUpStore.js';
+import { allAlerts } from './alertStore.js';
+import { allFollowUps } from './followUpStore.js';
+import { allMedications, medicationView } from './medicationStore.js';
 import {
   ApiError,
   mockRequest,
@@ -308,11 +309,12 @@ export function getPatientOverview(patientId) {
     );
     const canSeeMedications = viewer.permissions.includes(P.MEDICATIONS_READ);
     const canSeeAlerts = viewer.permissions.includes(P.ALERTS_READ);
-    const active = medications
+    const active = allMedications()
       .filter(
         (item) => item.patientId === patientId && item.status === 'active',
       )
-      .sort(byName);
+      .sort(byName)
+      .map((item) => medicationView(item, now));
     const alerts = allAlerts(now).filter(
       (alert) => alert.patient.id === patientId,
     );
