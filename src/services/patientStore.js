@@ -100,10 +100,14 @@ function viewerLink(viewer, patientId) {
   );
 }
 
+/** Administrador e profissional leem a organização inteira. */
+export function readsWholeOrganization(viewer) {
+  return ORGANIZATION_WIDE.includes(viewer.user.profile.code);
+}
+
 export function canReach(viewer, patientId) {
   return (
-    ORGANIZATION_WIDE.includes(viewer.user.profile.code) ||
-    viewerLink(viewer, patientId) !== null
+    readsWholeOrganization(viewer) || viewerLink(viewer, patientId) !== null
   );
 }
 
