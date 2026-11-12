@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { alertRules, alertsAsOf } from '../../src/data/mocks/alerts.js';
-import { followUpForms } from '../../src/data/mocks/forms.js';
+import { attachmentsAsOf } from '../../src/data/mocks/attachments.js';
+import { forms } from '../../src/data/mocks/forms.js';
 import { followUpsAsOf } from '../../src/data/mocks/followUps.js';
 import { medications } from '../../src/data/mocks/medications.js';
 import { organization } from '../../src/data/mocks/organization.js';
@@ -117,22 +118,121 @@ describe('dados simulados de acompanhamento', () => {
     ).toEqual([]);
   });
 
-  it('respondem só campos que existem no formulário citado, com valor do tipo do campo', () => {
+  it('respondem só campos da versão citada, com os metadados dela e valor do tipo do campo', () => {
     const fields = new Map(
-      followUpForms.flatMap((form) =>
-        form.fields.map((field) => [`${form.id}|${field.fieldKey}`, field]),
+      forms.flatMap((form) =>
+        form.versions.flatMap((version) =>
+          version.fields.map((field) => [
+            `${form.id}|${version.id}|${version.number}|${field.id}`,
+            field,
+          ]),
+        ),
       ),
     );
     const wrong = followUpsAsOf(now).flatMap((followUp) =>
       followUp.answers.filter((answer) => {
-        const field = fields.get(`${followUp.form.id}|${answer.fieldKey}`);
+        const { id, versionId, versionNumber } = followUp.form;
+        const field = fields.get(
+          `${id}|${versionId}|${versionNumber}|${answer.fieldId}`,
+        );
         const expectedType =
           field?.fieldType === 'boolean' ? 'boolean' : 'number';
-        return !field || typeof answer.value !== expectedType;
+        return (
+          !field ||
+          field.requirement === 'disabled' ||
+          ['fieldKey', 'name', 'fieldType', 'unit', 'section', 'position'].some(
+            (key) => answer[key] !== field[key],
+          ) ||
+          typeof answer.value !== expectedType
+        );
       }),
     );
 
     expect(wrong).toEqual([]);
+  });
+
+  it('têm formulários com versões numeradas a partir de 1, campos na posição do índice e cada chave sempre do mesmo tipo', () => {
+    const wrong = forms.filter((form) => {
+      const versions = [...form.versions, ...(form.draft ? [form.draft] : [])];
+      const numbered = form.versions.every(
+        (version, index) => version.number === index + 1,
+      );
+      const positioned = versions.every((version) =>
+        version.fields.every((field, index) => field.position === index),
+      );
+      const types = new Map();
+      const sameType = versions.every((version) =>
+        version.fields.every((field) => {
+          const known = types.get(field.fieldKey) ?? field.fieldType;
+          types.set(field.fieldKey, known);
+          return known === field.fieldType;
+        }),
+      );
+      return !numbered || !positioned || !sameType;
+    });
+
+    expect(wrong.map((form) => form.name)).toEqual([]);
+  });
+
+  it('têm formulários com situação coerente com as versões e a desativação', () => {
+    const wrong = forms.filter((form) => {
+      if (form.status === 'draft') {
+        return form.versions.length > 0 || !form.draft || form.deactivatedAt;
+      }
+      if (form.status === 'active') {
+        return form.versions.length === 0 || form.deactivatedAt;
+      }
+      return form.status !== 'inactive' || !form.deactivatedAt;
+    });
+
+    expect(wrong.map((form) => form.name)).toEqual([]);
+  });
+
+  it('têm público coerente: lista de pacientes ativos, ou vazia para a organização inteira', () => {
+    const wrong = forms.filter((form) =>
+      form.audience === 'organization'
+        ? form.patientIds.length > 0
+        : form.patientIds.length === 0 ||
+          form.patientIds.some(
+            (patientId) => patientById.get(patientId)?.status !== 'active',
+          ),
+    );
+
+    expect(wrong.map((form) => form.name)).toEqual([]);
+  });
+
+  it('têm registros só de formulários que valem para o paciente', () => {
+    const formById = new Map(forms.map((form) => [form.id, form]));
+    const wrong = followUpsAsOf(now).filter((followUp) => {
+      const form = formById.get(followUp.form.id);
+      return (
+        form.audience === 'patients' &&
+        !form.patientIds.includes(followUp.patientId)
+      );
+    });
+
+    expect(wrong.map((followUp) => followUp.id)).toEqual([]);
+  });
+
+  it('têm anexos de registros válidos, enviados pelo autor depois do registro, no tipo e no tamanho aceitos', () => {
+    const followUps = new Map(
+      followUpsAsOf(now).map((followUp) => [followUp.id, followUp]),
+    );
+    const types = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    const wrong = attachmentsAsOf(now).filter((attachment) => {
+      const followUp = followUps.get(attachment.followUpId);
+      return (
+        !followUp ||
+        followUp.status !== 'valid' ||
+        attachment.uploadedBy.id !== followUp.author.id ||
+        attachment.uploadedAt <= followUp.submittedAt ||
+        !types.includes(attachment.contentType) ||
+        attachment.sizeBytes < 1 ||
+        attachment.sizeBytes > 10 * 1024 * 1024
+      );
+    });
+
+    expect(wrong.map((attachment) => attachment.id)).toEqual([]);
   });
 
   it('geram alerta de leitura só quando o valor passa da referência da regra', () => {
@@ -145,6 +245,20 @@ describe('dados simulados de acompanhamento', () => {
       );
 
     expect(wrong).toEqual([]);
+  });
+
+  it('geram cada alerta de leitura depois do envio do registro de origem', () => {
+    const followUps = new Map(
+      followUpsAsOf(now).map((followUp) => [followUp.id, followUp]),
+    );
+    const early = alertsAsOf(now)
+      .filter((alert) => alert.source === 'reading')
+      .filter(
+        (alert) =>
+          alert.generatedAt <= followUps.get(alert.followUp.id).submittedAt,
+      );
+
+    expect(early.map((alert) => alert.id)).toEqual([]);
   });
 
   it('dão a cada alerta um identificador único', () => {

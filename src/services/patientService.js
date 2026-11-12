@@ -2,13 +2,12 @@
 // `patients-*.md`, conferido em 10/11/2026). Na integração, cada função
 // passa a chamar a rota correspondente.
 import { PERMISSIONS as P } from '../constants/permissions.js';
-import { alertsAsOf } from '../data/mocks/alerts.js';
-import { followUpForms } from '../data/mocks/forms.js';
-import { followUpsAsOf } from '../data/mocks/followUps.js';
+import { forms } from '../data/mocks/forms.js';
 import { medications } from '../data/mocks/medications.js';
 import { buildIndicators } from '../utils/evolution.js';
 import { TIME_ZONE, todayInSaoPaulo } from '../utils/format.js';
 import { currentViewer } from './authService.js';
+import { allAlerts, allFollowUps } from './followUpStore.js';
 import {
   ApiError,
   mockRequest,
@@ -248,7 +247,7 @@ export function reactivatePatient(patientId) {
 }
 
 function validFollowUps(patientId, now) {
-  return followUpsAsOf(now).filter(
+  return allFollowUps(now).filter(
     (followUp) =>
       followUp.patientId === patientId && followUp.status === 'valid',
   );
@@ -314,7 +313,7 @@ export function getPatientOverview(patientId) {
         (item) => item.patientId === patientId && item.status === 'active',
       )
       .sort(byName);
-    const alerts = alertsAsOf(now).filter(
+    const alerts = allAlerts(now).filter(
       (alert) => alert.patient.id === patientId,
     );
     const lastVisitedAt =
@@ -347,10 +346,13 @@ function shiftDays(date, days) {
   return shifted.toISOString().slice(0, 10);
 }
 
-// Faixa de escala vem da definição do campo no formulário.
+// Faixa de escala vem da definição do campo nas versões publicadas; com a
+// mesma chave em várias versões, vale a mais nova.
 const fieldDefinitions = new Map(
-  followUpForms.flatMap((form) =>
-    form.fields.map((field) => [field.fieldKey, field]),
+  forms.flatMap((form) =>
+    form.versions.flatMap((version) =>
+      version.fields.map((field) => [field.fieldKey, field]),
+    ),
   ),
 );
 
