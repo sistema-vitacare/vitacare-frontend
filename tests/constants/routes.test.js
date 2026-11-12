@@ -7,8 +7,11 @@ import {
 import {
   NAV_ITEMS,
   PATHS,
+  alertPath,
+  alertsPath,
   formPath,
   homePath,
+  medicationsPath,
   patientPath,
   recordPath,
   recordsPath,
@@ -137,5 +140,21 @@ describe('endereços de formulários e registros', () => {
     expect(PATHS.FORM_DETAIL).toBe('/formularios/:formId');
     expect(PATHS.PATIENT_VISIT).toBe('/pacientes/:patientId/registrar');
     expect(PATHS.RECORD_DETAIL).toBe('/registros/:followUpId');
+  });
+});
+
+describe('endereços de medicamentos e alertas', () => {
+  it('leva às listas com o paciente no endereço, o mesmo parâmetro dos registros', () => {
+    expect(medicationsPath('abc')).toBe('/medicamentos?paciente=abc');
+    expect(medicationsPath('a&b')).toBe('/medicamentos?paciente=a%26b');
+    expect(medicationsPath()).toBe('/medicamentos');
+    expect(alertsPath('abc')).toBe('/alertas?paciente=abc');
+    expect(alertsPath()).toBe('/alertas');
+  });
+
+  it('monta o detalhe do alerta com o id codificado', () => {
+    expect(alertPath('abc')).toBe('/alertas/abc');
+    expect(alertPath('a/b')).toBe('/alertas/a%2Fb');
+    expect(PATHS.ALERT_DETAIL).toBe('/alertas/:alertId');
   });
 });
