@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   MASKED_VALUE,
   ageFromBirthDate,
+  formatAnswer,
   formatDate,
   formatDateTime,
   formatNumber,
@@ -68,5 +69,28 @@ describe('formatNumber', () => {
     expect(formatNumber(2.0555)).toBe('2,06');
     expect(formatNumber(126)).toBe('126');
     expect(formatNumber(-3)).toBe('-3');
+  });
+});
+
+describe('formatAnswer', () => {
+  const labels = { yes: 'Sim', no: 'Não' };
+  const answer = (fieldType, value, unit = null) => ({
+    fieldType,
+    value,
+    unit,
+  });
+
+  it('mostra número com vírgula e unidade, e escala sem unidade', () => {
+    expect(formatAnswer(answer('number', 36.5, '°C'), labels)).toBe('36,5 °C');
+    expect(formatAnswer(answer('scale', 0), labels)).toBe('0');
+  });
+
+  it('mostra sim e não, a escolha e a lista de escolhas', () => {
+    expect(formatAnswer(answer('boolean', false), labels)).toBe('Não');
+    expect(formatAnswer(answer('boolean', true), labels)).toBe('Sim');
+    expect(formatAnswer(answer('single_choice', 'Bom'), labels)).toBe('Bom');
+    expect(
+      formatAnswer(answer('multiple_choice', ['Banho', 'Curativo']), labels),
+    ).toBe('Banho, Curativo');
   });
 });
