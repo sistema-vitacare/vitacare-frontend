@@ -38,13 +38,15 @@ Em produção, o frontend roda na VPS como um container nginx na porta 1040, pub
 | `src/main.jsx` | Ponto de entrada: monta a aplicação na página. |
 | `src/App.jsx` | Componente raiz: cria o roteador a partir da árvore de rotas. |
 | `src/routes.jsx` | Árvore de rotas: layout, proteções por sessão e permissão e página de cada endereço. |
-| `src/components/` | Componentes usados em mais de um lugar, como o layout autenticado, o layout das telas de acesso, o cabeçalho de página, os estados de carregamento, vazio e erro, o provedor de sessão e as proteções por sessão e por permissão. |
-| `src/constants/` | Listas fechadas, como os endereços do sistema, os itens do menu e a matriz de permissões dos perfis. |
+| `src/components/` | Componentes usados em mais de um lugar, como o layout autenticado, o layout das telas de acesso, o cabeçalho de página, os estados de carregamento, vazio e erro, a lista e os filtros dos registros de acompanhamento, o provedor de sessão e as proteções por sessão e por permissão. |
+| `src/constants/` | Listas fechadas, como os endereços do sistema, os itens do menu, a matriz de permissões dos perfis e os tipos de campo dos formulários. |
 | `src/data/` | Textos da interface. |
-| `src/data/mocks/` | Dados simulados no formato da API: organização, usuários, pacientes, credenciais de demonstração, vínculos de cuidado, formulários, registros, medicamentos e alertas. |
+| `src/data/mocks/` | Dados simulados no formato da API: organização, usuários, pacientes, credenciais de demonstração, vínculos de cuidado, formulários com versões e rascunho, registros, anexos, medicamentos e alertas. |
 | `src/pages/` | Telas, uma pasta por tela. |
 | `src/pages/Login/` | Entrada no sistema. |
 | `src/pages/Patients/` | Pacientes: listagem, cadastro e edição, detalhe com a equipe de cuidado e histórico com a evolução. |
+| `src/pages/Forms/` | Formulários de acompanhamento: lista e página do formulário, com os dados, os campos por seção, o rascunho, a publicação e a situação. |
+| `src/pages/FollowUps/` | Registros de acompanhamento: registro de visita, lista por paciente e detalhe com os alertas gerados, os anexos e a anulação. |
 | `src/pages/PasswordRecovery/` | Pedido de recuperação de senha. |
 | `src/pages/PasswordReset/` | Redefinição da senha pelo link de recuperação. |
 | `src/pages/FirstAccess/` | Troca obrigatória da senha provisória no primeiro acesso. |
@@ -52,7 +54,7 @@ Em produção, o frontend roda na VPS como um container nginx na porta 1040, pub
 | `src/hooks/` | Hooks que ligam as telas aos serviços, como o `useResource`, para leitura, e o `useSubmit`, para envio. |
 | `src/services/` | Único ponto de acesso a dados; hoje responde com os dados simulados. |
 | `src/styles/` | Tema do Material UI: cores, tipografia, raios, sombras e movimento. |
-| `src/utils/` | Funções puras: validações (CPF, campos de acesso, cadastro de paciente), máscaras, formatação de datas e os indicadores de evolução. |
+| `src/utils/` | Funções puras: validações (CPF, campos de acesso, cadastro de paciente), regras dos campos de formulário, das respostas de registro e dos anexos, máscaras, formatação de datas e os indicadores de evolução. |
 | `tests/` | Testes automatizados, espelhando as pastas de `src/`. |
 | `tests/support/` | Apoio dos testes: verificações de projeto, cálculo de contraste, largura de tela simulada e renderização de telas com sessão de demonstração. |
 
