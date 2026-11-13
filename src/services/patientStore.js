@@ -4,7 +4,6 @@
 // alcance de cada perfil, como `patient.policy.ts` do backend.
 import { patientLinks as seedLinks } from '../data/mocks/patientLinks.js';
 import { patients as seedPatients } from '../data/mocks/patients.js';
-import { users } from '../data/mocks/users.js';
 import { MASKED_VALUE } from '../utils/format.js';
 import { ApiError, registerMockState } from './mockApi.js';
 
@@ -27,8 +26,6 @@ export function nextId(prefix) {
   sequence += 1;
   return `${prefix}-0000-5000-8000-${String(sequence).padStart(12, '0')}`;
 }
-
-export const userById = new Map(users.map((user) => [user.id, user]));
 
 export function allPatients() {
   return [

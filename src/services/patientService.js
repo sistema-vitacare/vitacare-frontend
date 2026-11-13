@@ -5,6 +5,7 @@ import { PERMISSIONS as P } from '../constants/permissions.js';
 import { forms } from '../data/mocks/forms.js';
 import { buildIndicators } from '../utils/evolution.js';
 import { TIME_ZONE, todayInSaoPaulo } from '../utils/format.js';
+import { resolvePeriod } from '../utils/period.js';
 import { currentViewer } from './authService.js';
 import { allAlerts } from './alertStore.js';
 import { allFollowUps } from './followUpStore.js';
@@ -26,8 +27,8 @@ import {
   nextId,
   patientForViewer,
   reachablePatient,
-  userById,
 } from './patientStore.js';
+import { findUser } from './userStore.js';
 
 export const PATIENT_ERROR_CODES = Object.freeze({
   NOT_FOUND: 'PATIENT_NOT_FOUND',
@@ -41,7 +42,6 @@ export const PATIENT_ERROR_CODES = Object.freeze({
 });
 
 const CODES = PATIENT_ERROR_CODES;
-const EVOLUTION_DEFAULT_DAYS = 30;
 const OVERVIEW_VALUES = 5;
 const OVERVIEW_MEDICATIONS = 10;
 const OVERVIEW_ALERTS = 5;
@@ -105,7 +105,7 @@ export function getPatient(patientId) {
 }
 
 function responsibleFor(userId) {
-  const user = userById.get(userId);
+  const user = findUser(userId);
   const valid =
     user &&
     ['professional', 'admin'].includes(user.profile.code) &&
@@ -342,12 +342,6 @@ export function getPatientOverview(patientId) {
   });
 }
 
-function shiftDays(date, days) {
-  const shifted = new Date(`${date}T12:00:00.000Z`);
-  shifted.setUTCDate(shifted.getUTCDate() + days);
-  return shifted.toISOString().slice(0, 10);
-}
-
 // Faixa de escala vem da definição do campo nas versões publicadas; com a
 // mesma chave em várias versões, vale a mais nova.
 const fieldDefinitions = new Map(
@@ -358,6 +352,30 @@ const fieldDefinitions = new Map(
   ),
 );
 
+/** Registros válidos do paciente com visita no período, em dias de Brasília. */
+export function followUpsInPeriod(patientId, { from, to }, now = new Date()) {
+  return validFollowUps(patientId, now).filter((followUp) => {
+    const day = todayInSaoPaulo(new Date(followUp.visitedAt));
+    return day >= from && day <= to;
+  });
+}
+
+/**
+ * Séries numéricas com os indicadores, iguais em GET /patients/{id}/evolution
+ * e no relatório do paciente, que a API calcula pelas mesmas funções.
+ */
+export function evolutionSeries(followUps) {
+  return numericSeries(followUps).map((item) => {
+    const definition = fieldDefinitions.get(item.fieldKey);
+    return {
+      ...item,
+      scaleMin: definition?.scaleMin ?? null,
+      scaleMax: definition?.scaleMax ?? null,
+      indicators: buildIndicators(item.points),
+    };
+  });
+}
+
 export function getPatientEvolution(patientId, query = {}) {
   return mockRequest(() => {
     const viewer = currentViewer();
@@ -365,30 +383,19 @@ export function getPatientEvolution(patientId, query = {}) {
     reachablePatient(viewer, patientId);
     const now = new Date();
     // Sem datas, os últimos 30 dias até hoje, contados no fuso de Brasília.
-    const to = query.to ?? todayInSaoPaulo(now);
-    const from = query.from ?? shiftDays(to, -(EVOLUTION_DEFAULT_DAYS - 1));
-    const inPeriod = validFollowUps(patientId, now).filter((followUp) => {
-      const day = todayInSaoPaulo(new Date(followUp.visitedAt));
-      return (
-        day >= from &&
-        day <= to &&
-        (!query.formId || followUp.form.id === query.formId)
-      );
-    });
-    const series = numericSeries(inPeriod)
-      .filter((item) => !query.fieldKey || item.fieldKey === query.fieldKey)
-      .map((item) => {
-        const definition = fieldDefinitions.get(item.fieldKey);
-        return {
-          ...item,
-          scaleMin: definition?.scaleMin ?? null,
-          scaleMax: definition?.scaleMax ?? null,
-          indicators: buildIndicators(item.points),
-        };
-      });
+    const { period, errors } = resolvePeriod(query, todayInSaoPaulo(now));
+    if (errors.length > 0) {
+      throw validationError(errors);
+    }
+    const inPeriod = followUpsInPeriod(patientId, period, now).filter(
+      (followUp) => !query.formId || followUp.form.id === query.formId,
+    );
+    const series = evolutionSeries(inPeriod).filter(
+      (item) => !query.fieldKey || item.fieldKey === query.fieldKey,
+    );
     return respond({
       patientId,
-      period: { from, to, timeZone: TIME_ZONE },
+      period: { ...period, timeZone: TIME_ZONE },
       series,
     });
   });

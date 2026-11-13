@@ -1,7 +1,6 @@
 // Vínculos usuário–paciente simulados, no formato das rotas `patient-links`
 // da API (manual `patient-links-*.md`, conferido em 10/11/2026).
 import { PERMISSIONS as P } from '../constants/permissions.js';
-import { users } from '../data/mocks/users.js';
 import { currentViewer } from './authService.js';
 import {
   ApiError,
@@ -17,8 +16,8 @@ import {
   findPatient,
   nextId,
   patientNotFound,
-  userById,
 } from './patientStore.js';
+import { allUsers, findUser } from './userStore.js';
 
 export const LINK_ERROR_CODES = Object.freeze({
   NOT_FOUND: 'PATIENT_LINK_NOT_FOUND',
@@ -65,7 +64,7 @@ function responsibleLink(patient) {
 
 function toApiLink(link) {
   const patient = findPatient(link.patientId);
-  const user = userById.get(link.userId);
+  const user = findUser(link.userId);
   return {
     id: link.id,
     patient: { id: patient.id, name: patient.name, status: patient.status },
@@ -125,7 +124,7 @@ export function listEligibleUsers({ role, search, page, limit }) {
   return mockRequest(() => {
     manage();
     const term = search?.trim().toLowerCase();
-    const items = users
+    const items = allUsers()
       .filter((user) => ROLE_PROFILES[role].includes(user.profile.code))
       .filter((user) => ['active', 'pending'].includes(user.status))
       .filter((user) => !term || user.name.toLowerCase().includes(term))
@@ -158,7 +157,7 @@ export function createPatientLink({
         'Paciente inativo não recebe vínculo novo.',
       );
     }
-    const user = userById.get(userId);
+    const user = findUser(userId);
     // O papel vem do perfil do usuário: só cuidador e familiar recebem vínculo.
     const role = user?.profile.code;
     if (
