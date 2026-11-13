@@ -20,6 +20,7 @@ export const PATHS = Object.freeze({
   FIRST_ACCESS: '/primeiro-acesso',
   HOME: '/',
   DASHBOARD: '/painel',
+  DASHBOARD_INDICATOR: '/painel/:indicator',
   PATIENTS: '/pacientes',
   PATIENT_NEW: '/pacientes/novo',
   PATIENT_DETAIL: '/pacientes/:patientId',
@@ -36,7 +37,9 @@ export const PATHS = Object.freeze({
   FORM_DETAIL: '/formularios/:formId',
   REPORTS: '/relatorios',
   USERS: '/usuarios',
+  USER_DETAIL: '/usuarios/:userId',
   AUDIT: '/auditoria',
+  AUDIT_EVENT: '/auditoria/:eventId',
   SETTINGS: '/configuracoes',
   ORGANIZATIONS: '/organizacoes',
 });
@@ -210,4 +213,56 @@ export function medicationsPath(patientId) {
 /** Alertas, já com o paciente escolhido quando há um. */
 export function alertsPath(patientId) {
   return withPatient(PATHS.ALERTS, patientId);
+}
+
+/** Relatórios, já com o paciente escolhido quando há um. */
+export function reportsPath(patientId) {
+  return withPatient(PATHS.REPORTS, patientId);
+}
+
+/** Página do usuário; o id vem da API e é codificado. */
+export function userPath(userId) {
+  return `${PATHS.USERS}/${encodeURIComponent(userId)}`;
+}
+
+/** Detalhe do evento de auditoria; o id vem da API e é codificado. */
+export function auditEventPath(eventId) {
+  return `${PATHS.AUDIT}/${encodeURIComponent(eventId)}`;
+}
+
+// Atalho de período do painel no endereço, para que o detalhe de um
+// indicador e a volta ao painel mantenham o mesmo período.
+export const PERIOD_PARAM = 'periodo';
+
+// Trecho do endereço de cada indicador, em português como o resto das rotas.
+const INDICATOR_SLUGS = Object.freeze({
+  patients: 'pacientes',
+  users: 'usuarios',
+  followUps: 'registros',
+  alerts: 'alertas',
+});
+
+function withPeriod(path, period) {
+  if (!period) {
+    return path;
+  }
+  return `${path}?${new URLSearchParams([[PERIOD_PARAM, period]])}`;
+}
+
+/** Painel, com o atalho de período quando há um. */
+export function dashboardPath(period) {
+  return withPeriod(PATHS.DASHBOARD, period);
+}
+
+/** Detalhe de um indicador do painel (UC05, passo 4), com o período. */
+export function dashboardIndicatorPath(indicator, period) {
+  return withPeriod(`${PATHS.DASHBOARD}/${INDICATOR_SLUGS[indicator]}`, period);
+}
+
+/** Indicador do trecho do endereço; `null` quando ele não existe. */
+export function indicatorFromSlug(slug) {
+  const entry = Object.entries(INDICATOR_SLUGS).find(
+    ([, value]) => value === slug,
+  );
+  return entry ? entry[0] : null;
 }
