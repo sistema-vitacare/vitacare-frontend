@@ -5,6 +5,7 @@ import {
   alertsPath,
   medicationsPath,
   patientPath,
+  reportsPath,
 } from '../../../src/constants/routes.js';
 import { careTeamContent } from '../../../src/data/careTeam.js';
 import { patientDetailContent as content } from '../../../src/data/patientDetail.js';
@@ -113,6 +114,22 @@ describe('PatientDetailPage', () => {
     expect(
       await screen.findByRole('heading', { name: careTeamContent.title }),
     ).toBeVisible();
+  });
+
+  it('leva ao relatório do paciente quem gera relatório, e só ele', async () => {
+    renderDetail(DIRCE);
+    await heading('Dirce Albuquerque Moraes');
+
+    expect(
+      screen.getByRole('link', { name: content.actions.report }),
+    ).toHaveAttribute('href', reportsPath(DIRCE));
+  });
+
+  it('não mostra o relatório a quem não gera relatório', async () => {
+    renderDetail(DIRCE, 'caregiver');
+    await heading('Dirce Albuquerque Moraes');
+
+    expect(screen.queryByRole('link', { name: /Relatório/ })).toBeNull();
   });
 
   it('mostra à cuidadora o registro de visita e o histórico, sem editar, inativar nem equipe', async () => {

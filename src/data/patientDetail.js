@@ -7,6 +7,7 @@ export const patientDetailContent = {
     visit: 'Registrar visita',
     history: 'Histórico e evolução',
     medications: 'Medicamentos',
+    report: 'Relatório',
     edit: 'Editar',
     deactivate: 'Inativar',
     reactivate: 'Reativar',
