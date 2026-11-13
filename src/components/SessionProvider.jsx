@@ -3,6 +3,7 @@ import { SessionContext } from '../hooks/useSession.js';
 import {
   AUTH_ERRORS,
   SESSION_STATES,
+  changePassword as changePasswordRequest,
   completeFirstAccess as completeFirstAccessRequest,
   endSession,
   login,
@@ -46,18 +47,20 @@ export default function SessionProvider({ children }) {
   }, []);
 
   const { session } = state;
-  const completeFirstAccess = useCallback(
-    async (newPassword) => {
+
+  // Troca de senha que a API conclui encerrando a sessão: a sessão vencida
+  // vira `expired`; a troca feita volta ao login com o aviso, que leva a
+  // organização e o e-mail, para não pedir de novo.
+  const endWithNewPassword = useCallback(
+    async (request) => {
       try {
-        await completeFirstAccessRequest(session, { newPassword });
+        await request();
       } catch (error) {
         if (error.code === AUTH_ERRORS.UNAUTHENTICATED) {
           setState(EXPIRED);
         }
         throw error;
       }
-      // A API encerra a sessão restrita e exige login com a senha nova. O
-      // aviso leva ao login a organização e o e-mail, para não pedir de novo.
       setState({
         ...ANONYMOUS,
         notice: {
@@ -68,6 +71,22 @@ export default function SessionProvider({ children }) {
       });
     },
     [session],
+  );
+
+  // A API encerra a sessão restrita e exige login com a senha nova.
+  const completeFirstAccess = useCallback(
+    (newPassword) =>
+      endWithNewPassword(() =>
+        completeFirstAccessRequest(session, { newPassword }),
+      ),
+    [endWithNewPassword, session],
+  );
+
+  // A troca da própria senha encerra todas as sessões da conta, inclusive
+  // esta, como na API.
+  const changePassword = useCallback(
+    (passwords) => endWithNewPassword(() => changePasswordRequest(passwords)),
+    [endWithNewPassword],
   );
 
   const signOut = useCallback(async () => {
@@ -83,9 +102,17 @@ export default function SessionProvider({ children }) {
       signIn,
       signInWithPassword,
       completeFirstAccess,
+      changePassword,
       signOut,
     };
-  }, [state, signIn, signInWithPassword, completeFirstAccess, signOut]);
+  }, [
+    state,
+    signIn,
+    signInWithPassword,
+    completeFirstAccess,
+    changePassword,
+    signOut,
+  ]);
 
   return <SessionContext value={value}>{children}</SessionContext>;
 }

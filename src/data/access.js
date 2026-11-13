@@ -19,6 +19,7 @@ export const accessFields = {
   },
   email: { label: 'E-mail' },
   password: { label: 'Senha' },
+  currentPassword: { label: 'Senha atual' },
   newPassword: { label: 'Nova senha', helper: 'De 8 a 128 caracteres.' },
   confirmation: { label: 'Confirme a nova senha' },
 };
@@ -53,11 +54,29 @@ export const fieldErrorMessages = {
     tooLong: 'Use no máximo 128 caracteres.',
     invalid: 'Senha em formato inválido.',
     reuse: 'A nova senha precisa ser diferente da senha provisória.',
+    sameAsCurrent: 'A nova senha precisa ser diferente da atual.',
+  },
+  currentPassword: {
+    required: 'Informe a senha atual.',
+    tooShort: 'A senha tem pelo menos 8 caracteres.',
+    tooLong: 'A senha tem no máximo 128 caracteres.',
+    invalid: 'Senha em formato inválido.',
+    wrong: 'A senha atual não confere.',
   },
   confirmation: {
     required: 'Repita a nova senha.',
     mismatch: 'As senhas não conferem.',
   },
+};
+
+// Troca da própria senha, pelo menu do usuário, em qualquer perfil.
+export const changePasswordContent = {
+  menuItem: 'Alterar senha',
+  title: 'Alterar senha',
+  intro:
+    'Depois da troca, todas as sessões da sua conta são encerradas, inclusive esta, e você entra de novo com a senha nova.',
+  submit: 'Alterar senha',
+  cancel: 'Cancelar',
 };
 
 export const accessErrors = {
