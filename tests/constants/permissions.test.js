@@ -20,19 +20,37 @@ describe('matriz de permissões', () => {
     );
 
     expect(counts).toEqual({
-      platform_admin: 9,
-      admin: 34,
-      professional: 20,
-      caregiver: 7,
-      family: 5,
+      platform_admin: 10,
+      admin: 36,
+      professional: 21,
+      caregiver: 8,
+      family: 6,
     });
   });
 
-  it('tem no catálogo os mesmos 39 códigos do backend, inclusive o de resolver alertas', () => {
+  it('tem no catálogo os mesmos 41 códigos do backend, inclusive o do próprio cadastro e o dos relatórios gerenciais', () => {
     const catalog = Object.values(PERMISSIONS);
 
-    expect(catalog).toHaveLength(39);
+    expect(catalog).toHaveLength(41);
     expect(catalog).toContain('alerts:resolve');
+    expect(catalog).toContain('profile:manage');
+    expect(catalog).toContain('management_reports:generate');
+  });
+
+  it('deixa todos os perfis, inclusive a plataforma, cuidar do próprio cadastro', () => {
+    const holders = profiles.filter((profile) =>
+      permissionsFor(profile).includes('profile:manage'),
+    );
+
+    expect(holders).toEqual(profiles);
+  });
+
+  it('deixa gerar relatório gerencial só o administrador da organização', () => {
+    const holders = profiles.filter((profile) =>
+      permissionsFor(profile).includes('management_reports:generate'),
+    );
+
+    expect(holders).toEqual(['admin']);
   });
 
   it('deixa resolver alertas só quem cuida: profissional, cuidador e, por herança, administrador', () => {
@@ -69,13 +87,14 @@ describe('matriz de permissões', () => {
     expect(canRecord).toEqual(['caregiver']);
   });
 
-  it('dá ao familiar apenas permissões de leitura', () => {
-    const family = permissionsFor('family');
-
-    expect(family).toHaveLength(5);
-    expect(family.every((permission) => permission.endsWith(':read'))).toBe(
-      true,
+  it('dá ao familiar só leitura dos dados de cuidado, além do próprio cadastro', () => {
+    // `profile:manage` só alcança o cadastro de quem está na sessão.
+    const care = permissionsFor('family').filter(
+      (permission) => permission !== 'profile:manage',
     );
+
+    expect(care).toHaveLength(5);
+    expect(care.every((permission) => permission.endsWith(':read'))).toBe(true);
   });
 
   it('reserva as permissões platform_* ao administrador da plataforma', () => {

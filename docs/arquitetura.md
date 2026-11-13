@@ -85,7 +85,7 @@ Duas alternativas foram descartadas:
 
 | Perfil | Código | Acesso |
 | --- | --- | --- |
-| Administrador | `admin` | Tudo o que o profissional de saúde faz, mais usuários, organização, plano, painel operacional e auditoria. |
+| Administrador | `admin` | Tudo o que o profissional de saúde faz, mais usuários, organização, plano, painel operacional, relatórios gerenciais e auditoria. |
 | Profissional de saúde | `professional` | Pacientes, histórico e evolução, formulários, consulta e resolução de alertas, regras de alerta, anulação de registros, medicamentos, relatórios e vínculos de cuidado. |
 | Cuidador | `caregiver` | Pacientes vinculados, registro de acompanhamento, consulta e resolução de alertas e consulta de medicamentos. |
 | Familiar | `family` | Consulta do paciente vinculado: cadastro, histórico, evolução, alertas e medicamentos. |
@@ -96,6 +96,8 @@ A matriz de permissões replica `src/modules/Access/access.permissions.ts` do vi
 As telas consultam permissões, por exemplo `can('patients:create')`, e nunca o nome do perfil. Assim, uma mudança na matriz não exige alterar telas. Conteúdo que depende de uma permissão fica dentro de `RequirePermission`: sem a permissão, o conteúdo não é renderizado e não carrega dados.
 
 Apenas o cuidador registra acompanhamento. O administrador herda as permissões do profissional de saúde, não as do cuidador.
+
+Todos os perfis, inclusive o administrador da plataforma, têm `profile:manage`, que só alcança o cadastro de quem está na sessão.
 
 A sessão fica no `SessionProvider` e chega às telas pelo hook `useSession`, em um de quatro estados:
 
