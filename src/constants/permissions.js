@@ -37,8 +37,10 @@ export const PERMISSIONS = Object.freeze({
   PLAN_READ: 'plan:read',
   PLAN_CHANGE_REQUESTS_CREATE: 'plan_change_requests:create',
   DASHBOARD_READ: 'dashboard:read',
+  MANAGEMENT_REPORTS_GENERATE: 'management_reports:generate',
   AUDIT_EVENTS_READ: 'audit_events:read',
   AUDIT_EVENTS_EXPORT: 'audit_events:export',
+  PROFILE_MANAGE: 'profile:manage',
   PLATFORM_ORGANIZATIONS_CREATE: 'platform_organizations:create',
   PLATFORM_ORGANIZATIONS_READ: 'platform_organizations:read',
   PLATFORM_ORGANIZATIONS_UPDATE: 'platform_organizations:update',
@@ -47,7 +49,10 @@ export const PERMISSIONS = Object.freeze({
 
 const P = PERMISSIONS;
 
+// `profile:manage` só alcança o cadastro de quem está na sessão; todos os
+// perfis a têm, inclusive o administrador da plataforma.
 const FAMILY = [
+  P.PROFILE_MANAGE,
   P.PATIENTS_READ,
   P.PATIENT_HISTORY_READ,
   P.PATIENT_EVOLUTION_READ,
@@ -56,6 +61,7 @@ const FAMILY = [
 ];
 
 const CAREGIVER = [
+  P.PROFILE_MANAGE,
   P.PATIENTS_READ,
   P.PATIENT_HISTORY_READ,
   P.ALERTS_READ,
@@ -66,6 +72,7 @@ const CAREGIVER = [
 ];
 
 const PROFESSIONAL = [
+  P.PROFILE_MANAGE,
   P.PATIENTS_READ,
   P.PATIENTS_CREATE,
   P.PATIENTS_UPDATE,
@@ -101,11 +108,13 @@ const ADMINISTRATIVE = [
   P.PLAN_READ,
   P.PLAN_CHANGE_REQUESTS_CREATE,
   P.DASHBOARD_READ,
+  P.MANAGEMENT_REPORTS_GENERATE,
   P.AUDIT_EVENTS_READ,
   P.AUDIT_EVENTS_EXPORT,
 ];
 
 const PLATFORM_ADMIN = [
+  P.PROFILE_MANAGE,
   P.USERS_RESET_PASSWORD,
   P.ORGANIZATION_READ,
   P.ORGANIZATION_UPDATE,
