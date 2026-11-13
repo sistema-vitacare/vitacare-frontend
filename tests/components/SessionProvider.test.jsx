@@ -137,6 +137,48 @@ describe('SessionProvider', () => {
     });
   });
 
+  it('troca a própria senha, encerra a sessão e guarda organização e e-mail para o login', async () => {
+    const { result } = renderSession();
+    await act(() => result.current.signInWithPassword(helena));
+
+    await act(() =>
+      result.current.changePassword({
+        currentPassword: DEMO_PASSWORD,
+        newPassword: 'senha-nova-da-helena',
+      }),
+    );
+
+    expect(result.current.status).toBe('anonymous');
+    expect(result.current.notice).toEqual({
+      kind: 'passwordChanged',
+      organizationCode: 'ipe-amarelo',
+      email: 'helena.vasconcelos@ipeamarelo.example',
+    });
+    await act(() =>
+      result.current.signInWithPassword({
+        ...helena,
+        password: 'senha-nova-da-helena',
+      }),
+    );
+    expect(result.current.status).toBe('authenticated');
+  });
+
+  it('mantém a sessão quando a senha atual não confere', async () => {
+    const { result } = renderSession();
+    await act(() => result.current.signInWithPassword(helena));
+
+    await act(() =>
+      expect(
+        result.current.changePassword({
+          currentPassword: 'senha-errada',
+          newPassword: 'senha-nova-da-helena',
+        }),
+      ).rejects.toMatchObject({ code: 'AUTH_CURRENT_PASSWORD_INVALID' }),
+    );
+
+    expect(result.current.status).toBe('authenticated');
+  });
+
   it('mantém a sessão restrita quando o primeiro acesso é recusado', async () => {
     const { result } = renderSession();
     await act(() => result.current.signInWithPassword(edna));

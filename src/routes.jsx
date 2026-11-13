@@ -7,6 +7,10 @@ import { NAV_ITEMS, PATHS } from './constants/routes.js';
 import { navLabels } from './data/navigation.js';
 import AlertDetailPage from './pages/Alerts/AlertDetailPage.jsx';
 import AlertListPage from './pages/Alerts/AlertListPage.jsx';
+import AuditEventPage from './pages/Audit/AuditEventPage.jsx';
+import AuditListPage from './pages/Audit/AuditListPage.jsx';
+import DashboardIndicatorPage from './pages/Dashboard/DashboardIndicatorPage.jsx';
+import DashboardPage from './pages/Dashboard/DashboardPage.jsx';
 import FirstAccessPage from './pages/FirstAccess/FirstAccessPage.jsx';
 import FollowUpDetailPage from './pages/FollowUps/FollowUpDetailPage.jsx';
 import FollowUpListPage from './pages/FollowUps/FollowUpListPage.jsx';
@@ -21,16 +25,25 @@ import PatientDetailPage from './pages/Patients/PatientDetailPage.jsx';
 import PatientFormPage from './pages/Patients/PatientFormPage.jsx';
 import PatientHistoryPage from './pages/Patients/PatientHistoryPage.jsx';
 import PatientListPage from './pages/Patients/PatientListPage.jsx';
+import ReportsPage from './pages/Reports/ReportsPage.jsx';
+import SettingsPage from './pages/Settings/SettingsPage.jsx';
 import StatusPage from './pages/Status/StatusPage.jsx';
+import UserDetailPage from './pages/Users/UserDetailPage.jsx';
+import UserListPage from './pages/Users/UserListPage.jsx';
 
 // Página de cada item do menu. Item sem página ainda mostra "em construção"
 // com o nome da tela; cada tela nova entra aqui.
 const screens = {
+  dashboard: <DashboardPage />,
   patients: <PatientListPage />,
   records: <FollowUpListPage />,
   medications: <MedicationListPage />,
   alerts: <AlertListPage />,
   forms: <FormListPage />,
+  reports: <ReportsPage />,
+  users: <UserListPage />,
+  audit: <AuditListPage />,
+  settings: <SettingsPage />,
 };
 
 // Telas abaixo de um item do menu, cada uma com a permissão que a API exige
@@ -38,6 +51,21 @@ const screens = {
 // (`/pacientes/:patientId`) porque o roteador prefere o trecho fixo; o
 // mesmo vale para `/formularios/novo`.
 const subpages = [
+  {
+    path: PATHS.DASHBOARD_INDICATOR,
+    permission: P.DASHBOARD_READ,
+    element: <DashboardIndicatorPage />,
+  },
+  {
+    path: PATHS.USER_DETAIL,
+    permission: P.USERS_READ,
+    element: <UserDetailPage />,
+  },
+  {
+    path: PATHS.AUDIT_EVENT,
+    permission: P.AUDIT_EVENTS_READ,
+    element: <AuditEventPage />,
+  },
   {
     path: PATHS.PATIENT_NEW,
     permission: P.PATIENTS_CREATE,

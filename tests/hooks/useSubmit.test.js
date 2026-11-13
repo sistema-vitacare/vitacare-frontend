@@ -87,7 +87,7 @@ describe('useSubmit', () => {
     await act(async () => {
       outcome = await result.current.submit();
     });
-    expect(outcome).toEqual({ data: { id: 'p1' }, error: null });
+    expect(outcome).toMatchObject({ data: { id: 'p1' }, error: null });
 
     fail = true;
     await act(async () => {
@@ -95,5 +95,17 @@ describe('useSubmit', () => {
     });
     expect(outcome.data).toBeNull();
     expect(outcome.error.code).toBe('CONFLICT');
+  });
+
+  it('devolve também o meta da resposta, com a mensagem da API', async () => {
+    const action = async () => respond({ id: 'p1' }, { message: 'Enviado.' });
+    const { result } = renderHook(() => useSubmit(action));
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.submit();
+    });
+
+    expect(outcome.meta.message).toBe('Enviado.');
   });
 });

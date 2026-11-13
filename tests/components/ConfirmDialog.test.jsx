@@ -48,4 +48,18 @@ describe('ConfirmDialog', () => {
       screen.getByRole('button', { name: confirmDialogContent.cancel }),
     ).toBeDisabled();
   });
+
+  it('troca o "Cancelar" quando a própria ação é um cancelamento', () => {
+    const { onClose } = renderDialog({
+      title: 'Cancelar a solicitação?',
+      confirmLabel: 'Cancelar solicitação',
+      cancelLabel: 'Manter',
+    });
+
+    expect(
+      screen.queryByRole('button', { name: confirmDialogContent.cancel }),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Manter' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

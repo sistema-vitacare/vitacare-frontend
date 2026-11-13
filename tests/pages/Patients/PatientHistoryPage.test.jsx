@@ -5,8 +5,10 @@ import {
   patientPath,
   recordPath,
 } from '../../../src/constants/routes.js';
+import { evolutionSeriesContent as seriesContent } from '../../../src/data/evolutionSeries.js';
 import { followUpRecordsContent as recordsContent } from '../../../src/data/followUpRecords.js';
 import { patientHistoryContent as content } from '../../../src/data/patientHistory.js';
+import { periodFieldsContent } from '../../../src/data/periodFields.js';
 import PatientHistoryPage from '../../../src/pages/Patients/PatientHistoryPage.jsx';
 import { resetMockState } from '../../../src/services/mockApi.js';
 import { renderPage } from '../../support/renderPage.jsx';
@@ -112,10 +114,10 @@ describe('PatientHistoryPage', () => {
       ),
     ).toBe(true);
 
-    fireEvent.change(screen.getByLabelText(recordsContent.filters.from), {
+    fireEvent.change(screen.getByLabelText(periodFieldsContent.from), {
       target: { value: '2000-01-01' },
     });
-    fireEvent.change(screen.getByLabelText(recordsContent.filters.to), {
+    fireEvent.change(screen.getByLabelText(periodFieldsContent.to), {
       target: { value: '2000-01-31' },
     });
 
@@ -132,10 +134,10 @@ describe('PatientHistoryPage', () => {
     });
     expect(
       await within(section).findByRole('figure', {
-        name: content.evolution.chartLabel('Glicemia capilar'),
+        name: seriesContent.chartLabel('Glicemia capilar'),
       }),
     ).toBeInTheDocument();
-    expect(within(section).getAllByText(content.evolution.mean).length).toBe(7);
+    expect(within(section).getAllByText(seriesContent.mean).length).toBe(7);
     expect(
       within(section).getByText(content.evolution.defaultPeriod),
     ).toBeVisible();

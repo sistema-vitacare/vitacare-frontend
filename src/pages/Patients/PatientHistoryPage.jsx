@@ -1,7 +1,7 @@
-import { Alert, Box, Button, Card, Stack, Typography } from '@mui/material';
-import { LineChart } from '@mui/x-charts/LineChart';
+import { Alert, Box, Button, Stack, Typography } from '@mui/material';
 import { useCallback, useId } from 'react';
 import { Link as RouterLink, useParams } from 'react-router';
+import EvolutionSeriesCard from '../../components/EvolutionSeriesCard.jsx';
 import FollowUpFilters from '../../components/FollowUpFilters.jsx';
 import FollowUpList from '../../components/FollowUpList.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
@@ -18,99 +18,7 @@ import {
   getPatient,
   getPatientEvolution,
 } from '../../services/patientService.js';
-import { formatDate, formatNumber } from '../../utils/format.js';
-
-function trendText(trend) {
-  if (!trend) {
-    return content.evolution.notEnough;
-  }
-  const slope = formatNumber(Math.abs(trend.slopePerDay));
-  return content.evolution.directions[trend.direction](slope);
-}
-
-function SeriesCard({ series }) {
-  const { indicators, unit } = series;
-  const suffix = unit ? ` ${unit}` : '';
-  const items = [
-    [content.evolution.mean, `${formatNumber(indicators.mean)}${suffix}`],
-    [
-      content.evolution.variation,
-      indicators.variation === null
-        ? content.evolution.notEnough
-        : `${formatNumber(indicators.variation)}${suffix}`,
-    ],
-    [content.evolution.trend, trendText(indicators.trend)],
-  ];
-  return (
-    <Card sx={{ p: 2 }}>
-      <Typography variant="h3">
-        {series.name}
-        {unit ? ` (${unit})` : ''}
-      </Typography>
-      <Typography variant="caption" color="text.secondary">
-        {series.form.name}
-      </Typography>
-      <Box
-        component="figure"
-        aria-label={content.evolution.chartLabel(series.name)}
-        sx={{ m: 0, mt: 1 }}
-      >
-        <LineChart
-          height={180}
-          margin={{ left: 8, right: 16, top: 16, bottom: 8 }}
-          xAxis={[
-            {
-              data: series.points.map((point) => new Date(point.visitedAt)),
-              scaleType: 'time',
-              valueFormatter: (date) =>
-                formatDate(date.toISOString().slice(0, 10)),
-            },
-          ]}
-          yAxis={[
-            series.fieldType === 'scale'
-              ? { min: series.scaleMin, max: series.scaleMax, width: 36 }
-              : { width: 36 },
-          ]}
-          series={[
-            {
-              data: series.points.map((point) => point.value),
-              color: 'var(--chart-line)',
-              // Reta entre as medições: a curva suavizada sugeriria valores
-              // que ninguém mediu entre uma visita e outra.
-              curve: 'linear',
-              showMark: true,
-            },
-          ]}
-          sx={(theme) => ({ '--chart-line': theme.palette.primary.main })}
-        />
-      </Box>
-      <Box
-        component="dl"
-        sx={{
-          m: 0,
-          display: 'grid',
-          gap: 1,
-          gridTemplateColumns: 'repeat(3, 1fr)',
-        }}
-      >
-        {items.map(([label, value]) => (
-          <Box key={label}>
-            <Typography component="dt" variant="caption" color="text.secondary">
-              {label}
-            </Typography>
-            <Typography
-              component="dd"
-              variant="body2"
-              sx={{ m: 0, fontWeight: 650 }}
-            >
-              {value}
-            </Typography>
-          </Box>
-        ))}
-      </Box>
-    </Card>
-  );
-}
+import { formatDate } from '../../utils/format.js';
 
 function Evolution({ patientId, filters }) {
   const titleId = useId();
@@ -164,7 +72,7 @@ function Evolution({ patientId, filters }) {
               }}
             >
               {data.series.map((series) => (
-                <SeriesCard key={series.fieldKey} series={series} />
+                <EvolutionSeriesCard key={series.fieldKey} series={series} />
               ))}
             </Box>
           )

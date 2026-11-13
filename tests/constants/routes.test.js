@@ -9,12 +9,18 @@ import {
   PATHS,
   alertPath,
   alertsPath,
+  auditEventPath,
+  dashboardIndicatorPath,
+  dashboardPath,
   formPath,
   homePath,
+  indicatorFromSlug,
   medicationsPath,
   patientPath,
   recordPath,
   recordsPath,
+  reportsPath,
+  userPath,
   usesBottomNav,
   visibleNavItems,
 } from '../../src/constants/routes.js';
@@ -156,5 +162,52 @@ describe('endereços de medicamentos e alertas', () => {
     expect(alertPath('abc')).toBe('/alertas/abc');
     expect(alertPath('a/b')).toBe('/alertas/a%2Fb');
     expect(PATHS.ALERT_DETAIL).toBe('/alertas/:alertId');
+  });
+});
+
+describe('endereços do painel', () => {
+  it('guarda o atalho de período no endereço do painel', () => {
+    expect(dashboardPath()).toBe('/painel');
+    expect(dashboardPath('7')).toBe('/painel?periodo=7');
+  });
+
+  it('monta o detalhe de cada indicador com o período, em português', () => {
+    expect(dashboardIndicatorPath('patients')).toBe('/painel/pacientes');
+    expect(dashboardIndicatorPath('users', '30')).toBe(
+      '/painel/usuarios?periodo=30',
+    );
+    expect(dashboardIndicatorPath('followUps', 'today')).toBe(
+      '/painel/registros?periodo=today',
+    );
+    expect(dashboardIndicatorPath('alerts', '90')).toBe(
+      '/painel/alertas?periodo=90',
+    );
+    expect(PATHS.DASHBOARD_INDICATOR).toBe('/painel/:indicator');
+  });
+
+  it('reconhece o indicador pelo trecho do endereço e recusa o desconhecido', () => {
+    expect(indicatorFromSlug('pacientes')).toBe('patients');
+    expect(indicatorFromSlug('usuarios')).toBe('users');
+    expect(indicatorFromSlug('registros')).toBe('followUps');
+    expect(indicatorFromSlug('alertas')).toBe('alerts');
+    expect(indicatorFromSlug('medicamentos')).toBeNull();
+    expect(indicatorFromSlug(undefined)).toBeNull();
+  });
+});
+
+describe('endereços de usuários, relatórios e auditoria', () => {
+  it('monta a página do usuário e o detalhe do evento com o id codificado', () => {
+    expect(userPath('abc')).toBe('/usuarios/abc');
+    expect(userPath('a/b')).toBe('/usuarios/a%2Fb');
+    expect(PATHS.USER_DETAIL).toBe('/usuarios/:userId');
+    expect(auditEventPath('abc')).toBe('/auditoria/abc');
+    expect(auditEventPath('a/b')).toBe('/auditoria/a%2Fb');
+    expect(PATHS.AUDIT_EVENT).toBe('/auditoria/:eventId');
+  });
+
+  it('leva aos relatórios com o paciente no endereço, o mesmo parâmetro das listas', () => {
+    expect(reportsPath('abc')).toBe('/relatorios?paciente=abc');
+    expect(reportsPath('a&b')).toBe('/relatorios?paciente=a%26b');
+    expect(reportsPath()).toBe('/relatorios');
   });
 });

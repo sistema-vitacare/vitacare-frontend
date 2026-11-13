@@ -24,6 +24,7 @@ import {
   alertsPath,
   medicationsPath,
   patientPath,
+  reportsPath,
 } from '../../constants/routes.js';
 import { doseUnitNames } from '../../data/medicationPages.js';
 import { navLabels } from '../../data/navigation.js';
@@ -392,6 +393,15 @@ function PatientDetail({ patient, reload }) {
           variant="outlined"
         >
           {content.actions.medications}
+        </Button>
+      ) : null}
+      {can(P.REPORTS_GENERATE) ? (
+        <Button
+          component={RouterLink}
+          to={reportsPath(patient.id)}
+          variant="outlined"
+        >
+          {content.actions.report}
         </Button>
       ) : null}
       {can(P.PATIENTS_DEACTIVATE) ? (

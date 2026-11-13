@@ -6,9 +6,11 @@ import {
   formatAnswer,
   formatDate,
   formatDateTime,
+  formatMessageDateTime,
   formatDose,
   formatNumber,
   isMasked,
+  maskPersonName,
   todayInSaoPaulo,
 } from '../../src/utils/format.js';
 
@@ -51,6 +53,21 @@ describe('formatDate e formatDateTime', () => {
   it('devolve vazio para valor ausente', () => {
     expect(formatDate(null)).toBe('');
     expect(formatDateTime(undefined)).toBe('');
+  });
+});
+
+describe('formatMessageDateTime', () => {
+  it('escreve data e hora de Brasília como as mensagens da API', () => {
+    expect(formatMessageDateTime('2026-11-16T12:30:00.000Z')).toBe(
+      '16/11/2026 às 09:30',
+    );
+    // 02:30 UTC ainda é o dia anterior em Brasília.
+    expect(formatMessageDateTime('2026-11-17T02:30:00.000Z')).toBe(
+      '16/11/2026 às 23:30',
+    );
+    expect(formatMessageDateTime('2026-11-17T03:00:00.000Z')).toBe(
+      '17/11/2026 às 00:00',
+    );
   });
 });
 
@@ -108,5 +125,16 @@ describe('formatDose', () => {
     expect(formatDose(2, 'tablet', labels)).toBe('2 comprimidos');
     expect(formatDose(0.125, 'mg', labels)).toBe('0,125 mg');
     expect(formatDose(850, 'mg', labels)).toBe('850 mg');
+  });
+});
+
+describe('maskPersonName', () => {
+  it('deixa a inicial de cada palavra e troca o resto por asteriscos, como a API', () => {
+    expect(maskPersonName('Paulo Lima')).toBe('P**** L***');
+    expect(maskPersonName('Lúcia  de Andrade')).toBe('L****  d* A******');
+  });
+
+  it('mantém palavra de uma letra', () => {
+    expect(maskPersonName('A')).toBe('A');
   });
 });

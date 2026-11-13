@@ -1,18 +1,30 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
+import {
+  INVITATION_CHANNELS,
+  INVITATION_STATUSES,
+} from '../../src/constants/users.js';
 import { alertRules } from '../../src/data/mocks/alertRules.js';
 import { alertsAsOf } from '../../src/data/mocks/alerts.js';
 import { attachmentsAsOf } from '../../src/data/mocks/attachments.js';
+import { auditActions } from '../../src/data/mocks/auditActions.js';
+import { auditEventsAsOf } from '../../src/data/mocks/auditEvents.js';
 import { forms } from '../../src/data/mocks/forms.js';
 import { followUpsAsOf } from '../../src/data/mocks/followUps.js';
 import { medications } from '../../src/data/mocks/medications.js';
 import { organization } from '../../src/data/mocks/organization.js';
+import { clientOrganizations } from '../../src/data/mocks/organizations.js';
 import { patientLinks } from '../../src/data/mocks/patientLinks.js';
 import { patients } from '../../src/data/mocks/patients.js';
 import {
   platformAdmin,
   platformOrganization,
 } from '../../src/data/mocks/platform.js';
+import {
+  BASIC_PLAN,
+  ENTERPRISE_PLAN,
+  organizationTerm,
+} from '../../src/data/mocks/plans.js';
 import { users } from '../../src/data/mocks/users.js';
 import { matchesOperator } from '../../src/utils/alertRules.js';
 import {
@@ -60,6 +72,27 @@ describe('dados simulados', () => {
     );
 
     expect(orphans.map((patient) => patient.name)).toEqual([]);
+  });
+
+  it('dão convite só ao convidado, com canal, situação, validade e envio', () => {
+    for (const user of users) {
+      if (user.status !== 'pending') {
+        expect(user.invitation, user.name).toBeNull();
+        continue;
+      }
+      expect(Object.keys(user.invitation).sort(), user.name).toEqual([
+        'channel',
+        'expiresAt',
+        'sentAt',
+        'status',
+      ]);
+      expect(INVITATION_CHANNELS).toContain(user.invitation.channel);
+      expect(INVITATION_STATUSES).toContain(user.invitation.status);
+      // Senha provisória não passa pelo e-mail: não tem envio.
+      if (user.invitation.channel === 'temporary_password') {
+        expect(user.invitation.sentAt, user.name).toBeNull();
+      }
+    }
   });
 
   // `.example` é reservado pela RFC 2606: nenhum e-mail simulado aponta para
@@ -439,5 +472,129 @@ describe('dados simulados de acompanhamento', () => {
 
     expect(medications.some((item) => item.status === 'inactive')).toBe(true);
     expect(wrong.map((medication) => medication.name)).toEqual([]);
+  });
+});
+
+describe('dados simulados de gestão', () => {
+  const now = new Date();
+  const events = auditEventsAsOf(now);
+  const catalog = new Map(auditActions.map((item) => [item.action, item]));
+
+  it('seguem os limites do Quadro 2: Basic com 10 usuários e 200 pacientes, Enterprise com 50 e 1.000', () => {
+    expect([BASIC_PLAN.userLimit, BASIC_PLAN.patientLimit]).toEqual([10, 200]);
+    expect([ENTERPRISE_PLAN.userLimit, ENTERPRISE_PLAN.patientLimit]).toEqual([
+      50, 1000,
+    ]);
+    expect(BASIC_PLAN.expandable).toBe(false);
+    expect(ENTERPRISE_PLAN.expandable).toBe(true);
+  });
+
+  it('dão ao Enterprise todos os recursos do Basic e o painel operacional só a ele', () => {
+    expect(
+      BASIC_PLAN.features.every((feature) =>
+        ENTERPRISE_PLAN.features.includes(feature),
+      ),
+    ).toBe(true);
+    expect(BASIC_PLAN.features).not.toContain('operational_dashboard');
+    expect(ENTERPRISE_PLAN.features).toContain('operational_dashboard');
+  });
+
+  it('põem a organização de demonstração no Enterprise, com o termo apontando para ele', () => {
+    expect(organization.usagePlanId).toBe(ENTERPRISE_PLAN.id);
+    expect(organizationTerm.planId).toBe(ENTERPRISE_PLAN.id);
+    expect(organizationTerm.organizationId).toBe(organization.id);
+  });
+
+  it('dão a cada organização cliente um plano do catálogo e um código no formato da API', () => {
+    for (const item of clientOrganizations) {
+      expect([BASIC_PLAN.id, ENTERPRISE_PLAN.id]).toContain(item.usagePlanId);
+      expect(item.code).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
+    }
+    expect(clientOrganizations.map((item) => item.id)).not.toContain(
+      platformOrganization.id,
+    );
+  });
+
+  it('copiam as 67 ações do catálogo da API, sem repetir código', () => {
+    expect(auditActions).toHaveLength(67);
+    expect(catalog.size).toBe(67);
+  });
+
+  it('trazem as ações do convite por e-mail e do aceite do termo de uso', () => {
+    expect(catalog.get('user.invitation_sent')).toEqual({
+      action: 'user.invitation_sent',
+      label: 'Enviou convite por e-mail',
+      severity: 'info',
+    });
+    expect(catalog.get('user.invitation_failed')?.severity).toBe('warning');
+    expect(catalog.get('user.invitation_accepted')?.label).toBe(
+      'Aceitou o convite e cadastrou a senha',
+    );
+    expect(catalog.get('terms.accepted')?.label).toBe('Aceitou o termo de uso');
+  });
+
+  // Formato de `recordExport` do backend: a lista de relatórios recentes e o
+  // "N gerados" saem desses valores.
+  it('trazem exportações gerenciais com tipo, formato, período e condição', () => {
+    const exports = events.filter(
+      (event) => event.action === 'management_report.exported',
+    );
+
+    expect(new Set(exports.map((event) => event.afterValues.type))).toEqual(
+      new Set(['alerts', 'caregiver_activity']),
+    );
+    for (const event of exports) {
+      expect(event.entity.type).toBe('organization');
+      expect(Object.keys(event.afterValues).sort()).toEqual([
+        'condition',
+        'format',
+        'from',
+        'to',
+        'type',
+      ]);
+      expect(event.afterValues.from <= event.afterValues.to).toBe(true);
+    }
+  });
+
+  it('registram só ações do catálogo, com o rótulo e a gravidade dele', () => {
+    for (const event of events) {
+      const item = catalog.get(event.action);
+      expect(item, event.action).toBeDefined();
+      expect(event.actionLabel).toBe(item.label);
+      expect(event.severity).toBe(item.severity ?? event.afterValues.severity);
+    }
+  });
+
+  it('ficam em organizações clientes existentes, com mais de uma organização para a plataforma', () => {
+    const ids = new Set(clientOrganizations.map((item) => item.id));
+    const used = new Set(events.map((event) => event.organization.id));
+
+    expect([...used].every((id) => ids.has(id))).toBe(true);
+    expect(used.size).toBeGreaterThan(1);
+  });
+
+  it('têm evento de sistema sem responsável, IP nem perfil', () => {
+    const system = events.filter((event) => event.actor.type === 'system');
+
+    expect(system.length).toBeGreaterThan(0);
+    for (const event of system) {
+      expect(event.actor).toEqual({
+        type: 'system',
+        user: null,
+        profile: null,
+      });
+      expect(event.ipAddress).toBeNull();
+    }
+  });
+
+  it('caem nos últimos 30 dias e vêm do mais recente para o mais antigo', () => {
+    const limit = now.getTime() - 30 * 24 * 60 * 60 * 1000;
+    const times = events.map((event) => Date.parse(event.occurredAt));
+
+    expect(times.every((time) => time >= limit && time <= now.getTime())).toBe(
+      true,
+    );
+    expect([...times].sort((a, b) => b - a)).toEqual(times);
+    expect(new Set(events.map((event) => event.id)).size).toBe(events.length);
   });
 });

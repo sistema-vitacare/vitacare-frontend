@@ -410,6 +410,23 @@ describe('getPatientOverview', () => {
 });
 
 describe('getPatientEvolution', () => {
+  it('recusa período inválido com o campo, pela regra de período da API', async () => {
+    await startDemoSession('professional');
+
+    await expect(
+      getPatientEvolution(DIRCE, { from: '2026-11-11' }),
+    ).rejects.toMatchObject({
+      status: 422,
+      code: 'VALIDATION_FAILED',
+      fields: [{ field: 'from', code: 'AFTER_END' }],
+    });
+    await expect(
+      getPatientEvolution(DIRCE, { from: '2025-01-01', to: '2026-11-10' }),
+    ).rejects.toMatchObject({
+      fields: [{ field: 'to', code: 'PERIOD_TOO_LONG' }],
+    });
+  });
+
   it('monta as séries dos últimos 30 dias, com os indicadores da API', async () => {
     await signInAs('professional');
 

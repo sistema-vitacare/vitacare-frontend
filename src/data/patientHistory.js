@@ -8,16 +8,6 @@ export const patientHistoryContent = {
     defaultPeriod:
       'Sem período escolhido, a evolução mostra os últimos 30 dias.',
     empty: 'Nenhuma medição no período.',
-    mean: 'Média',
-    variation: 'Variação',
-    trend: 'Tendência',
-    notEnough: 'Dados insuficientes',
-    directions: {
-      rising: (slope) => `Sobe ${slope} por dia`,
-      falling: (slope) => `Cai ${slope} por dia`,
-      flat: () => 'Estável',
-    },
-    chartLabel: (name) => `Gráfico da evolução de ${name}`,
   },
   notFound: 'Paciente não encontrado ou sem acesso.',
   backToList: 'Voltar à lista de pacientes',

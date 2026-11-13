@@ -1,5 +1,6 @@
 import { Box, Button, MenuItem, TextField } from '@mui/material';
 import { followUpRecordsContent as content } from '../data/followUpRecords.js';
+import PeriodFields from './PeriodFields.jsx';
 
 /**
  * Filtros da lista de registros: período (dias de Brasília), formulário e
@@ -15,22 +16,7 @@ export default function FollowUpFilters({ filters, update, options }) {
         alignItems: 'center',
       }}
     >
-      <TextField
-        type="date"
-        label={content.filters.from}
-        value={filters.from}
-        onChange={(event) => update({ from: event.target.value })}
-        size="small"
-        slotProps={{ inputLabel: { shrink: true } }}
-      />
-      <TextField
-        type="date"
-        label={content.filters.to}
-        value={filters.to}
-        onChange={(event) => update({ to: event.target.value })}
-        size="small"
-        slotProps={{ inputLabel: { shrink: true } }}
-      />
+      <PeriodFields from={filters.from} to={filters.to} onChange={update} />
       <TextField
         select
         label={content.filters.form}

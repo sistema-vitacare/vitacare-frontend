@@ -2,8 +2,6 @@
 // histórico do paciente e na tela de registros.
 export const followUpRecordsContent = {
   filters: {
-    from: 'De',
-    to: 'Até',
     form: 'Formulário',
     author: 'Responsável pelo registro',
     all: 'Todos',
