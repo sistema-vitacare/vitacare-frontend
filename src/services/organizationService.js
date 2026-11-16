@@ -1,11 +1,18 @@
 // Organização da sessão, plano e solicitações de mudança simulados, no
 // formato das rotas `organizations/me`, `organizations/me/plan`, `plans` e
 // `plan-change-requests` (manual, conferido em 12/11/2026; mensagens de erro
-// conferidas em 13/11/2026). Na integração, cada função passa a chamar a
+// conferidas em 13/11/2026), e o plano das organizações clientes pela
+// plataforma, com atribuição e decisão das solicitações (conferidos em
+// 16/11/2026, commit `e1cf219`). Na integração, cada função passa a chamar a
 // rota.
 import { PERMISSIONS as P } from '../constants/permissions.js';
 import { organizationErrors } from '../utils/organizationFields.js';
 import { planExpiryMessage, planExpiryWarning } from '../utils/planExpiry.js';
+import {
+  decisionNoteError,
+  planTermFieldErrors,
+  planTermRuleError,
+} from '../utils/planTerm.js';
 import { currentViewer } from './authService.js';
 import {
   ApiError,
@@ -26,11 +33,15 @@ import {
   currentTerm,
   findOrganization,
   findPlan,
+  replaceTerm,
+  seededUsage,
 } from './organizationStore.js';
 import { allPatients, nextId } from './patientStore.js';
 import { allUsers } from './userStore.js';
 
 const NOTES_MAX = 500;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const error = (status, code, message, fields = null) =>
   new ApiError({ status, code, message, fields });
@@ -61,6 +72,9 @@ function organizationView(organization, viewer) {
   return view;
 }
 
+const organizationNotFound = () =>
+  error(404, 'ORGANIZATION_NOT_FOUND', 'Organização não encontrada.');
+
 export function getOwnOrganization() {
   return mockRequest(() => {
     const viewer = viewerFor(P.ORGANIZATION_READ);
@@ -74,49 +88,65 @@ const trimmed = (value) => (typeof value === 'string' ? value.trim() : value);
 const documentKey = (value) =>
   (value ?? '').replace(/[^0-9A-Za-z]/g, '').toLowerCase();
 
+/**
+ * Recusa o documento de outra organização: ele vale uma vez entre todas,
+ * sem pontuação e sem caixa, inclusive entre as inativas.
+ */
+export function assertDocumentAvailable(document, organizationId = null) {
+  const taken =
+    document &&
+    allClientOrganizations().some(
+      (item) =>
+        item.id !== organizationId &&
+        documentKey(item.document) === documentKey(document),
+    );
+  if (taken) {
+    throw error(
+      409,
+      'ORGANIZATION_DOCUMENT_TAKEN',
+      'Já existe uma organização com este documento.',
+      [{ field: 'document', code: 'DUPLICATE' }],
+    );
+  }
+}
+
+/**
+ * Edição pelo corpo de PATCH, o mesmo caso de uso na API para
+ * `organizations/me` e para `organizations/{id}` da plataforma: campos, corpo
+ * vazio, organização alcançada e documento único, nessa ordem.
+ */
+export function saveOrganization(viewer, organizationId, body = {}) {
+  const errors = organizationErrors(body);
+  if (errors.length > 0) {
+    throw validationError(errors);
+  }
+  const changes = Object.fromEntries(
+    Object.entries(body)
+      .filter(([, value]) => value !== undefined)
+      .map(([field, value]) => [field, trimmed(value)]),
+  );
+  if (Object.keys(changes).length === 0) {
+    throw error(
+      422,
+      'ORGANIZATION_NOTHING_TO_UPDATE',
+      'Informe ao menos um campo para atualizar.',
+    );
+  }
+  if (!findOrganization(organizationId)) {
+    throw organizationNotFound();
+  }
+  assertDocumentAvailable(changes.document, organizationId);
+  changeOrganization(organizationId, {
+    ...changes,
+    updatedAt: new Date().toISOString(),
+  });
+  return organizationView(findOrganization(organizationId), viewer);
+}
+
 export function updateOwnOrganization(body = {}) {
   return mockRequest(() => {
     const viewer = viewerFor(P.ORGANIZATION_UPDATE);
-    const errors = organizationErrors(body);
-    if (errors.length > 0) {
-      throw validationError(errors);
-    }
-    const changes = Object.fromEntries(
-      Object.entries(body)
-        .filter(([, value]) => value !== undefined)
-        .map(([field, value]) => [field, trimmed(value)]),
-    );
-    if (Object.keys(changes).length === 0) {
-      throw error(
-        422,
-        'ORGANIZATION_NOTHING_TO_UPDATE',
-        'Informe ao menos um campo para atualizar.',
-      );
-    }
-    // O documento vale uma vez entre todas as organizações, sem pontuação e
-    // sem caixa, inclusive entre as inativas.
-    if (changes.document) {
-      const taken = allClientOrganizations().some(
-        (item) =>
-          item.id !== viewer.organization.id &&
-          documentKey(item.document) === documentKey(changes.document),
-      );
-      if (taken) {
-        throw error(
-          409,
-          'ORGANIZATION_DOCUMENT_TAKEN',
-          'Já existe uma organização com este documento.',
-          [{ field: 'document', code: 'DUPLICATE' }],
-        );
-      }
-    }
-    changeOrganization(viewer.organization.id, {
-      ...changes,
-      updatedAt: new Date().toISOString(),
-    });
-    return respond(
-      organizationView(findOrganization(viewer.organization.id), viewer),
-    );
+    return respond(saveOrganization(viewer, viewer.organization.id, body));
   });
 }
 
@@ -157,38 +187,155 @@ function termView(term, now) {
   };
 }
 
+// Usuários e pacientes simulados são só da organização de demonstração,
+// contada pelos estados com a mesma conta que decide o limite no cadastro e
+// na reativação; as outras têm uso fixo nos dados simulados.
+function usageOf(organizationId) {
+  return (
+    seededUsage(organizationId) ?? {
+      users: allUsers().filter((user) =>
+        ['pending', 'active'].includes(user.status),
+      ).length,
+      patients: allPatients().filter((patient) => patient.status === 'active')
+        .length,
+    }
+  );
+}
+
+/**
+ * Plano da organização como `organizations/me/plan` e
+ * `organizations/{id}/plan` o devolvem, com o aviso de vencimento, quando
+ * houver, em `message`.
+ */
+function planView(organizationId, viewer) {
+  const now = new Date();
+  const plan = currentPlan(organizationId);
+  const term = termView(currentTerm(organizationId), now);
+  const pending = pendingRequest(organizationId);
+  return {
+    data: {
+      organizationId,
+      plan,
+      term,
+      // Limite efetivo: o expandido do termo, senão o do catálogo.
+      limits: {
+        users: term.userLimit ?? plan.userLimit,
+        patients: term.patientLimit ?? plan.patientLimit,
+      },
+      usage: usageOf(organizationId),
+      pendingChangeRequest: pending ? requestView(pending, viewer) : null,
+    },
+    message: planExpiryMessage(term.expiryWarning, term.endsAt),
+  };
+}
+
 export function getOwnPlan() {
   return mockRequest(() => {
     const viewer = viewerFor(P.PLAN_READ);
-    const organizationId = viewer.organization.id;
+    const { data, message } = planView(viewer.organization.id, viewer);
+    return respond(data, message ? { message } : {});
+  });
+}
+
+// Só organização cliente tem plano; a de plataforma fica fora, como na API.
+function assertClientOrganization(organizationId) {
+  if (!currentTerm(organizationId)) {
+    throw organizationNotFound();
+  }
+}
+
+export function getOrganizationPlan(organizationId) {
+  return mockRequest(() => {
+    const viewer = viewerFor(P.PLATFORM_ORGANIZATIONS_READ);
+    assertClientOrganization(organizationId);
+    const { data, message } = planView(organizationId, viewer);
+    return respond(data, message ? { message } : {});
+  });
+}
+
+const RULE_ERRORS = {
+  IN_PAST: [
+    'PLAN_TERM_END_IN_PAST',
+    'A data de fim da vigência deve ser futura.',
+  ],
+  NOT_EXPANDABLE: [
+    'PLAN_LIMIT_NOT_EXPANDABLE',
+    'Este plano tem limites fixos. Só o plano Enterprise admite expansão conforme contratação.',
+  ],
+  BELOW_CATALOG: [
+    'PLAN_LIMIT_BELOW_CATALOG',
+    'A expansão não pode ficar abaixo do limite do plano. Omita o campo para usar o limite do catálogo.',
+  ],
+};
+
+function assertTermRule(body, plan, now) {
+  const rule = planTermRuleError(body, { plan, now });
+  if (rule) {
+    const [code, message] = RULE_ERRORS[rule.code];
+    throw error(422, code, message, [rule]);
+  }
+}
+
+// A data de fim é conferida antes da organização e do plano, como no caso de
+// uso da API; sem limites no corpo, a regra não lê o plano.
+function assertEndInFuture(body, now) {
+  assertTermRule({ endsAt: body.endsAt }, null, now);
+}
+
+/**
+ * Termo novo da atribuição ou da aprovação: substitui o anterior inteiro, e
+ * a organização passa a apontar para o plano dele.
+ */
+function openTerm(organizationId, plan, body, origin, now) {
+  replaceTerm(organizationId, {
+    id: nextId('6f1d0c2e'),
+    organizationId,
+    planId: plan.id,
+    startsAt: now.toISOString(),
+    endsAt: body.endsAt ? new Date(body.endsAt).toISOString() : null,
+    origin,
+    userLimit: body.userLimit ?? null,
+    patientLimit: body.patientLimit ?? null,
+  });
+  if (findOrganization(organizationId).usagePlanId !== plan.id) {
+    changeOrganization(organizationId, {
+      usagePlanId: plan.id,
+      updatedAt: now.toISOString(),
+    });
+  }
+}
+
+/**
+ * Atribuição, troca, renovação ou expansão pela plataforma, com o corpo de
+ * PUT /organizations/{id}/plan. Não decide a solicitação pendente.
+ */
+export function assignOrganizationPlan(organizationId, body = {}) {
+  return mockRequest(() => {
+    const viewer = viewerFor(P.PLATFORM_ORGANIZATIONS_UPDATE);
+    const errors = [
+      ...(typeof body.planId === 'string' && UUID_PATTERN.test(body.planId)
+        ? []
+        : [{ field: 'planId', code: 'IS_UUID' }]),
+      ...planTermFieldErrors(body, { noteField: 'reason' }),
+    ];
+    if (errors.length > 0) {
+      throw validationError(errors);
+    }
     const now = new Date();
-    const plan = currentPlan(organizationId);
-    const term = termView(currentTerm(organizationId), now);
-    const pending = pendingRequest(organizationId);
-    const message = planExpiryMessage(term.expiryWarning, term.endsAt);
-    return respond(
-      {
-        organizationId,
-        plan,
-        term,
-        // Limite efetivo: o expandido do termo, senão o do catálogo.
-        limits: {
-          users: term.userLimit ?? plan.userLimit,
-          patients: term.patientLimit ?? plan.patientLimit,
-        },
-        // A mesma conta que decide o limite no cadastro e na reativação.
-        usage: {
-          users: allUsers().filter((user) =>
-            ['pending', 'active'].includes(user.status),
-          ).length,
-          patients: allPatients().filter(
-            (patient) => patient.status === 'active',
-          ).length,
-        },
-        pendingChangeRequest: pending ? requestView(pending, viewer) : null,
-      },
-      message ? { message } : {},
-    );
+    assertEndInFuture(body, now);
+    assertClientOrganization(organizationId);
+    const plan = findPlan(body.planId);
+    if (!plan) {
+      throw error(
+        422,
+        'PLAN_NOT_FOUND',
+        'Plano de uso inexistente ou indisponível.',
+        [{ field: 'planId', code: 'NOT_FOUND' }],
+      );
+    }
+    assertTermRule(body, plan, now);
+    openTerm(organizationId, plan, body, 'assignment', now);
+    return respond(planView(organizationId, viewer).data);
   });
 }
 
@@ -278,37 +425,100 @@ export function createChangeRequest({ requestedPlanId, notes = null } = {}) {
   });
 }
 
+/**
+ * Solicitação pendente que a sessão alcança: a da própria organização, ou
+ * qualquer uma para a plataforma (`organizationId` nulo).
+ */
+function pendingRequestById(requestId, organizationId) {
+  const request = allChangeRequests().find(
+    (item) =>
+      item.id === requestId &&
+      (!organizationId || item.organizationId === organizationId),
+  );
+  if (!request) {
+    throw error(
+      404,
+      'PLAN_CHANGE_REQUEST_NOT_FOUND',
+      'Solicitação de mudança de plano não encontrada.',
+    );
+  }
+  if (request.status !== 'pending') {
+    throw error(
+      409,
+      'PLAN_CHANGE_REQUEST_NOT_PENDING',
+      'A solicitação já foi decidida ou cancelada.',
+    );
+  }
+  return request;
+}
+
+function closeRequest(requestId, viewer, status, decisionNote = null) {
+  changeChangeRequest(requestId, {
+    status,
+    decidedByUserId: viewer.user.id,
+    decidedAt: new Date().toISOString(),
+    decisionNote,
+  });
+  return requestView(
+    allChangeRequests().find((item) => item.id === requestId),
+    viewer,
+  );
+}
+
 export function cancelChangeRequest(requestId) {
   return mockRequest(() => {
     const viewer = viewerFor(P.PLAN_CHANGE_REQUESTS_CREATE);
-    const request = allChangeRequests().find(
-      (item) =>
-        item.id === requestId && item.organizationId === viewer.organization.id,
-    );
-    if (!request) {
+    pendingRequestById(requestId, viewer.organization.id);
+    return respond(closeRequest(requestId, viewer, 'cancelled'));
+  });
+}
+
+/**
+ * A plataforma aprova: o plano pedido passa a valer num termo novo, com data
+ * de fim, limites e justificativa opcionais pela regra da atribuição.
+ */
+export function approveChangeRequest(requestId, body = {}) {
+  return mockRequest(() => {
+    const viewer = viewerFor(P.PLATFORM_ORGANIZATIONS_UPDATE);
+    const errors = planTermFieldErrors(body, { noteField: 'decisionNote' });
+    if (errors.length > 0) {
+      throw validationError(errors);
+    }
+    const now = new Date();
+    assertEndInFuture(body, now);
+    const request = pendingRequestById(requestId, null);
+    const plan = findPlan(request.requestedPlan.id);
+    if (!plan) {
       throw error(
-        404,
-        'PLAN_CHANGE_REQUEST_NOT_FOUND',
-        'Solicitação de mudança de plano não encontrada.',
+        422,
+        'PLAN_NOT_FOUND',
+        'Plano de uso inexistente ou indisponível.',
       );
     }
-    if (request.status !== 'pending') {
-      throw error(
-        409,
-        'PLAN_CHANGE_REQUEST_NOT_PENDING',
-        'A solicitação já foi decidida ou cancelada.',
-      );
-    }
-    changeChangeRequest(requestId, {
-      status: 'cancelled',
-      decidedByUserId: viewer.user.id,
-      decidedAt: new Date().toISOString(),
-    });
+    assertTermRule(body, plan, now);
+    openTerm(request.organizationId, plan, body, 'change_request', now);
     return respond(
-      requestView(
-        allChangeRequests().find((item) => item.id === requestId),
+      closeRequest(
+        requestId,
         viewer,
+        'approved',
+        trimmed(body.decisionNote) ?? null,
       ),
+    );
+  });
+}
+
+/** A plataforma recusa com justificativa, que a organização vê. */
+export function rejectChangeRequest(requestId, { decisionNote } = {}) {
+  return mockRequest(() => {
+    const viewer = viewerFor(P.PLATFORM_ORGANIZATIONS_UPDATE);
+    const code = decisionNoteError(decisionNote);
+    if (code) {
+      throw validationError([{ field: 'decisionNote', code }]);
+    }
+    pendingRequestById(requestId, null);
+    return respond(
+      closeRequest(requestId, viewer, 'rejected', decisionNote.trim()),
     );
   });
 }
