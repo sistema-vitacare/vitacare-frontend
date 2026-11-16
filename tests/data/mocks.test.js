@@ -13,7 +13,13 @@ import { forms } from '../../src/data/mocks/forms.js';
 import { followUpsAsOf } from '../../src/data/mocks/followUps.js';
 import { medications } from '../../src/data/mocks/medications.js';
 import { organization } from '../../src/data/mocks/organization.js';
-import { clientOrganizations } from '../../src/data/mocks/organizations.js';
+import {
+  BEM_VIVER_ID,
+  changeRequestsAsOf,
+  clientOrganizations,
+  clientTermsAsOf,
+  simulatedUsage,
+} from '../../src/data/mocks/organizations.js';
 import { patientLinks } from '../../src/data/mocks/patientLinks.js';
 import { patients } from '../../src/data/mocks/patients.js';
 import {
@@ -505,14 +511,67 @@ describe('dados simulados de gestão', () => {
     expect(organizationTerm.organizationId).toBe(organization.id);
   });
 
-  it('dão a cada organização cliente um plano do catálogo e um código no formato da API', () => {
+  it('dão a cada organização cliente o tipo, um plano do catálogo e um código no formato da API', () => {
     for (const item of clientOrganizations) {
+      expect(item.kind).toBe('tenant');
       expect([BASIC_PLAN.id, ENTERPRISE_PLAN.id]).toContain(item.usagePlanId);
       expect(item.code).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
     }
     expect(clientOrganizations.map((item) => item.id)).not.toContain(
       platformOrganization.id,
     );
+  });
+
+  it('dão a cada organização cliente um termo de vigência no plano dela', () => {
+    const now = new Date('2026-11-16T15:00:00.000Z');
+    const terms = clientTermsAsOf(now);
+
+    expect(terms.map((term) => term.organizationId).sort()).toEqual(
+      clientOrganizations.map((item) => item.id).sort(),
+    );
+    for (const item of clientOrganizations) {
+      const term = terms.find((each) => each.organizationId === item.id);
+      expect(term.planId).toBe(item.usagePlanId);
+      expect(Date.parse(term.startsAt)).toBeLessThan(now.getTime());
+    }
+    expect(terms[0]).toEqual(organizationTerm);
+  });
+
+  it('fazem o termo da Bem Viver vencer em poucos dias, para o aviso aparecer', () => {
+    const now = new Date('2026-11-16T15:00:00.000Z');
+    const term = clientTermsAsOf(now).find(
+      (each) => each.organizationId === BEM_VIVER_ID,
+    );
+    const days = (Date.parse(term.endsAt) - now.getTime()) / 86400000;
+
+    expect(days).toBeGreaterThan(1);
+    expect(days).toBeLessThan(7);
+  });
+
+  it('deixam pendente o pedido da Bem Viver do Basic para o Enterprise', () => {
+    const now = new Date('2026-11-16T15:00:00.000Z');
+    const [request] = changeRequestsAsOf(now);
+
+    expect(request).toMatchObject({
+      organizationId: BEM_VIVER_ID,
+      currentPlan: { id: BASIC_PLAN.id, name: 'Basic' },
+      requestedPlan: { id: ENTERPRISE_PLAN.id, name: 'Enterprise' },
+      status: 'pending',
+      decidedAt: null,
+      decisionNote: null,
+    });
+    expect(Date.parse(request.createdAt)).toBeLessThan(now.getTime());
+  });
+
+  it('dão uso fixo às organizações sem usuários nem pacientes simulados', () => {
+    const others = clientOrganizations.filter(
+      (item) => item.id !== organization.id,
+    );
+
+    expect(Object.keys(simulatedUsage).sort()).toEqual(
+      others.map((item) => item.id).sort(),
+    );
+    expect(simulatedUsage[organization.id]).toBeUndefined();
   });
 
   it('copiam as 67 ações do catálogo da API, sem repetir código', () => {

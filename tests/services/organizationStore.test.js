@@ -11,6 +11,7 @@ import {
 import { resetMockState } from '../../src/services/mockApi.js';
 import {
   addChangeRequest,
+  addOrganization,
   allChangeRequests,
   allClientOrganizations,
   allPlans,
@@ -21,7 +22,31 @@ import {
   currentTerm,
   findOrganization,
   findPlan,
+  replaceTerm,
+  seededUsage,
 } from '../../src/services/organizationStore.js';
+
+const created = {
+  id: 'f0000000-0000-5000-8000-000000000001',
+  code: 'clinica-nova',
+  tradeName: 'Clínica Nova',
+  status: 'active',
+  usagePlanId: BASIC_PLAN.id,
+};
+const createdTerm = {
+  id: 'f0000000-0000-5000-8000-000000000002',
+  organizationId: created.id,
+  planId: BASIC_PLAN.id,
+  startsAt: '2026-11-16T15:00:00.000Z',
+  endsAt: null,
+  origin: 'initial',
+  userLimit: null,
+  patientLimit: null,
+};
+// Só as solicitações feitas na sessão; a pendente simulada da Bem Viver
+// fica de fora destes testes.
+const sessionRequests = () =>
+  allChangeRequests().filter((item) => item.organizationId === organization.id);
 
 const request = {
   id: 'c4a9e000-0000-5000-8000-000000000001',
@@ -87,17 +112,69 @@ describe('estado das organizações e dos planos', () => {
     addChangeRequest(request);
     changeChangeRequest(request.id, { status: 'cancelled' });
 
-    expect(allChangeRequests()).toEqual([{ ...request, status: 'cancelled' }]);
+    expect(sessionRequests()).toEqual([{ ...request, status: 'cancelled' }]);
+  });
+
+  it('traz a solicitação pendente simulada e guarda a decisão dela', () => {
+    const [seeded] = allChangeRequests().filter(
+      (item) => item.organizationId === BEM_VIVER_ID,
+    );
+    expect(seeded.status).toBe('pending');
+
+    changeChangeRequest(seeded.id, { status: 'rejected' });
+
+    expect(
+      allChangeRequests().find((item) => item.id === seeded.id).status,
+    ).toBe('rejected');
+  });
+
+  it('cadastra a organização com o termo inicial, o uso de partida e a busca pelo id', () => {
+    addOrganization(created, createdTerm);
+
+    expect(allClientOrganizations().map((item) => item.id)).toContain(
+      created.id,
+    );
+    expect(findOrganization(created.id)).toEqual(created);
+    expect(currentTerm(created.id)).toEqual(createdTerm);
+    expect(seededUsage(created.id)).toEqual({ users: 1, patients: 0 });
+  });
+
+  it('substitui o termo inteiro na atribuição, sem herdar limite do anterior', () => {
+    replaceTerm(organization.id, {
+      ...createdTerm,
+      organizationId: organization.id,
+      planId: ENTERPRISE_PLAN.id,
+      origin: 'assignment',
+      userLimit: 60,
+    });
+    replaceTerm(organization.id, {
+      ...createdTerm,
+      organizationId: organization.id,
+      planId: ENTERPRISE_PLAN.id,
+      origin: 'assignment',
+    });
+
+    expect(currentTerm(organization.id).userLimit).toBeNull();
+    expect(currentTerm(organization.id).origin).toBe('assignment');
+  });
+
+  it('dá uso fixo às organizações sem dados simulados e nenhum à de demonstração', () => {
+    expect(seededUsage(BEM_VIVER_ID)).toEqual(
+      expect.objectContaining({ users: expect.any(Number) }),
+    );
+    expect(seededUsage(organization.id)).toBeNull();
   });
 
   it('volta ao início com resetMockState', () => {
     changeOrganization(organization.id, { phone: null });
     changeTerm(organization.id, { endsAt: '2026-11-17T02:59:00.000Z' });
     addChangeRequest(request);
+    addOrganization(created, createdTerm);
     resetMockState();
 
     expect(findOrganization(organization.id)).toEqual(organization);
     expect(currentTerm(organization.id)).toEqual(organizationTerm);
-    expect(allChangeRequests()).toEqual([]);
+    expect(sessionRequests()).toEqual([]);
+    expect(findOrganization(created.id)).toBeNull();
   });
 });

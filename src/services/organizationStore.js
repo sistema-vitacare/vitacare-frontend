@@ -1,22 +1,34 @@
-// Estado simulado das organizações e dos planos: dados cadastrais, termo de
-// vigência e solicitações de mudança de plano, como a API guardaria no banco.
-import { clientOrganizations } from '../data/mocks/organizations.js';
+// Estado simulado das organizações e dos planos: organizações cadastradas e
+// editadas, termo de vigência e solicitações de mudança de plano, como a API
+// guardaria no banco.
+import {
+  changeRequestsAsOf,
+  clientOrganizations,
+  clientTermsAsOf,
+  simulatedUsage,
+} from '../data/mocks/organizations.js';
 import { platformOrganization } from '../data/mocks/platform.js';
-import { organizationTerm, plans } from '../data/mocks/plans.js';
+import { plans } from '../data/mocks/plans.js';
 import { registerMockState } from './mockApi.js';
 
-const seedTerms = new Map([
-  [organizationTerm.organizationId, organizationTerm],
-]);
+// A organização cadastrada na sessão nasce com o primeiro administrador e
+// sem pacientes.
+const NEW_ORGANIZATION_USAGE = Object.freeze({ users: 1, patients: 0 });
 
+let createdOrganizations = [];
+let createdUsage = new Map();
 let organizationChanges = new Map();
 let termChanges = new Map();
-let changeRequests = [];
+let createdRequests = [];
+let requestChanges = new Map();
 
 registerMockState(() => {
+  createdOrganizations = [];
+  createdUsage = new Map();
   organizationChanges = new Map();
   termChanges = new Map();
-  changeRequests = [];
+  createdRequests = [];
+  requestChanges = new Map();
 });
 
 function withChanges(item) {
@@ -24,15 +36,22 @@ function withChanges(item) {
 }
 
 export function allClientOrganizations() {
-  return clientOrganizations.map(withChanges);
+  return [...clientOrganizations, ...createdOrganizations].map(withChanges);
 }
 
 export function findOrganization(organizationId) {
   return (
-    [...clientOrganizations, platformOrganization]
+    [...clientOrganizations, ...createdOrganizations, platformOrganization]
       .filter((item) => item.id === organizationId)
       .map(withChanges)[0] ?? null
   );
+}
+
+/** Organização cadastrada pela plataforma, com o termo inicial dela. */
+export function addOrganization(organization, term) {
+  createdOrganizations = [...createdOrganizations, organization];
+  createdUsage.set(organization.id, NEW_ORGANIZATION_USAGE);
+  termChanges.set(organization.id, term);
 }
 
 export function changeOrganization(organizationId, changes) {
@@ -40,6 +59,16 @@ export function changeOrganization(organizationId, changes) {
     ...organizationChanges.get(organizationId),
     ...changes,
   });
+}
+
+/**
+ * Uso das organizações sem usuários nem pacientes simulados; `null` para a
+ * de demonstração, cujo uso sai dos estados.
+ */
+export function seededUsage(organizationId) {
+  return (
+    createdUsage.get(organizationId) ?? simulatedUsage[organizationId] ?? null
+  );
 }
 
 export function allPlans() {
@@ -51,8 +80,10 @@ export function findPlan(planId) {
 }
 
 /** Termo corrente da organização; `null` sem termo (a plataforma não tem). */
-export function currentTerm(organizationId) {
-  const seed = seedTerms.get(organizationId);
+export function currentTerm(organizationId, now = new Date()) {
+  const seed = clientTermsAsOf(now).find(
+    (term) => term.organizationId === organizationId,
+  );
   const changes = termChanges.get(organizationId);
   if (!seed && !changes) {
     return null;
@@ -73,16 +104,29 @@ export function changeTerm(organizationId, changes) {
   });
 }
 
-export function allChangeRequests() {
-  return changeRequests;
+/**
+ * Termo novo da atribuição ou da aprovação, que encerra o anterior: o termo
+ * inteiro é trocado, e nada do anterior (como um limite expandido) passa
+ * para ele.
+ */
+export function replaceTerm(organizationId, term) {
+  termChanges.set(organizationId, term);
+}
+
+export function allChangeRequests(now = new Date()) {
+  return [...changeRequestsAsOf(now), ...createdRequests].map((request) => ({
+    ...request,
+    ...requestChanges.get(request.id),
+  }));
 }
 
 export function addChangeRequest(request) {
-  changeRequests = [...changeRequests, request];
+  createdRequests = [...createdRequests, request];
 }
 
 export function changeChangeRequest(requestId, changes) {
-  changeRequests = changeRequests.map((request) =>
-    request.id === requestId ? { ...request, ...changes } : request,
-  );
+  requestChanges.set(requestId, {
+    ...requestChanges.get(requestId),
+    ...changes,
+  });
 }

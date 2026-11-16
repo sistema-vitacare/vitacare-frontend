@@ -1,7 +1,9 @@
-// Organização da sessão simulada, com os campos de GET /organizations/me.
+// Organização da sessão simulada, com os campos de GET /organizations/{id};
+// GET /organizations/me tira o tipo para o administrador da organização.
 export const organization = {
   id: '6ac48ac1-6fb6-5621-b4f5-dc00e6b1df3d',
   code: 'ipe-amarelo',
+  kind: 'tenant',
   tradeName: 'Residencial Ipê Amarelo',
   legalName: 'Ipê Amarelo Cuidados Geriátricos Ltda.',
   document: '41.736.208/0001-59',
