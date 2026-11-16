@@ -11,6 +11,7 @@ import {
   dashboardIndicatorPath,
   formPath,
   medicationsPath,
+  organizationPath,
   patientPath,
   recordPath,
   userPath,
@@ -30,6 +31,7 @@ import {
   DEMO_RESET_LINK,
 } from '../src/data/mocks/credentials.js';
 import { navLabels } from '../src/data/navigation.js';
+import { organizationNewContent } from '../src/data/organizationPages.js';
 import { patientDetailContent } from '../src/data/patientDetail.js';
 import { patientFormContent } from '../src/data/patientForm.js';
 import { patientHistoryContent } from '../src/data/patientHistory.js';
@@ -49,6 +51,7 @@ const RAFAEL = 'f6b21c50-000b-5e70-878b-b5e7f5f9a410';
 const HOUR = 60 * 60 * 1000;
 
 const DIRCE = '0b639b83-76d0-570a-9017-7b6263d892cf';
+const BEM_VIVER = 'cecd71bf-0168-5d1b-bd8e-ca3083210067';
 const PROFILE_CHANGED_EVENT = 'a0d17000-0000-5000-8000-000000000009';
 
 function renderApp(path, routes = appRoutes) {
@@ -396,7 +399,7 @@ describe('rotas', () => {
     );
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Sair' }));
     await signInAs('platform_admin');
-    // A página inicial da plataforma são as organizações, ainda em construção.
+    // A página inicial da plataforma são as organizações.
     await heading(navLabels.organizations);
     await act(() =>
       router.navigate(alertPath('a1e70000-0000-5000-8009-000000000001')),
@@ -502,6 +505,41 @@ describe('rotas', () => {
     await heading(navLabels.patients);
     await act(() => router.navigate(auditEventPath(PROFILE_CHANGED_EVENT)));
     expect(await heading(statusContent.accessDenied.title)).toBeInTheDocument();
+  });
+
+  it('liga as organizações ao cadastro e à página da organização, e as nega ao administrador da organização', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await signInAs('platform_admin');
+    await heading(navLabels.organizations);
+
+    fireEvent.click(
+      await screen.findByRole('link', { name: organizationNewContent.title }),
+    );
+    expect(await heading(organizationNewContent.title)).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(PATHS.ORGANIZATION_NEW);
+
+    await act(() => router.navigate(PATHS.ORGANIZATIONS));
+    const table = await screen.findByRole('table');
+    fireEvent.click(
+      await within(table).findByRole('link', { name: 'Clínica Bem Viver' }),
+    );
+    expect(await heading('Clínica Bem Viver')).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(organizationPath(BEM_VIVER));
+
+    fireEvent.click(screen.getByRole('button', { name: /Caio Furtado/ }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Sair' }));
+    await signInAs('admin');
+    await heading(navLabels.dashboard);
+    for (const path of [
+      PATHS.ORGANIZATIONS,
+      PATHS.ORGANIZATION_NEW,
+      organizationPath(BEM_VIVER),
+    ]) {
+      await act(() => router.navigate(path));
+      expect(
+        await heading(statusContent.accessDenied.title),
+      ).toBeInTheDocument();
+    }
   });
 
   it('abre as configurações pelo menu e troca a senha pelo menu do usuário, de volta ao login com o aviso', async () => {
