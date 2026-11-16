@@ -5,6 +5,7 @@ import { TENANT_PROFILES } from '../../../src/constants/users.js';
 import { organization } from '../../../src/data/mocks/organization.js';
 import { BASIC_PLAN, ENTERPRISE_PLAN } from '../../../src/data/mocks/plans.js';
 import { profileLabels } from '../../../src/data/profiles.js';
+import { temporaryPasswordContent as passwordField } from '../../../src/data/temporaryPassword.js';
 import {
   invitationResultContent as result,
   userFieldErrors,
@@ -165,13 +166,17 @@ describe('UserListPage', () => {
     const shown = await screen.findByRole('dialog', {
       name: result.passwordTitle,
     });
-    const password = within(shown).getByLabelText(result.passwordLabel);
+    const password = within(shown).getByLabelText(passwordField.label);
     expect(password.value).toHaveLength(20);
     expect(
       within(shown).getByText(result.validUntil('11/11/2026 às 12:00')),
     ).toBeInTheDocument();
-    fireEvent.click(within(shown).getByRole('button', { name: result.copy }));
-    expect(await within(shown).findByText(result.copied)).toBeInTheDocument();
+    fireEvent.click(
+      within(shown).getByRole('button', { name: passwordField.copy }),
+    );
+    expect(
+      await within(shown).findByText(passwordField.copied),
+    ).toBeInTheDocument();
     expect(writeText).toHaveBeenCalledWith(password.value);
 
     fireEvent.click(within(shown).getByRole('button', { name: result.close }));
@@ -193,9 +198,13 @@ describe('UserListPage', () => {
       name: result.passwordTitle,
     });
 
-    fireEvent.click(within(shown).getByRole('button', { name: result.copy }));
+    fireEvent.click(
+      within(shown).getByRole('button', { name: passwordField.copy }),
+    );
 
-    expect(await within(shown).findByText(result.copied)).toBeInTheDocument();
+    expect(
+      await within(shown).findByText(passwordField.copied),
+    ).toBeInTheDocument();
     expect(document.execCommand).toHaveBeenCalledWith('copy');
   });
 
@@ -215,9 +224,13 @@ describe('UserListPage', () => {
       name: result.passwordTitle,
     });
 
-    fireEvent.click(within(shown).getByRole('button', { name: result.copy }));
+    fireEvent.click(
+      within(shown).getByRole('button', { name: passwordField.copy }),
+    );
 
-    expect(await within(shown).findByText(result.copied)).toBeInTheDocument();
+    expect(
+      await within(shown).findByText(passwordField.copied),
+    ).toBeInTheDocument();
     expect(document.execCommand).toHaveBeenCalledWith('copy');
   });
 

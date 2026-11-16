@@ -152,13 +152,9 @@ export const profileDialogContent = {
 export const invitationResultContent = {
   passwordTitle: 'Senha provisória',
   passwordIntro: (name) => `Entregue esta senha a ${name}.`,
-  passwordLabel: 'Senha provisória',
   validUntil: (when) => `Vale até ${when}.`,
   onlyOnce:
     'A senha aparece só agora. Depois de fechar, ela não pode ser vista de novo.',
-  copy: 'Copiar',
-  copied: 'Senha copiada.',
-  copyFailed: 'Não foi possível copiar. Selecione a senha e copie.',
   emailTitle: 'Convite por e-mail',
   close: 'Fechar',
 };

@@ -1,5 +1,7 @@
 // Textos das configurações (FE-26, UC04, Figura 46): dados da organização,
-// plano e uso e solicitação de mudança de plano.
+// plano e uso e solicitação de mudança de plano. Os rótulos e as mensagens
+// dos campos da organização ficam em `organizationFields.js`, e os do resumo
+// do plano, em `planSummary.js`.
 
 export const settingsContent = {
   title: 'Configurações',
@@ -10,84 +12,10 @@ export const organizationSectionContent = {
   title: 'Organização',
   edit: 'Editar',
   saved: 'Dados da organização salvos.',
-  fields: {
-    tradeName: 'Nome fantasia',
-    legalName: 'Razão social',
-    document: 'Documento',
-    phone: 'Telefone',
-    email: 'E-mail',
-    code: 'Código da organização',
-  },
-};
-
-export const organizationFormContent = {
-  title: 'Editar organização',
-  intro:
-    'O código da organização, usado no login, não muda. Campo opcional apagado fica em branco.',
-  documentHelper: 'CNPJ ou outro documento, com a pontuação.',
-  save: 'Salvar',
-  cancel: 'Cancelar',
-  invalidFields: 'Confira os campos destacados.',
-  unexpected: 'Não foi possível salvar agora. Tente de novo em instantes.',
-};
-
-// Mensagem por campo e pelo código que a API devolve para ele.
-export const organizationFieldErrors = {
-  tradeName: {
-    MIN_LENGTH: 'Informe o nome fantasia.',
-    MAX_LENGTH: 'Use no máximo 180 caracteres.',
-    default: 'Nome fantasia inválido.',
-  },
-  legalName: {
-    MAX_LENGTH: 'Use no máximo 180 caracteres.',
-    default: 'Razão social inválida.',
-  },
-  document: {
-    MATCHES: 'Use números, letras e a pontuação do documento.',
-    MAX_LENGTH: 'Use no máximo 32 caracteres.',
-    DUPLICATE: 'Já existe uma organização com este documento.',
-    default: 'Documento inválido.',
-  },
-  phone: {
-    MATCHES: 'Use números, espaços, parênteses, + e -.',
-    MAX_LENGTH: 'Use no máximo 32 caracteres.',
-    default: 'Telefone inválido.',
-  },
-  email: {
-    IS_EMAIL: 'Informe um e-mail válido, como contato@organizacao.com.br.',
-    MAX_LENGTH: 'Use no máximo 254 caracteres.',
-    default: 'E-mail inválido.',
-  },
-};
-
-// Recursos do plano com os nomes do Quadro 2 do TCC (seção 3.3), pelos
-// códigos da API.
-export const planFeatureLabels = {
-  patient_management: 'Cadastro de pacientes',
-  health_records: 'Registro de informações de saúde',
-  patient_history: 'Histórico do paciente',
-  automatic_alerts: 'Alertas automáticos',
-  responsive_access: 'Acesso responsivo pelo celular',
-  extended_registration: 'Cadastro ampliado de usuários e pacientes',
-  management_reports: 'Relatórios gerenciais',
-  operational_dashboard: 'Painel de controle operacional',
-  custom_deployment: 'Implantação e personalização',
 };
 
 export const planSectionContent = {
   title: 'Plano e uso',
-  term: (startsAt, endsAt) =>
-    endsAt
-      ? `Vigência de ${startsAt} a ${endsAt}`
-      : `Vigência desde ${startsAt}, sem data de fim`,
-  expired: 'Vencido',
-  featuresLabel: 'Recursos do plano',
-  usageLabel: 'Uso do plano',
-  usage: {
-    users: 'Usuários ativos e convidados',
-    patients: 'Pacientes ativos',
-  },
-  usageValue: (used, limit) => `${used} de ${limit}`,
   request: 'Solicitar mudança de plano',
   pendingTitle: 'Solicitação em análise',
   pending: (from, to, when) => `${from} → ${to}, pedida em ${when}`,

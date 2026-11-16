@@ -42,6 +42,8 @@ export const PATHS = Object.freeze({
   AUDIT_EVENT: '/auditoria/:eventId',
   SETTINGS: '/configuracoes',
   ORGANIZATIONS: '/organizacoes',
+  ORGANIZATION_NEW: '/organizacoes/nova',
+  ORGANIZATION_DETAIL: '/organizacoes/:organizationId',
 });
 
 /** Ordem dos grupos no menu. */
@@ -223,6 +225,11 @@ export function reportsPath(patientId) {
 /** Página do usuário; o id vem da API e é codificado. */
 export function userPath(userId) {
   return `${PATHS.USERS}/${encodeURIComponent(userId)}`;
+}
+
+/** Página da organização cliente, na plataforma; o id vem da API e é codificado. */
+export function organizationPath(organizationId) {
+  return `${PATHS.ORGANIZATIONS}/${encodeURIComponent(organizationId)}`;
 }
 
 /** Detalhe do evento de auditoria; o id vem da API e é codificado. */

@@ -15,16 +15,14 @@ import { useTheme } from '@mui/material/styles';
 import { useId, useMemo, useState } from 'react';
 import {
   organizationFieldErrors,
+  organizationFieldLabels as labels,
   organizationFormContent as content,
-  organizationSectionContent,
-} from '../../data/settingsPages.js';
-import { useSubmit } from '../../hooks/useSubmit.js';
-import { updateOwnOrganization } from '../../services/organizationService.js';
-import { fieldErrorsFrom } from '../../utils/fieldErrors.js';
-import { organizationErrors } from '../../utils/organizationFields.js';
+} from '../data/organizationFields.js';
+import { useSubmit } from '../hooks/useSubmit.js';
+import { fieldErrorsFrom } from '../utils/fieldErrors.js';
+import { organizationErrors } from '../utils/organizationFields.js';
 
 const FIELDS = ['tradeName', 'legalName', 'document', 'phone', 'email'];
-const labels = organizationSectionContent.fields;
 
 function messageFor(field, code) {
   const messages = organizationFieldErrors[field];
@@ -48,11 +46,18 @@ function bodyFor(organization, values) {
 }
 
 /**
- * Edição dos dados da organização da sessão (UC04), num diálogo; no
- * celular, em tela cheia. As regras da API apontam o campo antes do envio,
- * e o documento repetido em outra organização volta no próprio campo.
+ * Edição dos dados de uma organização (UC03 e UC04), num diálogo; no
+ * celular, em tela cheia. `save` recebe o corpo do PATCH: o da organização
+ * da sessão nas Configurações, o de qualquer organização na plataforma. As
+ * regras da API apontam o campo antes do envio, e o documento repetido em
+ * outra organização volta no próprio campo.
  */
-export default function OrganizationDialog({ organization, onClose, onSaved }) {
+export default function OrganizationFormDialog({
+  organization,
+  save,
+  onClose,
+  onSaved,
+}) {
   const titleId = useId();
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
@@ -68,7 +73,7 @@ export default function OrganizationDialog({ organization, onClose, onSaved }) {
     [organization, values],
   );
   const unchanged = Object.keys(body).length === 0;
-  const { status, submit } = useSubmit(updateOwnOrganization);
+  const { status, submit } = useSubmit(save);
   const pending = status === 'submitting';
 
   function change(field, value) {
@@ -77,7 +82,7 @@ export default function OrganizationDialog({ organization, onClose, onSaved }) {
     setFormError(null);
   }
 
-  async function save(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
     const found = fieldErrorsFrom(organizationErrors(body));
     if (Object.keys(found).length > 0) {
@@ -119,7 +124,7 @@ export default function OrganizationDialog({ organization, onClose, onSaved }) {
       <Box
         component="form"
         noValidate
-        onSubmit={save}
+        onSubmit={handleSubmit}
         sx={{ display: 'contents' }}
       >
         <DialogTitle id={titleId}>{content.title}</DialogTitle>

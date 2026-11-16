@@ -19,6 +19,9 @@ import FormListPage from './pages/Forms/FormListPage.jsx';
 import FormPage from './pages/Forms/FormPage.jsx';
 import LoginPage from './pages/Login/LoginPage.jsx';
 import MedicationListPage from './pages/Medications/MedicationListPage.jsx';
+import OrganizationDetailPage from './pages/Organizations/OrganizationDetailPage.jsx';
+import OrganizationListPage from './pages/Organizations/OrganizationListPage.jsx';
+import OrganizationNewPage from './pages/Organizations/OrganizationNewPage.jsx';
 import PasswordRecoveryPage from './pages/PasswordRecovery/PasswordRecoveryPage.jsx';
 import PasswordResetPage from './pages/PasswordReset/PasswordResetPage.jsx';
 import PatientDetailPage from './pages/Patients/PatientDetailPage.jsx';
@@ -44,12 +47,13 @@ const screens = {
   users: <UserListPage />,
   audit: <AuditListPage />,
   settings: <SettingsPage />,
+  organizations: <OrganizationListPage />,
 };
 
 // Telas abaixo de um item do menu, cada uma com a permissão que a API exige
 // para a ação dela. O cadastro (`/pacientes/novo`) vence o detalhe
 // (`/pacientes/:patientId`) porque o roteador prefere o trecho fixo; o
-// mesmo vale para `/formularios/novo`.
+// mesmo vale para `/formularios/novo` e `/organizacoes/nova`.
 const subpages = [
   {
     path: PATHS.DASHBOARD_INDICATOR,
@@ -65,6 +69,16 @@ const subpages = [
     path: PATHS.AUDIT_EVENT,
     permission: P.AUDIT_EVENTS_READ,
     element: <AuditEventPage />,
+  },
+  {
+    path: PATHS.ORGANIZATION_NEW,
+    permission: P.PLATFORM_ORGANIZATIONS_CREATE,
+    element: <OrganizationNewPage />,
+  },
+  {
+    path: PATHS.ORGANIZATION_DETAIL,
+    permission: P.PLATFORM_ORGANIZATIONS_READ,
+    element: <OrganizationDetailPage />,
   },
   {
     path: PATHS.PATIENT_NEW,

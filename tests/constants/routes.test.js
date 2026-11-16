@@ -10,6 +10,7 @@ import {
   alertPath,
   alertsPath,
   auditEventPath,
+  organizationPath,
   dashboardIndicatorPath,
   dashboardPath,
   formPath,
@@ -192,6 +193,18 @@ describe('endereços do painel', () => {
     expect(indicatorFromSlug('alertas')).toBe('alerts');
     expect(indicatorFromSlug('medicamentos')).toBeNull();
     expect(indicatorFromSlug(undefined)).toBeNull();
+  });
+});
+
+describe('endereços das organizações', () => {
+  it('monta a página da organização com o id codificado', () => {
+    expect(organizationPath('abc')).toBe('/organizacoes/abc');
+    expect(organizationPath('a/b')).toBe('/organizacoes/a%2Fb');
+    expect(PATHS.ORGANIZATION_DETAIL).toBe('/organizacoes/:organizationId');
+  });
+
+  it('mantém o cadastro fora do padrão da página da organização', () => {
+    expect(PATHS.ORGANIZATION_NEW).toBe('/organizacoes/nova');
   });
 });
 
