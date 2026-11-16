@@ -1,10 +1,12 @@
 import { Alert, Box, Button, Stack } from '@mui/material';
 import { useState } from 'react';
 import DefinitionList from '../../components/DefinitionList.jsx';
+import OrganizationFormDialog from '../../components/OrganizationFormDialog.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import ResourceState from '../../components/ResourceState.jsx';
 import SectionCard from '../../components/SectionCard.jsx';
 import { PERMISSIONS as P } from '../../constants/permissions.js';
+import { organizationFieldLabels } from '../../data/organizationFields.js';
 import {
   organizationSectionContent,
   settingsContent as content,
@@ -14,15 +16,15 @@ import { useSession } from '../../hooks/useSession.js';
 import {
   getOwnOrganization,
   getOwnPlan,
+  updateOwnOrganization,
 } from '../../services/organizationService.js';
-import OrganizationDialog from './OrganizationDialog.jsx';
 import PlanSection from './PlanSection.jsx';
 
 const FIELDS = ['code', 'tradeName', 'legalName', 'document', 'phone', 'email'];
 const noLoad = () => Promise.resolve({ data: null, meta: {} });
 
 function OrganizationSection({ organization, onEdit }) {
-  const { fields, title, edit } = organizationSectionContent;
+  const { title, edit } = organizationSectionContent;
   return (
     <Box component="section" aria-label={title}>
       <SectionCard
@@ -37,7 +39,7 @@ function OrganizationSection({ organization, onEdit }) {
       >
         <DefinitionList
           rows={FIELDS.map((field) => [
-            fields[field],
+            organizationFieldLabels[field],
             organization[field] || content.none,
           ])}
         />
@@ -93,8 +95,9 @@ export default function SettingsPage() {
       </Stack>
 
       {editing ? (
-        <OrganizationDialog
+        <OrganizationFormDialog
           organization={organization.data}
+          save={updateOwnOrganization}
           onClose={() => setEditing(false)}
           onSaved={() => {
             setEditing(false);

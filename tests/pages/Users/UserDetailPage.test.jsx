@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PATHS, userPath } from '../../../src/constants/routes.js';
 import { profileLabels } from '../../../src/data/profiles.js';
+import { temporaryPasswordContent as passwordField } from '../../../src/data/temporaryPassword.js';
 import {
   invitationResultContent as result,
   profileDialogContent as profileDialog,
@@ -142,7 +143,7 @@ describe('UserDetailPage', () => {
     const shown = await screen.findByRole('dialog', {
       name: result.passwordTitle,
     });
-    const password = within(shown).getByLabelText(result.passwordLabel).value;
+    const password = within(shown).getByLabelText(passwordField.label).value;
     expect(password).toHaveLength(20);
     fireEvent.click(within(shown).getByRole('button', { name: result.close }));
 
@@ -167,7 +168,7 @@ describe('UserDetailPage', () => {
       name: result.passwordTitle,
     });
     expect(
-      within(shown).getByLabelText(result.passwordLabel).value,
+      within(shown).getByLabelText(passwordField.label).value,
     ).toHaveLength(20);
   });
 
@@ -188,7 +189,7 @@ describe('UserDetailPage', () => {
         'Convite enviado ao e-mail do usuário. O link vale até 13/11/2026 às 12:00 (horário de Brasília).',
       ),
     ).toBeInTheDocument();
-    expect(within(shown).queryByLabelText(result.passwordLabel)).toBeNull();
+    expect(within(shown).queryByLabelText(passwordField.label)).toBeNull();
     fireEvent.click(within(shown).getByRole('button', { name: result.close }));
 
     const invitation = await waitFor(() => section(content.invitationTitle));

@@ -1,55 +1,15 @@
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  LinearProgress,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Box, Button, Stack, Typography } from '@mui/material';
 import { useCallback, useState } from 'react';
 import ConfirmDialog from '../../components/ConfirmDialog.jsx';
+import PlanSummary from '../../components/PlanSummary.jsx';
 import SectionCard from '../../components/SectionCard.jsx';
 import { PERMISSIONS as P } from '../../constants/permissions.js';
-import {
-  planFeatureLabels,
-  planSectionContent as content,
-} from '../../data/settingsPages.js';
+import { planSectionContent as content } from '../../data/settingsPages.js';
 import { useSession } from '../../hooks/useSession.js';
 import { useSubmit } from '../../hooks/useSubmit.js';
 import { cancelChangeRequest } from '../../services/organizationService.js';
-import {
-  formatDate,
-  formatDateTime,
-  formatNumber,
-  todayInSaoPaulo,
-} from '../../utils/format.js';
+import { formatDateTime } from '../../utils/format.js';
 import ChangeRequestDialog from './ChangeRequestDialog.jsx';
-
-// Dia de Brasília de um instante da API, como a mensagem de vencimento.
-const day = (instant) => formatDate(todayInSaoPaulo(new Date(instant)));
-
-// Uso como a API manda: depois de um rebaixamento, ele pode passar do
-// limite, e a barra só fica cheia.
-function Usage({ label, used, limit }) {
-  return (
-    <Box component="li" sx={{ minWidth: 0 }}>
-      <Typography variant="body2" color="text.secondary">
-        {label}
-      </Typography>
-      <Typography variant="h2" component="p">
-        {content.usageValue(formatNumber(used), formatNumber(limit))}
-      </Typography>
-      <LinearProgress
-        variant="determinate"
-        value={limit > 0 ? Math.min(100, (used / limit) * 100) : 100}
-        color={used >= limit ? 'warning' : 'primary'}
-        aria-label={label}
-        sx={{ mt: 1, height: 8, borderRadius: 4 }}
-      />
-    </Box>
-  );
-}
 
 function PendingRequest({ request, canCancel, onCancel }) {
   return (
@@ -92,7 +52,7 @@ export default function PlanSection({ data, meta, onChanged }) {
   const { can } = useSession();
   const [requesting, setRequesting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  const { plan, term, limits, usage, pendingChangeRequest: pending } = data;
+  const { plan, term, pendingChangeRequest: pending } = data;
   const cancelAction = useCallback(
     () => cancelChangeRequest(pending.id),
     [pending],
@@ -122,77 +82,7 @@ export default function PlanSection({ data, meta, onChanged }) {
         }
       >
         <Stack spacing={2.5}>
-          {meta?.message ? (
-            <Alert severity={expired ? 'error' : 'warning'}>
-              {meta.message}
-            </Alert>
-          ) : null}
-          <Box>
-            <Stack
-              direction="row"
-              sx={{ flexWrap: 'wrap', gap: 1.5, alignItems: 'center' }}
-            >
-              <Typography variant="h2" component="p">
-                {plan.name}
-              </Typography>
-              {expired ? (
-                <Chip
-                  size="small"
-                  label={content.expired}
-                  sx={{ bgcolor: 'error.light', color: 'error.main' }}
-                />
-              ) : null}
-            </Stack>
-            <Typography variant="body2" color="text.secondary">
-              {plan.description}
-            </Typography>
-            <Typography variant="body2" sx={{ mt: 1 }}>
-              {content.term(
-                day(term.startsAt),
-                term.endsAt ? day(term.endsAt) : null,
-              )}
-            </Typography>
-          </Box>
-          <Box
-            component="ul"
-            aria-label={content.featuresLabel}
-            sx={{
-              m: 0,
-              pl: 2.5,
-              display: 'grid',
-              gap: 0.5,
-              gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' },
-            }}
-          >
-            {plan.features.map((feature) => (
-              <Typography component="li" variant="body2" key={feature}>
-                {planFeatureLabels[feature] ?? feature}
-              </Typography>
-            ))}
-          </Box>
-          <Box
-            component="ul"
-            aria-label={content.usageLabel}
-            sx={{
-              m: 0,
-              p: 0,
-              listStyle: 'none',
-              display: 'grid',
-              gap: 2.5,
-              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
-            }}
-          >
-            <Usage
-              label={content.usage.users}
-              used={usage.users}
-              limit={limits.users}
-            />
-            <Usage
-              label={content.usage.patients}
-              used={usage.patients}
-              limit={limits.patients}
-            />
-          </Box>
+          <PlanSummary data={data} meta={meta} />
           {pending ? (
             <PendingRequest
               request={pending}

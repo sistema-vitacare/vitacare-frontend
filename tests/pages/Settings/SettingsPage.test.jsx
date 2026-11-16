@@ -4,11 +4,17 @@ import { PATHS } from '../../../src/constants/routes.js';
 import { organization } from '../../../src/data/mocks/organization.js';
 import { BASIC_PLAN, ENTERPRISE_PLAN } from '../../../src/data/mocks/plans.js';
 import {
-  changeRequestFormContent as form,
   organizationFieldErrors,
+  organizationFieldLabels,
   organizationFormContent as organizationForm,
-  organizationSectionContent as organizationSection,
+} from '../../../src/data/organizationFields.js';
+import {
   planFeatureLabels,
+  planSummaryContent as summary,
+} from '../../../src/data/planSummary.js';
+import {
+  changeRequestFormContent as form,
+  organizationSectionContent as organizationSection,
   planSectionContent as plan,
   settingsContent as content,
 } from '../../../src/data/settingsPages.js';
@@ -50,7 +56,7 @@ describe('organização', () => {
     renderSettings();
 
     const section = await region(organizationSection.title);
-    const { fields } = organizationSection;
+    const fields = organizationFieldLabels;
     expect(valueOf(section, fields.tradeName)).toHaveTextContent(
       organization.tradeName,
     );
@@ -74,11 +80,11 @@ describe('organização', () => {
       name: organizationForm.title,
     });
     fireEvent.change(
-      within(dialog).getByLabelText(organizationSection.fields.phone),
+      within(dialog).getByLabelText(organizationFieldLabels.phone),
       { target: { value: '(16) 3624-0000' } },
     );
     fireEvent.change(
-      within(dialog).getByLabelText(organizationSection.fields.legalName),
+      within(dialog).getByLabelText(organizationFieldLabels.legalName),
       { target: { value: '' } },
     );
     fireEvent.click(
@@ -92,14 +98,14 @@ describe('organização', () => {
       expect(
         valueOf(
           screen.getByRole('region', { name: organizationSection.title }),
-          organizationSection.fields.phone,
+          organizationFieldLabels.phone,
         ),
       ).toHaveTextContent('(16) 3624-0000'),
     );
     expect(
       valueOf(
         screen.getByRole('region', { name: organizationSection.title }),
-        organizationSection.fields.legalName,
+        organizationFieldLabels.legalName,
       ),
     ).toHaveTextContent(content.none);
   });
@@ -115,7 +121,7 @@ describe('organização', () => {
     });
 
     fireEvent.change(
-      within(dialog).getByLabelText(organizationSection.fields.tradeName, {
+      within(dialog).getByLabelText(organizationFieldLabels.tradeName, {
         exact: false,
       }),
       { target: { value: '' } },
@@ -130,14 +136,14 @@ describe('organização', () => {
     ).toBeInTheDocument();
 
     fireEvent.change(
-      within(dialog).getByLabelText(organizationSection.fields.tradeName, {
+      within(dialog).getByLabelText(organizationFieldLabels.tradeName, {
         exact: false,
       }),
       { target: { value: organization.tradeName } },
     );
     // Documento da Clínica Bem Viver, outra organização dos dados simulados.
     fireEvent.change(
-      within(dialog).getByLabelText(organizationSection.fields.document),
+      within(dialog).getByLabelText(organizationFieldLabels.document),
       { target: { value: '58.214.903/0001-07' } },
     );
     fireEvent.click(
@@ -161,18 +167,20 @@ describe('plano e uso', () => {
       within(section).getByText(ENTERPRISE_PLAN.description),
     ).toBeInTheDocument();
     const features = within(section).getByRole('list', {
-      name: plan.featuresLabel,
+      name: summary.featuresLabel,
     });
     expect(within(features).getAllByRole('listitem')).toHaveLength(9);
     expect(features).toHaveTextContent(planFeatureLabels.operational_dashboard);
     expect(
-      within(section).getByText(plan.term('02/09/2026', null)),
+      within(section).getByText(summary.term('02/09/2026', null)),
     ).toBeInTheDocument();
-    const usage = within(section).getByRole('list', { name: plan.usageLabel });
-    expect(usage).toHaveTextContent(plan.usage.users);
-    expect(usage).toHaveTextContent(plan.usageValue('11', '50'));
-    expect(usage).toHaveTextContent(plan.usage.patients);
-    expect(usage).toHaveTextContent(plan.usageValue('22', '1.000'));
+    const usage = within(section).getByRole('list', {
+      name: summary.usageLabel,
+    });
+    expect(usage).toHaveTextContent(summary.usage.users);
+    expect(usage).toHaveTextContent(summary.usageValue('11', '50'));
+    expect(usage).toHaveTextContent(summary.usage.patients);
+    expect(usage).toHaveTextContent(summary.usageValue('22', '1.000'));
   });
 
   it('mostra o aviso de vencimento que a API manda', async () => {
@@ -190,7 +198,7 @@ describe('plano e uso', () => {
     renderSettings();
 
     const section = await region(plan.title);
-    expect(within(section).getByText(plan.expired)).toBeInTheDocument();
+    expect(within(section).getByText(summary.expired)).toBeInTheDocument();
     expect(within(section).getByRole('alert')).toHaveTextContent(
       'Novos cadastros e reativações de usuários e pacientes estão bloqueados até a renovação',
     );
@@ -202,8 +210,8 @@ describe('plano e uso', () => {
 
     const section = await region(plan.title);
     expect(
-      within(section).getByRole('list', { name: plan.usageLabel }),
-    ).toHaveTextContent(plan.usageValue('11', '10'));
+      within(section).getByRole('list', { name: summary.usageLabel }),
+    ).toHaveTextContent(summary.usageValue('11', '10'));
   });
 });
 
@@ -307,10 +315,10 @@ describe('administrador da plataforma', () => {
 
     const section = await region(organizationSection.title);
     expect(
-      valueOf(section, organizationSection.fields.tradeName),
+      valueOf(section, organizationFieldLabels.tradeName),
     ).toHaveTextContent('VitaCare');
     expect(
-      valueOf(section, organizationSection.fields.legalName),
+      valueOf(section, organizationFieldLabels.legalName),
     ).toHaveTextContent(content.none);
     expect(
       within(section).getByRole('button', { name: organizationSection.edit }),
