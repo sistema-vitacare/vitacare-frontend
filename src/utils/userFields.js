@@ -23,7 +23,8 @@ const UPDATE_FIELDS = ['name', 'email', 'cpf', 'phone'];
 
 const text = (value) => (typeof value === 'string' ? value.trim() : null);
 
-function nameError(value) {
+/** Nome de pessoa: obrigatório, até 180 caracteres. */
+export function nameError(value) {
   const name = text(value);
   if (!name) {
     return 'MIN_LENGTH';
@@ -31,7 +32,8 @@ function nameError(value) {
   return name.length > USER_LIMITS.name ? 'MAX_LENGTH' : null;
 }
 
-function emailError(value) {
+/** E-mail de login: obrigatório, até 254 caracteres. */
+export function emailError(value) {
   const email = text(value);
   if (!email || !EMAIL_PATTERN.test(email)) {
     return 'IS_EMAIL';
@@ -39,7 +41,8 @@ function emailError(value) {
   return email.length > USER_LIMITS.email ? 'MAX_LENGTH' : null;
 }
 
-function phoneError(value) {
+/** Telefone de pessoa, quando informado. */
+export function phoneError(value) {
   const phone = text(value);
   if (phone === null || !PHONE_PATTERN.test(phone)) {
     return 'MATCHES';
