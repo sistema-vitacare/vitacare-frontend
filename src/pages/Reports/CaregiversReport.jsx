@@ -14,6 +14,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { useCallback } from 'react';
 import ResourceState from '../../components/ResourceState.jsx';
+import ScrollableRegion from '../../components/ScrollableRegion.jsx';
 import SectionCard from '../../components/SectionCard.jsx';
 import {
   caregiversReportContent as content,
@@ -69,7 +70,7 @@ const caregiverName = ({ caregiver }) =>
 
 function CaregiverTable({ rows }) {
   return (
-    <Box sx={{ overflowX: 'auto' }}>
+    <ScrollableRegion label={content.summary.caregivers}>
       <Table size="small">
         <TableHead>
           <TableRow>
@@ -96,7 +97,7 @@ function CaregiverTable({ rows }) {
           ))}
         </TableBody>
       </Table>
-    </Box>
+    </ScrollableRegion>
   );
 }
 

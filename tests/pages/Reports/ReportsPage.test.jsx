@@ -117,6 +117,17 @@ describe('ReportsPage', () => {
     expect(screen.getAllByText('Rosângela Prado').length).toBeGreaterThan(0);
   });
 
+  it('põe a tabela dos cuidadores numa região que recebe foco pelo teclado', async () => {
+    renderReports('admin', `${PATHS.REPORTS}?tipo=cuidadores`);
+
+    const region = await screen.findByRole('region', {
+      name: caregiversContent.summary.caregivers,
+    });
+
+    expect(region).toHaveAttribute('tabindex', '0');
+    expect(within(region).getByRole('table')).toBeInTheDocument();
+  });
+
   it('exporta o PDF gerencial, que entra no topo dos recentes e soma no tipo', async () => {
     URL.createObjectURL = vi.fn(() => 'blob:relatorio');
     URL.revokeObjectURL = vi.fn();
