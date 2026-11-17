@@ -1,6 +1,6 @@
 # Arquitetura do frontend
 
-Este documento descreve como o frontend do VitaCare é construído: tecnologias, camadas, dados simulados, controle de acesso por perfil e identidade visual.
+Este documento descreve como o frontend do VitaCare é construído: tecnologias, camadas, dados simulados, controle de acesso por perfil, identidade visual, acessibilidade e instalação.
 
 As regras de negócio e a proteção dos dados pertencem à API. O frontend apresenta as informações e oculta o que o perfil não pode fazer, mas isso é apenas interface: a autorização acontece no backend.
 
@@ -84,7 +84,7 @@ Na integração, o corpo de cada serviço passa a chamar a rota correspondente d
 Duas alternativas foram descartadas:
 
 - **Importar os dados simulados direto nas páginas.** A integração exigiria alterar todas as telas.
-- **Interceptar requisições HTTP com Mock Service Worker.** Colocaria um segundo service worker ao lado do PWA.
+- **Interceptar requisições HTTP com Mock Service Worker.** Colocaria no navegador um service worker só para os dados simulados, e o PWA não usa service worker.
 
 ## Sessão, perfis e permissões
 
@@ -132,6 +132,8 @@ Os endereços, a permissão de cada tela e os itens do menu ficam em `src/consta
 - **Celular:** abaixo de 900 px, o menu lateral vira um menu recolhível, aberto pela barra superior. Quem tem `follow_ups:create` (hoje, apenas o cuidador) navega por uma barra inferior, porque registra visitas com o aparelho na mão.
 - **Menu do usuário:** fica na barra superior, presente em todos os layouts e perfis, com "Alterar senha" e o Sair. A troca de senha encerra todas as sessões da conta, como na API, e volta ao login com o aviso e com a organização e o e-mail preenchidos.
 - **Páginas de estado:** não encontrada, acesso negado, erro inesperado e tela em construção usam o mesmo molde, em `src/pages/Status/`. A tela em construção ocupa o endereço de cada tela que ainda não existe.
+- **Carregamento sob demanda:** cada tela é um arquivo à parte do build, declarado em `src/lazyPages.js` e baixado na primeira vez que a tela é aberta; assim, nenhum arquivo passa de 500 kB, e a primeira carga não traz o código de todas as telas. A página de estado é a exceção e fica no pacote principal, porque é a tela de erro quando o arquivo de outra tela não carrega; o teste do roteador falha se outra tela for importada direto. O roteador troca de tela em transição, mantendo a anterior até a nova chegar, então a barra de carregamento só aparece quando a área é montada: na primeira carga e ao entrar ou sair do layout autenticado, onde ela fica abaixo do menu.
+- **Depois de um deploy:** os arquivos de tela do build anterior somem, e o nginx responde 404 para eles. A página aberta antes do deploy recarrega uma vez, pelo evento `vite:preloadError`, e passa a usar os arquivos novos. A hora da recarga fica no `sessionStorage`: uma segunda falha em menos de um minuto vai para a página de erro, em vez de recarregar sem parar.
 
 ## Identidade visual
 
@@ -144,6 +146,22 @@ A estrutura de telas segue os protótipos do TCC (Figuras 31 a 46). Os valores f
 - **Movimento:** transições curtas com desaceleração, entrada escalonada de listas e esqueletos de carregamento no formato do conteúdo. Animações usam apenas `transform` e `opacity` e respeitam a preferência do sistema por movimento reduzido.
 
 Os contrastes seguem a fórmula de luminância relativa da WCAG 2.1. O teste `tests/styles/theme.test.js` confere o mínimo de 4,5:1 entre cada cor de texto do tema e os fundos em que ela aparece; uma cor nova no tema entra também nesse teste.
+
+## Acessibilidade
+
+- **Foco pelo teclado:** botões, itens de menu e links mostram um contorno de 2 px no teal de ação, afastado 2 px, só quando o foco chega pelo teclado (`Mui-focusVisible`); o clique com mouse não o mostra. O contorno tem 4,98:1 sobre branco e 4,56:1 sobre o fundo cinza-claro, acima dos 3:1 que a WCAG 2.1 pede para indicadores de foco; o teste do tema confere esse mínimo.
+- **Botão de alternância e texto de ajuda de campo desabilitado:** usam a cor de texto secundário do tema, porque os cinzas padrão do Material UI ficam abaixo de 4,5:1; o texto de ajuda de um campo travado é o que explica por que ele não muda.
+- **Sem esmaecer por opacidade:** o registro anulado se distingue pelo selo e pelas respostas riscadas. A opacidade clareava também o link e o selo, abaixo do contraste mínimo.
+- **Tabelas largas:** no celular, a tabela que não cabe rola de lado dentro de `ScrollableRegion`, uma região com nome que recebe foco, para que quem usa só o teclado alcance as colunas escondidas.
+- **Conferência:** varredura com o axe-core (WCAG 2.0 e 2.1, níveis A e AA), fluxos feitos só com teclado e telas de 360 a 1440 px sem rolagem horizontal, no Chromium; no Edge e no Firefox, por um roteiro manual. O Safari depende de um aparelho Apple, e o leitor de tela real não foi testado; os rótulos são conferidos pelo axe.
+
+## Instalação
+
+O manifesto (`public/manifest.webmanifest`) dá o nome, as cores do tema e os ícones de 192 e 512 px, com a versão recortável do Android; o `index.html` liga o manifesto, o ícone da tela de início do iPhone e a cor da barra do navegador. O teste `tests/manifest.test.js` confere os campos, o tamanho de cada ícone e as cores iguais às do tema.
+
+Não há service worker: o TCC não prevê funcionamento offline, e um pré-cache arriscaria mostrar a versão antiga depois de um deploy. Pela documentação do Chrome (atualizada em 05/12/2023), instalar pelo menu do navegador não exige service worker desde o Chrome 112 no computador e o 108 no Android; o aviso automático de instalação ainda exigia um.
+
+O navegador só oferece instalar em contexto seguro (HTTPS ou `localhost`). Em produção, o acesso é por IP e sem HTTPS, então a instalação fica para quando houver domínio com HTTPS; até lá, ela é conferida com `npm run preview`, em `localhost`.
 
 ## Diferenças em relação aos protótipos
 
