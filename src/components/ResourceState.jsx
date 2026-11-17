@@ -1,6 +1,16 @@
 import { Alert, Box, Button, LinearProgress, Typography } from '@mui/material';
 import { resourceStateContent } from '../data/patientFields.js';
 
+// Exportada à parte porque o roteador também a mostra enquanto o arquivo de
+// uma tela chega.
+export function LoadingBar() {
+  return (
+    <Box sx={{ py: 4 }}>
+      <LinearProgress aria-label="Carregando" />
+    </Box>
+  );
+}
+
 /**
  * Mostra o estado de um `useResource`: barra de carregamento, erro com nova
  * tentativa, texto de lista vazia ou o conteúdo. `children` recebe os dados
@@ -13,11 +23,7 @@ export default function ResourceState({
   children,
 }) {
   if (resource.status === 'loading') {
-    return (
-      <Box sx={{ py: 4 }}>
-        <LinearProgress aria-label="Carregando" />
-      </Box>
-    );
+    return <LoadingBar />;
   }
   if (resource.status === 'error') {
     return (

@@ -18,6 +18,9 @@ import ResourceState from './ResourceState.jsx';
 
 const PAGE_SIZE = 20;
 
+// O registro anulado se distingue pelo selo e pelas respostas riscadas, sem
+// ficar esmaecido: com opacidade, o link e o selo ficavam abaixo do contraste
+// mínimo de 4,5:1.
 function RecordItem({ record }) {
   const annulled = record.status === 'annulled';
   const visitedAt = formatDateTime(record.visitedAt);
@@ -29,7 +32,6 @@ function RecordItem({ record }) {
         borderBottom: 1,
         borderColor: 'divider',
         '&:last-of-type': { borderBottom: 0 },
-        opacity: annulled ? 0.75 : 1,
       }}
     >
       <Stack

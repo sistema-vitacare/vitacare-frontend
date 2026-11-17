@@ -10,6 +10,11 @@ const tealTint = '#E7F4F3';
 const textSecondary = '#5B6B82';
 
 const easeOut = 'cubic-bezier(0.16, 1, 0.3, 1)';
+
+// Contorno do foco pelo teclado (`Mui-focusVisible`, que o clique com mouse
+// não recebe). Sem ele, o botão só mostrava a onda clara do MUI e o item do
+// menu lateral não mostrava nada.
+const focusRing = { outline: `2px solid ${teal}`, outlineOffset: 2 };
 const cardShadow = `0 1px 2px ${alpha(navy, 0.04)}, 0 8px 24px -12px ${alpha(navy, 0.14)}`;
 
 export const theme = createTheme({
@@ -69,6 +74,12 @@ export const theme = createTheme({
         },
       },
     },
+    MuiButtonBase: {
+      styleOverrides: { root: { '&.Mui-focusVisible': focusRing } },
+    },
+    MuiLink: {
+      styleOverrides: { root: { '&.Mui-focusVisible': focusRing } },
+    },
     MuiButton: {
       defaultProps: { disableElevation: true },
       styleOverrides: {
@@ -111,11 +122,22 @@ export const theme = createTheme({
         },
       },
     },
+    MuiFormHelperText: {
+      styleOverrides: {
+        // O texto de ajuda explica por que o campo está travado; no cinza de
+        // desabilitado do MUI, ele ficava com 2,67:1 sobre branco.
+        root: { '&.Mui-disabled': { color: textSecondary } },
+      },
+    },
     MuiChip: {
       styleOverrides: { root: { fontWeight: 600, borderRadius: 8 } },
     },
     MuiToggleButton: {
-      styleOverrides: { root: { textTransform: 'none', fontWeight: 600 } },
+      styleOverrides: {
+        // A cor padrão do MUI (cinza a 54%) dava 4,47:1 sobre o fundo da
+        // página, abaixo dos 4,5:1 da WCAG.
+        root: { textTransform: 'none', fontWeight: 600, color: textSecondary },
+      },
     },
     MuiTableCell: {
       styleOverrides: {

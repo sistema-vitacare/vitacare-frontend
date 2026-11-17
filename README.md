@@ -28,17 +28,18 @@ Em produção, o frontend roda na VPS como um container nginx na porta 1040, pub
 | `.github/workflows/` | Integração contínua e deploy: lint, testes, build e smoke da imagem em cada pull request; publicação em produção a cada push na `main`. |
 | `docker/` | Configuração do nginx da imagem de produção e validação do ambiente na subida do container. |
 | `docs/` | Documentação técnica. |
-| `public/` | Arquivos servidos sem processamento, como o ícone da aba, o símbolo do logotipo e o `config.js` de desenvolvimento. |
+| `public/` | Arquivos servidos sem processamento, como o ícone da aba, o símbolo do logotipo, o manifesto de instalação com os ícones em `icons/` (feitos do símbolo do logotipo) e o `config.js` de desenvolvimento. |
 | `scripts/ops/` | Smoke da imagem de produção, usado no CI e no ensaio local. |
 | `Dockerfile` | Imagem de produção: build do Vite com Node e entrega com nginx sem root. |
 | `docker-compose.prod.yml` | Stack do Portainer na VPS, na porta 1040. |
 | `compose.yaml` | Ensaio local da imagem de produção. |
 | `.env.production.example` | Modelo das variáveis da stack de produção. |
-| `index.html` | Página base carregada pelo Vite. |
-| `src/main.jsx` | Ponto de entrada: monta a aplicação na página. |
+| `index.html` | Página base carregada pelo Vite, com o manifesto, o ícone do iPhone e a cor da barra do navegador. |
+| `src/main.jsx` | Ponto de entrada: monta a aplicação na página e recarrega a página quando o arquivo de uma tela não carrega depois de um deploy. |
 | `src/App.jsx` | Componente raiz: cria o roteador a partir da árvore de rotas. |
-| `src/routes.jsx` | Árvore de rotas: layout, proteções por sessão e permissão e página de cada endereço. |
-| `src/components/` | Componentes usados em mais de um lugar, como o layout autenticado, o layout das telas de acesso, o cabeçalho de página, o cartão de seção, a lista de rótulos e valores, os estados de carregamento, vazio e erro, a escolha do paciente das listas por paciente, a lista e os filtros dos registros de acompanhamento, os campos de período, o cartão de uma série de evolução, o selo de severidade, o diálogo de confirmação, a troca da própria senha, a edição dos dados de uma organização, o campo da senha provisória com Copiar, o resumo do plano com o uso, o provedor de sessão e as proteções por sessão e por permissão. |
+| `src/routes.jsx` | Árvore de rotas: layout, proteções por sessão e permissão, página de cada endereço e a barra de carregamento enquanto a tela chega. |
+| `src/lazyPages.js` | Telas carregadas sob demanda, cada uma num arquivo à parte do build. |
+| `src/components/` | Componentes usados em mais de um lugar, como o layout autenticado, o layout das telas de acesso, o cabeçalho de página, o cartão de seção, a lista de rótulos e valores, os estados de carregamento, vazio e erro, a escolha do paciente das listas por paciente, a lista e os filtros dos registros de acompanhamento, os campos de período, o cartão de uma série de evolução, o selo de severidade, o diálogo de confirmação, a troca da própria senha, a edição dos dados de uma organização, o campo da senha provisória com Copiar, o resumo do plano com o uso, a região rolável com foco pelo teclado, o provedor de sessão e as proteções por sessão e por permissão. |
 | `src/constants/` | Listas fechadas, como os endereços do sistema, os itens do menu, a matriz de permissões dos perfis, os tipos de campo dos formulários, as unidades e vias dos medicamentos, as severidades, origens e operadores dos alertas, os atalhos de período do painel, os perfis e situações dos usuários, os recursos dos planos e as gravidades da auditoria. |
 | `src/data/` | Textos da interface. |
 | `src/data/mocks/` | Dados simulados no formato da API: organização, organizações clientes com termo de vigência, uso e solicitação de mudança de plano, planos e termo de vigência, usuários, pacientes, credenciais de demonstração, vínculos de cuidado, formulários com versões e rascunho, registros, anexos, medicamentos, regras de alerta, alertas, catálogo e eventos de auditoria e a página fixa do PDF do relatório. |
@@ -62,9 +63,9 @@ Em produção, o frontend roda na VPS como um container nginx na porta 1040, pub
 | `src/hooks/` | Hooks que ligam as telas aos serviços: o `useResource`, para leitura, o `useSubmit`, para envio, e os filtros do painel e dos relatórios guardados no endereço. |
 | `src/services/` | Único ponto de acesso a dados; hoje responde com os dados simulados. |
 | `src/styles/` | Tema do Material UI: cores, tipografia, raios, sombras e movimento. |
-| `src/utils/` | Funções puras: validações (CPF, campos de acesso, cadastro de paciente, usuário e organização, inclusive a nova com o primeiro administrador), regras dos campos de formulário, das respostas de registro, dos anexos, dos medicamentos e das regras de alerta, a agenda dos medicamentos, as mensagens dos alertas, a regra de período da API, as contas do painel e dos relatórios gerenciais, as ações de cada usuário, o aviso de vencimento do plano, as regras do termo do plano (limites, data de fim e motivo), a senha provisória, o CSV da auditoria e o endereço do item de um evento, a entrega de arquivo baixado, o PDF fixo do relatório simulado, máscaras, números digitados com vírgula, formatação de datas e doses e os indicadores de evolução. |
+| `src/utils/` | Funções puras: validações (CPF, campos de acesso, cadastro de paciente, usuário e organização, inclusive a nova com o primeiro administrador), regras dos campos de formulário, das respostas de registro, dos anexos, dos medicamentos e das regras de alerta, a agenda dos medicamentos, as mensagens dos alertas, a regra de período da API, as contas do painel e dos relatórios gerenciais, as ações de cada usuário, o aviso de vencimento do plano, as regras do termo do plano (limites, data de fim e motivo), a senha provisória, o CSV da auditoria e o endereço do item de um evento, a entrega de arquivo baixado, a recarga da página depois de um deploy, o PDF fixo do relatório simulado, máscaras, números digitados com vírgula, formatação de datas e doses e os indicadores de evolução. |
 | `tests/` | Testes automatizados, espelhando as pastas de `src/`. |
-| `tests/support/` | Apoio dos testes: verificações de projeto, cálculo de contraste, largura de tela simulada e renderização de telas com sessão de demonstração. |
+| `tests/support/` | Apoio dos testes: verificações de projeto, cálculo de contraste, largura de tela simulada, renderização de telas com sessão de demonstração e carga das telas sob demanda antes dos testes do roteador. |
 
 Todo arquivo solto em `src/` e toda pasta de `src/` até dois níveis precisam de uma linha nesta tabela; um teste falha quando falta alguma.
 

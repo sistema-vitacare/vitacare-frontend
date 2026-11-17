@@ -64,6 +64,21 @@ describe('DashboardIndicatorPage', () => {
     ).toBeNull();
   });
 
+  // Em 360 px a tabela rola de lado; a região recebe o foco para quem rola
+  // pelo teclado.
+  it('põe cada tabela numa região com o nome dela, que recebe foco pelo teclado', async () => {
+    renderIndicator(dashboardIndicatorPath('users', '30'));
+
+    const region = await screen.findByRole('region', {
+      name: content.users.byProfile,
+    });
+
+    expect(region).toHaveAttribute('tabindex', '0');
+    expect(
+      within(region).getByRole('table', { name: content.users.byProfile }),
+    ).toBeInTheDocument();
+  });
+
   it('mostra os registros por formulário e por autor', async () => {
     renderIndicator(dashboardIndicatorPath('followUps', '30'));
 

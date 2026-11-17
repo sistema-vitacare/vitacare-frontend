@@ -6,6 +6,9 @@ import SessionProvider from '../src/components/SessionProvider.jsx';
 import { appInfo } from '../src/data/app.js';
 import { loginContent } from '../src/data/login.js';
 import { theme } from '../src/styles/theme.js';
+import { preloadPages } from './support/preloadPages.js';
+
+await preloadPages();
 
 function renderApp() {
   render(

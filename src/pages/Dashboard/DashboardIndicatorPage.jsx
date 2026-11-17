@@ -15,6 +15,7 @@ import { useCallback } from 'react';
 import { Link as RouterLink, useParams } from 'react-router';
 import PageHeader from '../../components/PageHeader.jsx';
 import ResourceState from '../../components/ResourceState.jsx';
+import ScrollableRegion from '../../components/ScrollableRegion.jsx';
 import SectionCard from '../../components/SectionCard.jsx';
 import { ALERT_SEVERITIES } from '../../constants/alerts.js';
 import { DEFAULT_SHORTCUT } from '../../constants/dashboard.js';
@@ -74,7 +75,7 @@ function Summary({ items }) {
 function CountTable({ label, header, columns, rows }) {
   return (
     <SectionCard title={label}>
-      <Box sx={{ overflowX: 'auto' }}>
+      <ScrollableRegion label={label}>
         <Table size="small" aria-label={label}>
           <TableHead>
             <TableRow>
@@ -99,7 +100,7 @@ function CountTable({ label, header, columns, rows }) {
             ))}
           </TableBody>
         </Table>
-      </Box>
+      </ScrollableRegion>
     </SectionCard>
   );
 }

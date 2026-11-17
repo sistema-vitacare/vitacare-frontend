@@ -87,7 +87,7 @@ Conferir depois de uma semana: `docker stats --no-stream app-vitacare-frontend`.
 
 ## Passo a passo do zero ao ar (acesso por IP, sem domínio)
 
-O acesso é **sempre** por `http://<IP-da-VPS>:1040`, sem domínio nem HTTPS (decisão de Mateus em 2026-11-10, a mesma do backend). Fora de contexto seguro, o navegador não libera service worker: a instalação do PWA não funciona pelo IP.
+O acesso é **sempre** por `http://<IP-da-VPS>:1040`, sem domínio nem HTTPS (decisão de Mateus em 2026-11-10, a mesma do backend). Fora de contexto seguro, o navegador não oferece instalar o PWA: pelo IP, ele abre só como site (ver [Instalação](arquitetura.md#instalação)).
 
 ### 0. Pré-requisitos na VPS
 
