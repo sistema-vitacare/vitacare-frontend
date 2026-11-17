@@ -1,0 +1,20 @@
+{
+  "name": "VitaCare",
+  "short_name": "VitaCare",
+  "description": "Gestão e monitoramento de doenças crônicas e cuidado a idosos.",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#0D7D77",
+  "background_color": "#F3F5F7",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
