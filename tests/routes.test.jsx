@@ -43,9 +43,14 @@ import { reportsPageContent } from '../src/data/managementReports.js';
 import { patientReportContent } from '../src/data/patientReport.js';
 import { userListContent } from '../src/data/userPages.js';
 import { appRoutes } from '../src/routes.jsx';
+import lazyPagesSource from '../src/lazyPages.js?raw';
+import routesSource from '../src/routes.jsx?raw';
 import { resetMockState } from '../src/services/mockApi.js';
 import { theme } from '../src/styles/theme.js';
+import { preloadPages } from './support/preloadPages.js';
 import { resetViewport, setViewportWidth } from './support/viewport.js';
+
+await preloadPages();
 
 const RAFAEL = 'f6b21c50-000b-5e70-878b-b5e7f5f9a410';
 const HOUR = 60 * 60 * 1000;
@@ -583,5 +588,27 @@ describe('rotas', () => {
 
     expect(await heading(loginContent.title)).toBeInTheDocument();
     expect(screen.getByText(loginContent.passwordChanged)).toBeInTheDocument();
+  });
+});
+
+// Tela importada direto volta para o pacote principal e pesa na primeira
+// carga de qualquer endereço. A página de estado é a exceção: ela é a tela de
+// erro quando o arquivo de outra tela não carrega.
+describe('carregamento sob demanda', () => {
+  it('cada tela chega ao roteador por import dinâmico, menos a página de estado', () => {
+    const pages = Object.keys(import.meta.glob('../src/pages/**/*Page.jsx'))
+      .map((path) => path.replace('../src/pages/', ''))
+      .filter((path) => path !== 'Status/StatusPage.jsx');
+    const staticImports = (source) =>
+      [...source.matchAll(/^import [^;]+ from '\.\/pages\/([^']+)';$/gm)].map(
+        (match) => match[1],
+      );
+    const onDemand = [
+      ...lazyPagesSource.matchAll(/import\(\s*'\.\/pages\/([^']+)'\s*\)/g),
+    ].map((match) => match[1]);
+
+    expect(staticImports(routesSource)).toEqual(['Status/StatusPage.jsx']);
+    expect(staticImports(lazyPagesSource)).toEqual([]);
+    expect(onDemand.toSorted()).toEqual(pages.toSorted());
   });
 });

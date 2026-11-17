@@ -1,38 +1,54 @@
+import { Suspense } from 'react';
+import { Outlet } from 'react-router';
 import AppShell from './components/AppShell.jsx';
 import HomeRedirect from './components/HomeRedirect.jsx';
 import RequirePermission from './components/RequirePermission.jsx';
 import RequireSession from './components/RequireSession.jsx';
+import { LoadingBar } from './components/ResourceState.jsx';
 import { PERMISSIONS as P } from './constants/permissions.js';
 import { NAV_ITEMS, PATHS } from './constants/routes.js';
 import { navLabels } from './data/navigation.js';
-import AlertDetailPage from './pages/Alerts/AlertDetailPage.jsx';
-import AlertListPage from './pages/Alerts/AlertListPage.jsx';
-import AuditEventPage from './pages/Audit/AuditEventPage.jsx';
-import AuditListPage from './pages/Audit/AuditListPage.jsx';
-import DashboardIndicatorPage from './pages/Dashboard/DashboardIndicatorPage.jsx';
-import DashboardPage from './pages/Dashboard/DashboardPage.jsx';
-import FirstAccessPage from './pages/FirstAccess/FirstAccessPage.jsx';
-import FollowUpDetailPage from './pages/FollowUps/FollowUpDetailPage.jsx';
-import FollowUpListPage from './pages/FollowUps/FollowUpListPage.jsx';
-import VisitPage from './pages/FollowUps/VisitPage.jsx';
-import FormListPage from './pages/Forms/FormListPage.jsx';
-import FormPage from './pages/Forms/FormPage.jsx';
-import LoginPage from './pages/Login/LoginPage.jsx';
-import MedicationListPage from './pages/Medications/MedicationListPage.jsx';
-import OrganizationDetailPage from './pages/Organizations/OrganizationDetailPage.jsx';
-import OrganizationListPage from './pages/Organizations/OrganizationListPage.jsx';
-import OrganizationNewPage from './pages/Organizations/OrganizationNewPage.jsx';
-import PasswordRecoveryPage from './pages/PasswordRecovery/PasswordRecoveryPage.jsx';
-import PasswordResetPage from './pages/PasswordReset/PasswordResetPage.jsx';
-import PatientDetailPage from './pages/Patients/PatientDetailPage.jsx';
-import PatientFormPage from './pages/Patients/PatientFormPage.jsx';
-import PatientHistoryPage from './pages/Patients/PatientHistoryPage.jsx';
-import PatientListPage from './pages/Patients/PatientListPage.jsx';
-import ReportsPage from './pages/Reports/ReportsPage.jsx';
-import SettingsPage from './pages/Settings/SettingsPage.jsx';
+import {
+  AlertDetailPage,
+  AlertListPage,
+  AuditEventPage,
+  AuditListPage,
+  DashboardIndicatorPage,
+  DashboardPage,
+  FirstAccessPage,
+  FollowUpDetailPage,
+  FollowUpListPage,
+  FormListPage,
+  FormPage,
+  LoginPage,
+  MedicationListPage,
+  OrganizationDetailPage,
+  OrganizationListPage,
+  OrganizationNewPage,
+  PasswordRecoveryPage,
+  PasswordResetPage,
+  PatientDetailPage,
+  PatientFormPage,
+  PatientHistoryPage,
+  PatientListPage,
+  ReportsPage,
+  SettingsPage,
+  UserDetailPage,
+  UserListPage,
+  VisitPage,
+} from './lazyPages.js';
 import StatusPage from './pages/Status/StatusPage.jsx';
-import UserDetailPage from './pages/Users/UserDetailPage.jsx';
-import UserListPage from './pages/Users/UserListPage.jsx';
+
+// Barra mostrada enquanto o arquivo da tela chega. O roteador troca de tela
+// em transição, mantendo a anterior; por isso a barra só aparece quando a área
+// é montada: na primeira carga e ao entrar ou sair do layout autenticado. Uma
+// fica abaixo do layout, para o menu continuar na tela, e outra na raiz, para
+// as telas de acesso.
+const pageSuspense = (
+  <Suspense fallback={<LoadingBar />}>
+    <Outlet />
+  </Suspense>
+);
 
 // Página de cada item do menu. Item sem página ainda mostra "em construção"
 // com o nome da tela; cada tela nova entra aqui.
@@ -151,6 +167,7 @@ export const appRoutes = [
     // Erro de renderização em qualquer rota cai aqui, fora do layout, que
     // pode ser justamente o que falhou.
     errorElement: <StatusPage kind="error" />,
+    element: pageSuspense,
     children: [
       // Fora do `RequireSession`: quem esqueceu a senha não tem sessão, e o
       // primeiro acesso usa a sessão restrita, que a própria tela confere.
@@ -165,20 +182,27 @@ export const appRoutes = [
             element: <AppShell />,
             children: [
               {
-                index: true,
-                element: (
-                  <HomeRedirect fallback={<StatusPage kind="accessDenied" />} />
-                ),
+                element: pageSuspense,
+                children: [
+                  {
+                    index: true,
+                    element: (
+                      <HomeRedirect
+                        fallback={<StatusPage kind="accessDenied" />}
+                      />
+                    ),
+                  },
+                  ...NAV_ITEMS.map((item) => ({
+                    path: item.path,
+                    element: protect(item.permission, screenFor(item)),
+                  })),
+                  ...subpages.map((page) => ({
+                    path: page.path,
+                    element: protect(page.permission, page.element),
+                  })),
+                  { path: '*', element: <StatusPage kind="notFound" /> },
+                ],
               },
-              ...NAV_ITEMS.map((item) => ({
-                path: item.path,
-                element: protect(item.permission, screenFor(item)),
-              })),
-              ...subpages.map((page) => ({
-                path: page.path,
-                element: protect(page.permission, page.element),
-              })),
-              { path: '*', element: <StatusPage kind="notFound" /> },
             ],
           },
         ],
