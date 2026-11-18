@@ -32,8 +32,9 @@ services:
       # não sobe e o log diz por quê.
       API_URL: ${API_URL:?Defina API_URL com a origem da API (http://<IP-da-VPS>:1050)}
     ports:
-      # 127.0.0.1 por padrão. O acesso é sempre por http://IP:1040, sem
-      # domínio nem HTTPS (decisão de 2026-11-10): a stack usa APP_BIND=0.0.0.0.
+      # 127.0.0.1 por padrão: o acesso é por https://vitacare.bizys.com.br, e o
+      # Nginx Proxy Manager alcança o container pela rede proxy, sem a porta
+      # exposta (desde 2026-11-16).
       - '${APP_BIND:-127.0.0.1}:1040:1040'
     labels:
       # Vira o label `stack` no Loki; igual ao nome da stack no Portainer.
@@ -72,7 +73,7 @@ services:
       retries: 3
       start_period: 10s
     networks:
-      # Rede padrão das stacks, como no backend; sem uso no acesso por IP. A
+      # Rede das stacks, como no backend: o Nginx Proxy Manager entrega por ela. A
       # `infra` fica de fora: o frontend não precisa enxergar banco nem Redis.
       - proxy
 

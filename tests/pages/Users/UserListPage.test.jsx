@@ -185,7 +185,8 @@ describe('UserListPage', () => {
     expect(router.state.location.pathname).toBe(`${PATHS.USERS}/${created.id}`);
   });
 
-  // Pelo IP sem HTTPS, o navegador não oferece `navigator.clipboard`.
+  // Fora de contexto seguro (HTTP sem localhost), o navegador não oferece
+  // `navigator.clipboard`.
   it('copia pelo campo selecionado fora de contexto seguro', async () => {
     stubClipboard(undefined);
     document.execCommand = vi.fn(() => true);

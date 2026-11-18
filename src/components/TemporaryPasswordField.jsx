@@ -4,10 +4,10 @@ import { useRef, useState } from 'react';
 import { temporaryPasswordContent as content } from '../data/temporaryPassword.js';
 
 /**
- * Copia a senha. Pelo IP sem HTTPS, o navegador não oferece
- * `navigator.clipboard` (fora de contexto seguro), e, mesmo com ele, pode
- * recusar a escrita sem permissão; nos dois casos a senha é copiada do campo
- * selecionado, que é o que ainda funciona.
+ * Copia a senha. Fora de contexto seguro (HTTP sem `localhost`), o navegador
+ * não oferece `navigator.clipboard`, e, mesmo com ele, pode recusar a escrita
+ * sem permissão; nos dois casos a senha é copiada do campo selecionado, que é
+ * o que ainda funciona.
  */
 async function copyPassword(password, input) {
   try {
