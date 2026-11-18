@@ -1,6 +1,12 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { PATHS, patientPath } from '../../../src/constants/routes.js';
+import {
+  PATHS,
+  alertsPath,
+  medicationsPath,
+  patientPath,
+  reportsPath,
+} from '../../../src/constants/routes.js';
 import { careTeamContent } from '../../../src/data/careTeam.js';
 import { patientDetailContent as content } from '../../../src/data/patientDetail.js';
 import { maskedFieldText } from '../../../src/data/patientFields.js';
@@ -103,14 +109,36 @@ describe('PatientDetailPage', () => {
       screen.getByRole('button', { name: content.actions.deactivate }),
     ).toBeVisible();
     expect(
+      screen.queryByRole('link', { name: content.actions.visit }),
+    ).toBeNull();
+    expect(
       await screen.findByRole('heading', { name: careTeamContent.title }),
     ).toBeVisible();
   });
 
-  it('mostra à cuidadora só o histórico, sem editar, inativar nem equipe', async () => {
+  it('leva ao relatório do paciente quem gera relatório, e só ele', async () => {
+    renderDetail(DIRCE);
+    await heading('Dirce Albuquerque Moraes');
+
+    expect(
+      screen.getByRole('link', { name: content.actions.report }),
+    ).toHaveAttribute('href', reportsPath(DIRCE));
+  });
+
+  it('não mostra o relatório a quem não gera relatório', async () => {
     renderDetail(DIRCE, 'caregiver');
     await heading('Dirce Albuquerque Moraes');
 
+    expect(screen.queryByRole('link', { name: /Relatório/ })).toBeNull();
+  });
+
+  it('mostra à cuidadora o registro de visita e o histórico, sem editar, inativar nem equipe', async () => {
+    renderDetail(DIRCE, 'caregiver');
+    await heading('Dirce Albuquerque Moraes');
+
+    expect(
+      screen.getByRole('link', { name: content.actions.visit }),
+    ).toHaveAttribute('href', patientPath(DIRCE, 'visit'));
     expect(
       screen.getByRole('link', { name: content.actions.history }),
     ).toBeVisible();
@@ -123,6 +151,24 @@ describe('PatientDetailPage', () => {
     expect(
       screen.queryByRole('heading', { name: careTeamContent.title }),
     ).toBeNull();
+  });
+
+  it('leva aos medicamentos e aos alertas do paciente, também para a familiar', async () => {
+    renderDetail(DIRCE, 'family');
+    await heading('Dirce Albuquerque Moraes');
+
+    expect(
+      screen.getByRole('link', { name: content.actions.medications }),
+    ).toHaveAttribute('href', medicationsPath(DIRCE));
+    const alerts = await waitFor(() => card(content.alerts.title));
+    expect(
+      within(alerts).getByRole('link', { name: content.alerts.viewAll }),
+    ).toHaveAttribute('href', alertsPath(DIRCE));
+    // A dose sai no singular ou no plural da unidade, como na tela de
+    // medicamentos.
+    expect(
+      within(card(content.medications.title)).getAllByText(/^1 comprimido · /),
+    ).toHaveLength(3);
   });
 
   it('mostra à familiar os campos ocultos como não exibidos', async () => {

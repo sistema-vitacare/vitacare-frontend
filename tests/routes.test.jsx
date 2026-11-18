@@ -1,31 +1,63 @@
 import { ThemeProvider } from '@mui/material';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import SessionProvider from '../src/components/SessionProvider.jsx';
-import { PATHS, patientPath } from '../src/constants/routes.js';
-import { accessFields } from '../src/data/access.js';
+import {
+  PATHS,
+  alertPath,
+  auditEventPath,
+  dashboardIndicatorPath,
+  formPath,
+  medicationsPath,
+  organizationPath,
+  patientPath,
+  recordPath,
+  userPath,
+} from '../src/constants/routes.js';
+import { accessFields, changePasswordContent } from '../src/data/access.js';
+import { auditListContent } from '../src/data/auditPages.js';
+import { organizationSectionContent } from '../src/data/settingsPages.js';
+import { alertDetailContent } from '../src/data/alertPages.js';
+import { dashboardIndicatorContent } from '../src/data/dashboardPages.js';
+import { medicationListContent } from '../src/data/medicationPages.js';
 import { firstAccessContent } from '../src/data/firstAccess.js';
+import { followUpDetailContent } from '../src/data/followUpPages.js';
+import { formPageContent } from '../src/data/formPage.js';
 import { loginContent } from '../src/data/login.js';
 import {
   DEMO_PASSWORD,
   DEMO_RESET_LINK,
 } from '../src/data/mocks/credentials.js';
 import { navLabels } from '../src/data/navigation.js';
+import { organizationNewContent } from '../src/data/organizationPages.js';
+import { patientDetailContent } from '../src/data/patientDetail.js';
 import { patientFormContent } from '../src/data/patientForm.js';
 import { patientHistoryContent } from '../src/data/patientHistory.js';
 import { recoveryContent, resetContent } from '../src/data/passwordRecovery.js';
 import { profileLabels } from '../src/data/profiles.js';
 import { statusContent } from '../src/data/status.js';
+import { visitRecordContent } from '../src/data/visitRecord.js';
+import { reportsPageContent } from '../src/data/managementReports.js';
+import { patientReportContent } from '../src/data/patientReport.js';
+import { userListContent } from '../src/data/userPages.js';
 import { appRoutes } from '../src/routes.jsx';
+import lazyPagesSource from '../src/lazyPages.js?raw';
+import routesSource from '../src/routes.jsx?raw';
 import { resetMockState } from '../src/services/mockApi.js';
 import { theme } from '../src/styles/theme.js';
+import { preloadPages } from './support/preloadPages.js';
 import { resetViewport, setViewportWidth } from './support/viewport.js';
 
+await preloadPages();
+
+const RAFAEL = 'f6b21c50-000b-5e70-878b-b5e7f5f9a410';
 const HOUR = 60 * 60 * 1000;
 
 const DIRCE = '0b639b83-76d0-570a-9017-7b6263d892cf';
+const BEM_VIVER = 'cecd71bf-0168-5d1b-bd8e-ca3083210067';
+const PROFILE_CHANGED_EVENT = 'a0d17000-0000-5000-8000-000000000009';
 
 function renderApp(path, routes = appRoutes) {
   setViewportWidth(1440);
@@ -278,5 +310,305 @@ describe('rotas', () => {
     await act(() => router.navigate(PATHS.PATIENT_NEW));
 
     expect(await heading(statusContent.accessDenied.title)).toBeInTheDocument();
+  });
+
+  it('liga os formulários à página do formulário e ao formulário novo', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await signInAs('professional');
+    await heading(navLabels.patients);
+
+    await act(() => router.navigate(PATHS.FORMS));
+    expect(await heading(navLabels.forms)).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('link', { name: 'Sinais vitais' }));
+    expect(await heading('Sinais vitais')).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(
+      formPath('8c0342e9-d9e9-58c2-a229-1c32168a8bf2'),
+    );
+
+    await act(() => router.navigate(PATHS.FORM_NEW));
+    expect(await heading(formPageContent.newTitle)).toBeInTheDocument();
+  });
+
+  it('protege o formulário novo pela permissão de criar e os formulários pela de ler', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await signInAs('caregiver');
+    await heading(navLabels.patients);
+
+    await act(() => router.navigate(PATHS.FORM_NEW));
+    expect(await heading(statusContent.accessDenied.title)).toBeInTheDocument();
+
+    await act(() => router.navigate(PATHS.FORMS));
+    expect(await heading(navLabels.forms)).toBeInTheDocument();
+  });
+
+  it('abre o registro de visita para a cuidadora e o nega a quem não registra', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await signInAs('caregiver');
+    await heading(navLabels.patients);
+
+    await act(() => router.navigate(patientPath(DIRCE, 'visit')));
+    expect(await heading(visitRecordContent.title)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Rosângela Prado/ }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Sair' }));
+    await signInAs('professional');
+    await heading(navLabels.patients);
+    await act(() => router.navigate(patientPath(DIRCE, 'visit')));
+    expect(await heading(statusContent.accessDenied.title)).toBeInTheDocument();
+  });
+
+  it('liga a lista de registros ao detalhe do registro', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await signInAs('family');
+    // A familiar de um paciente só entra direto no histórico dele.
+    await heading(patientHistoryContent.title);
+
+    await act(() => router.navigate(PATHS.RECORDS));
+    expect(await heading(navLabels.records)).toBeInTheDocument();
+    await act(() =>
+      router.navigate(recordPath('f0110000-0000-5000-8000-000100000013')),
+    );
+    expect(await heading(followUpDetailContent.title)).toBeInTheDocument();
+  });
+
+  it('abre medicamentos e alertas pelo menu, com o paciente do endereço', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await signInAs('caregiver');
+    await heading(navLabels.patients);
+
+    await act(() => router.navigate(medicationsPath(DIRCE)));
+    expect(await heading(navLabels.medications)).toBeInTheDocument();
+    expect(
+      await screen.findByText(medicationListContent.count(4)),
+    ).toBeInTheDocument();
+
+    await act(() => router.navigate(PATHS.ALERTS));
+    expect(await heading(navLabels.alerts)).toBeInTheDocument();
+  });
+
+  it('abre o detalhe do alerta a quem lê alertas e o nega à plataforma', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await signInAs('professional');
+    await heading(navLabels.patients);
+
+    await act(() =>
+      router.navigate(alertPath('a1e70000-0000-5000-8009-000000000001')),
+    );
+    expect(await heading('Ausência de registro')).toBeInTheDocument();
+
+    await act(() => router.navigate(alertPath('nao-existe')));
+    expect(await heading(alertDetailContent.notFound)).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Rafael Moura Brandão/ }),
+    );
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Sair' }));
+    await signInAs('platform_admin');
+    // A página inicial da plataforma são as organizações.
+    await heading(navLabels.organizations);
+    await act(() =>
+      router.navigate(alertPath('a1e70000-0000-5000-8009-000000000001')),
+    );
+    expect(await heading(statusContent.accessDenied.title)).toBeInTheDocument();
+  });
+
+  it('abre o painel e o detalhe de um indicador ao administrador e os nega ao profissional', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await signInAs('admin');
+    await heading(navLabels.dashboard);
+
+    await act(() => router.navigate(dashboardIndicatorPath('users')));
+    expect(
+      await heading(dashboardIndicatorContent.titles.users),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Helena Vasconcelos/ }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Sair' }));
+    await signInAs('professional');
+    await heading(navLabels.patients);
+    await act(() => router.navigate(dashboardIndicatorPath('users')));
+    expect(await heading(statusContent.accessDenied.title)).toBeInTheDocument();
+  });
+
+  it('liga a lista de usuários à página do usuário e as nega ao profissional', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await signInAs('admin');
+    await heading(navLabels.dashboard);
+
+    await act(() => router.navigate(PATHS.USERS));
+    expect(
+      await screen.findByRole('button', { name: userListContent.newUser }),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      await screen.findByRole('link', { name: 'Rafael Moura Brandão' }),
+    );
+    expect(await heading('Rafael Moura Brandão')).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(userPath(RAFAEL));
+
+    fireEvent.click(screen.getByRole('button', { name: /Helena Vasconcelos/ }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Sair' }));
+    await signInAs('professional');
+    await heading(navLabels.patients);
+    await act(() => router.navigate(userPath(RAFAEL)));
+    expect(await heading(statusContent.accessDenied.title)).toBeInTheDocument();
+  });
+
+  it('abre os relatórios pelo menu e pelo detalhe do paciente e os nega à cuidadora', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await signInAs('professional');
+    await heading(navLabels.patients);
+
+    await act(() => router.navigate(patientPath(DIRCE)));
+    fireEvent.click(
+      await screen.findByRole('link', {
+        name: patientDetailContent.actions.report,
+      }),
+    );
+    expect(await heading(reportsPageContent.title)).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Dirce Albuquerque Moraes' }),
+    ).toBeInTheDocument();
+    expect(router.state.location.search).toBe(`?paciente=${DIRCE}`);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Rafael Moura Brandão/ }),
+    );
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Sair' }));
+    await signInAs('caregiver');
+    await heading(navLabels.patients);
+    await act(() => router.navigate(PATHS.REPORTS));
+    expect(await heading(statusContent.accessDenied.title)).toBeInTheDocument();
+    expect(
+      screen.queryByText(patientReportContent.picker.choosePatient),
+    ).toBeNull();
+  });
+
+  it('liga a auditoria ao evento e o evento ao item, e nega a auditoria ao profissional', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await signInAs('admin');
+    await heading(navLabels.dashboard);
+
+    await act(() => router.navigate(PATHS.AUDIT));
+    expect(
+      await screen.findByRole('button', { name: auditListContent.exportCsv }),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      await screen.findByRole('link', { name: 'Alterou perfil de usuário' }),
+    );
+    expect(await heading('Alterou perfil de usuário')).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(
+      auditEventPath(PROFILE_CHANGED_EVENT),
+    );
+    fireEvent.click(
+      await screen.findByRole('link', { name: 'Patrícia Lemos Duarte' }),
+    );
+    expect(await heading('Patrícia Lemos Duarte')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Helena Vasconcelos/ }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Sair' }));
+    await signInAs('professional');
+    await heading(navLabels.patients);
+    await act(() => router.navigate(auditEventPath(PROFILE_CHANGED_EVENT)));
+    expect(await heading(statusContent.accessDenied.title)).toBeInTheDocument();
+  });
+
+  it('liga as organizações ao cadastro e à página da organização, e as nega ao administrador da organização', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await signInAs('platform_admin');
+    await heading(navLabels.organizations);
+
+    fireEvent.click(
+      await screen.findByRole('link', { name: organizationNewContent.title }),
+    );
+    expect(await heading(organizationNewContent.title)).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(PATHS.ORGANIZATION_NEW);
+
+    await act(() => router.navigate(PATHS.ORGANIZATIONS));
+    const table = await screen.findByRole('table');
+    fireEvent.click(
+      await within(table).findByRole('link', { name: 'Clínica Bem Viver' }),
+    );
+    expect(await heading('Clínica Bem Viver')).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(organizationPath(BEM_VIVER));
+
+    fireEvent.click(screen.getByRole('button', { name: /Caio Furtado/ }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Sair' }));
+    await signInAs('admin');
+    await heading(navLabels.dashboard);
+    for (const path of [
+      PATHS.ORGANIZATIONS,
+      PATHS.ORGANIZATION_NEW,
+      organizationPath(BEM_VIVER),
+    ]) {
+      await act(() => router.navigate(path));
+      expect(
+        await heading(statusContent.accessDenied.title),
+      ).toBeInTheDocument();
+    }
+  });
+
+  it('abre as configurações pelo menu e troca a senha pelo menu do usuário, de volta ao login com o aviso', async () => {
+    const router = renderApp(PATHS.LOGIN);
+    await signInAs('admin');
+    await heading(navLabels.dashboard);
+
+    fireEvent.click(screen.getByRole('link', { name: navLabels.settings }));
+    expect(
+      await screen.findByRole('region', {
+        name: organizationSectionContent.title,
+      }),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(PATHS.SETTINGS);
+
+    fireEvent.click(screen.getByRole('button', { name: /Helena Vasconcelos/ }));
+    fireEvent.click(
+      await screen.findByRole('menuitem', {
+        name: changePasswordContent.menuItem,
+      }),
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: changePasswordContent.title,
+    });
+    const values = {
+      currentPassword: DEMO_PASSWORD,
+      newPassword: 'senha-nova-da-helena',
+      confirmation: 'senha-nova-da-helena',
+    };
+    for (const [name, value] of Object.entries(values)) {
+      fireEvent.change(
+        within(dialog).getByLabelText(accessFields[name].label),
+        { target: { value } },
+      );
+    }
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: changePasswordContent.submit,
+      }),
+    );
+
+    expect(await heading(loginContent.title)).toBeInTheDocument();
+    expect(screen.getByText(loginContent.passwordChanged)).toBeInTheDocument();
+  });
+});
+
+// Tela importada direto volta para o pacote principal e pesa na primeira
+// carga de qualquer endereço. A página de estado é a exceção: ela é a tela de
+// erro quando o arquivo de outra tela não carrega.
+describe('carregamento sob demanda', () => {
+  it('cada tela chega ao roteador por import dinâmico, menos a página de estado', () => {
+    const pages = Object.keys(import.meta.glob('../src/pages/**/*Page.jsx'))
+      .map((path) => path.replace('../src/pages/', ''))
+      .filter((path) => path !== 'Status/StatusPage.jsx');
+    const staticImports = (source) =>
+      [...source.matchAll(/^import [^;]+ from '\.\/pages\/([^']+)';$/gm)].map(
+        (match) => match[1],
+      );
+    const onDemand = [
+      ...lazyPagesSource.matchAll(/import\(\s*'\.\/pages\/([^']+)'\s*\)/g),
+    ].map((match) => match[1]);
+
+    expect(staticImports(routesSource)).toEqual(['Status/StatusPage.jsx']);
+    expect(staticImports(lazyPagesSource)).toEqual([]);
+    expect(onDemand.toSorted()).toEqual(pages.toSorted());
   });
 });

@@ -20,7 +20,44 @@ describe('buildIndicators', () => {
       mean: 115,
       variation: 37,
       trend: { slopePerDay: 2.056, direction: 'rising' },
+      unavailable: [],
     });
+  });
+
+  it('com uma medição, aponta variação e tendência como indisponíveis, com a amostra mínima', () => {
+    expect(
+      buildIndicators([{ value: 3, visitedAt: day(0) }]).unavailable,
+    ).toEqual([
+      {
+        indicator: 'variation',
+        reason: 'INSUFFICIENT_SAMPLES',
+        minimumSamples: 2,
+      },
+      { indicator: 'trend', reason: 'INSUFFICIENT_SAMPLES', minimumSamples: 3 },
+    ]);
+  });
+
+  it('com duas medições, só a tendência fica indisponível', () => {
+    expect(
+      buildIndicators([
+        { value: 7, visitedAt: day(0) },
+        { value: 4, visitedAt: day(1) },
+      ]).unavailable,
+    ).toEqual([
+      { indicator: 'trend', reason: 'INSUFFICIENT_SAMPLES', minimumSamples: 3 },
+    ]);
+  });
+
+  it('com todas as medições no mesmo instante, a tendência fica indisponível por falta de intervalo', () => {
+    const points = [1, 2, 3].map((value) => ({ value, visitedAt: day(0) }));
+
+    expect(buildIndicators(points).unavailable).toEqual([
+      {
+        indicator: 'trend',
+        reason: 'INSUFFICIENT_TIME_SPAN',
+        minimumSamples: 3,
+      },
+    ]);
   });
 
   it('com uma medição, só a média sai; variação e tendência ficam vazias', () => {

@@ -4,7 +4,10 @@ export const patientDetailContent = {
     'O paciente não existe ou não está vinculado ao seu usuário. Volte à lista para escolher outro.',
   backToList: 'Voltar à lista de pacientes',
   actions: {
+    visit: 'Registrar visita',
     history: 'Histórico e evolução',
+    medications: 'Medicamentos',
+    report: 'Relatório',
     edit: 'Editar',
     deactivate: 'Inativar',
     reactivate: 'Reativar',
@@ -45,6 +48,7 @@ export const patientDetailContent = {
     empty: 'Nenhum alerta para este paciente.',
     resolved: 'Resolvido',
     open: 'Aberto',
+    viewAll: 'Ver alertas',
   },
   deactivateDialog: {
     title: 'Inativar paciente?',

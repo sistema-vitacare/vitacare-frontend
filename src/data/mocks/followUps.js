@@ -62,17 +62,20 @@ function series({
   annulled = {},
 }) {
   const count = values[0].length;
+  // Os registros respondem a versão vigente do formulário.
+  const version = form.versions.at(-1);
   return Array.from({ length: count }, (_, index) => ({
     id: followUpId(code, index),
     patientId,
     form,
+    version,
     author,
     daysAgo: lastDaysAgo + (count - 1 - index) * stepDays,
     time,
     // Só os metadados que a API devolve em `answers[]`; a faixa da escala
     // fica no formulário.
-    answers: form.fields.map((field, position) => ({
-      fieldId: field.fieldId,
+    answers: version.fields.map((field, position) => ({
+      fieldId: field.id,
       fieldKey: field.fieldKey,
       name: field.name,
       fieldType: field.fieldType,
@@ -209,7 +212,7 @@ const visits = [
 
 /** Registros com as datas calculadas a partir de `now`. */
 export function followUpsAsOf(now) {
-  return visits.map(({ daysAgo, time, form, annulment, ...visit }) => {
+  return visits.map(({ daysAgo, time, form, version, annulment, ...visit }) => {
     const visitedAt = localInstant(now, daysAgo, time);
     return {
       id: visit.id,
@@ -217,8 +220,8 @@ export function followUpsAsOf(now) {
       form: {
         id: form.id,
         name: form.name,
-        versionId: form.versionId,
-        versionNumber: form.versionNumber,
+        versionId: version.id,
+        versionNumber: version.number,
       },
       author: visit.author,
       visitedAt: visitedAt.toISOString(),

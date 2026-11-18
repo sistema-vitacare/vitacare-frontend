@@ -9,7 +9,6 @@ import {
 } from '../data/mocks/credentials.js';
 import { organization } from '../data/mocks/organization.js';
 import { platformAdmin, platformOrganization } from '../data/mocks/platform.js';
-import { users } from '../data/mocks/users.js';
 import {
   normalizeEmail,
   normalizeOrganizationCode,
@@ -25,6 +24,7 @@ import {
   respond,
   validationError,
 } from './mockApi.js';
+import { allUsers, changeUser } from './userStore.js';
 
 const MINUTE_MS = 60 * 1000;
 
@@ -46,6 +46,7 @@ export const AUTH_ERRORS = Object.freeze({
   TEMPORARILY_BLOCKED: 'AUTH_TEMPORARILY_BLOCKED',
   UNAUTHENTICATED: 'AUTH_UNAUTHENTICATED',
   PASSWORD_REUSE: 'AUTH_PASSWORD_REUSE',
+  CURRENT_PASSWORD_INVALID: 'AUTH_CURRENT_PASSWORD_INVALID',
   RESET_TOKEN_INVALID: 'AUTH_RESET_TOKEN_INVALID_OR_EXPIRED',
 });
 
@@ -89,8 +90,9 @@ const resetTokenInvalid = () =>
     message: 'Token de redefinição inválido ou expirado.',
   });
 
-// Estado que a API guarda no banco e no Redis: senha e situação trocadas,
-// falhas de login, pedidos de recuperação e link já usado.
+// Estado que a API guarda no banco e no Redis: senha trocada, falhas de
+// login, pedidos de recuperação e link já usado. A situação do usuário fica
+// no estado dos usuários (`userStore.js`), que as telas de usuários mudam.
 let accounts = new Map();
 let loginFailures = new Map();
 let recoveryRequests = new Map();
@@ -118,13 +120,15 @@ function openSession(account, state) {
   return respond(viewer);
 }
 
-const directories = [
-  { organization, members: users },
-  { organization: platformOrganization, members: [platformAdmin] },
-];
+function directories() {
+  return [
+    { organization, members: allUsers() },
+    { organization: platformOrganization, members: [platformAdmin] },
+  ];
+}
 
 function findAccount(organizationCode, email) {
-  const directory = directories.find(
+  const directory = directories().find(
     (entry) => entry.organization.code === organizationCode,
   );
   const user = directory?.members.find((member) => member.email === email);
@@ -136,7 +140,7 @@ function findAccount(organizationCode, email) {
     user,
     organization: directory.organization,
     password: changes.password ?? DEMO_PASSWORD,
-    status: changes.status ?? user.status,
+    status: user.status,
   };
 }
 
@@ -243,7 +247,10 @@ export function completeFirstAccess(session, { newPassword }) {
       throw passwordReuse();
     }
     // O convidado aceita o convite neste passo, como na API.
-    updateAccount(account.user.id, { password: newPassword, status: 'active' });
+    updateAccount(account.user.id, { password: newPassword });
+    if (account.user.id !== platformAdmin.id) {
+      changeUser(account.user.id, { status: 'active', invitation: null });
+    }
     return respond(null);
   });
 }
@@ -291,7 +298,7 @@ function demoAccount(profileCode) {
   if (profileCode === 'platform_admin') {
     return { user: platformAdmin, organization: platformOrganization };
   }
-  const user = users.find(
+  const user = allUsers().find(
     (candidate) =>
       candidate.profile.code === profileCode && candidate.status === 'active',
   );
@@ -311,6 +318,43 @@ export function startDemoSession(profileCode) {
 
 export function endSession() {
   return mockRequest(() => {
+    viewer = null;
+    return respond(null);
+  });
+}
+
+const currentPasswordInvalid = () =>
+  new ApiError({
+    status: 422,
+    code: AUTH_ERRORS.CURRENT_PASSWORD_INVALID,
+    message: 'A senha atual não confere.',
+  });
+
+/**
+ * PUT /auth/password: troca a senha de quem está na sessão. Como na API, a
+ * troca encerra todas as sessões da conta, inclusive esta, e o login
+ * seguinte pede a senha nova.
+ */
+export function changePassword({ currentPassword, newPassword } = {}) {
+  return mockRequest(() => {
+    const valid =
+      viewer?.state === SESSION_STATES.AUTHENTICATED &&
+      Date.now() < Date.parse(viewer.expiresAt);
+    if (!valid) {
+      throw unauthenticated();
+    }
+    assertValid({
+      currentPassword: validatePassword(currentPassword ?? ''),
+      newPassword: validatePassword(newPassword ?? ''),
+    });
+    const account = findAccount(viewer.organization.code, viewer.user.email);
+    if (account.password !== currentPassword) {
+      throw currentPasswordInvalid();
+    }
+    if (newPassword === currentPassword) {
+      throw passwordReuse();
+    }
+    updateAccount(account.user.id, { password: newPassword });
     viewer = null;
     return respond(null);
   });

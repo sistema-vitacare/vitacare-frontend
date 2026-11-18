@@ -10,7 +10,9 @@ import {
   AUTH_ERRORS,
   DEMO_PROFILES,
   SESSION_STATES,
+  changePassword,
   completeFirstAccess,
+  currentViewer,
   endSession,
   login,
   requestPasswordRecovery,
@@ -18,6 +20,7 @@ import {
   startDemoSession,
 } from '../../src/services/authService.js';
 import { resetMockState } from '../../src/services/mockApi.js';
+import { changeUser, findUser } from '../../src/services/userStore.js';
 
 const MINUTE = 60 * 1000;
 const NOW = new Date('2026-11-10T12:00:00.000Z');
@@ -361,5 +364,73 @@ describe('estado simulado', () => {
     await expect(login(edna)).resolves.toMatchObject({
       data: { state: SESSION_STATES.PASSWORD_CHANGE_REQUIRED },
     });
+  });
+});
+
+describe('usuários do estado', () => {
+  it('recusa o login de quem foi inativado na sessão', async () => {
+    changeUser('f43fdabb-62fc-569d-aa6b-02800cd5b1cd', { status: 'inactive' });
+
+    await expect(login(helena)).rejects.toMatchObject({
+      status: 401,
+      code: AUTH_ERRORS.INVALID_CREDENTIALS,
+    });
+  });
+
+  it('ativa a convidada no estado dos usuários ao concluir o primeiro acesso', async () => {
+    const { data: session } = await login(edna);
+
+    await completeFirstAccess(session, { newPassword: 'senha-nova-da-edna' });
+
+    expect(findUser('8ffa0d80-db2f-52a7-a275-08f89cce49c1')).toMatchObject({
+      status: 'active',
+      invitation: null,
+    });
+  });
+});
+
+describe('troca da própria senha', () => {
+  const body = { currentPassword: DEMO_PASSWORD, newPassword: 'senha-nova-1' };
+
+  it('exige sessão normal', async () => {
+    await expect(changePassword(body)).rejects.toMatchObject({ status: 401 });
+  });
+
+  it('troca a senha e encerra a sessão; o login passa a pedir a nova', async () => {
+    await login(helena);
+
+    await changePassword(body);
+
+    expect(currentViewer()).toBeNull();
+    await expect(login(helena)).rejects.toMatchObject({ status: 401 });
+    await expect(
+      login({ ...helena, password: 'senha-nova-1' }),
+    ).resolves.toBeDefined();
+  });
+
+  it('recusa a senha atual errada e a nova igual à atual', async () => {
+    await login(helena);
+
+    await expect(
+      changePassword({ ...body, currentPassword: 'outra-senha' }),
+    ).rejects.toMatchObject({
+      status: 422,
+      code: 'AUTH_CURRENT_PASSWORD_INVALID',
+    });
+    await expect(
+      changePassword({ ...body, newPassword: DEMO_PASSWORD }),
+    ).rejects.toMatchObject({ status: 422, code: AUTH_ERRORS.PASSWORD_REUSE });
+  });
+
+  it('recusa a senha nova fora de 8 a 128 caracteres, com o campo', async () => {
+    await login(helena);
+
+    await expect(
+      changePassword({ ...body, newPassword: 'curta' }),
+    ).rejects.toMatchObject({
+      status: 422,
+      fields: [{ field: 'newPassword', code: 'tooShort' }],
+    });
+    expect(currentViewer()).not.toBeNull();
   });
 });

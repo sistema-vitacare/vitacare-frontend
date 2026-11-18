@@ -12,6 +12,7 @@ import {
 import { alpha } from '@mui/material/styles';
 import {
   CaretDown,
+  Key,
   List,
   MagnifyingGlass,
   SignOut,
@@ -20,11 +21,13 @@ import { useId, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { PERMISSIONS as P } from '../constants/permissions.js';
 import { PATHS } from '../constants/routes.js';
+import { changePasswordContent } from '../data/access.js';
 import { shellContent } from '../data/navigation.js';
 import { topBarSearchContent } from '../data/patientList.js';
 import { profileLabels } from '../data/profiles.js';
 import { useSession } from '../hooks/useSession.js';
 import { initials } from '../utils/initials.js';
+import ChangePasswordDialog from './ChangePasswordDialog.jsx';
 
 // Busca de pacientes: leva à listagem com o termo no endereço, que a própria
 // listagem lê. Fica escondida no celular, onde a listagem tem a dela.
@@ -76,14 +79,20 @@ function PatientSearch() {
 
 /**
  * Barra superior do layout autenticado: botão do menu recolhível (quando
- * `onOpenMenu` existe), símbolo da marca no celular e menu do usuário com o
- * Sair, presente em todos os layouts.
+ * `onOpenMenu` existe), símbolo da marca no celular e menu do usuário com
+ * "Alterar senha" e o Sair, presentes em todos os layouts e perfis.
  */
 export default function TopBar({ onOpenMenu, showBrand }) {
   const { session, signOut, can } = useSession();
   const [anchor, setAnchor] = useState(null);
+  const [changingPassword, setChangingPassword] = useState(false);
   const menuId = useId();
   const { user } = session;
+
+  function openChangePassword() {
+    setAnchor(null);
+    setChangingPassword(true);
+  }
 
   function handleSignOut() {
     setAnchor(null);
@@ -181,6 +190,12 @@ export default function TopBar({ onOpenMenu, showBrand }) {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
+        <MenuItem onClick={openChangePassword}>
+          <ListItemIcon>
+            <Key size={20} aria-hidden="true" />
+          </ListItemIcon>
+          {changePasswordContent.menuItem}
+        </MenuItem>
         <MenuItem onClick={handleSignOut}>
           <ListItemIcon>
             <SignOut size={20} aria-hidden="true" />
@@ -188,6 +203,9 @@ export default function TopBar({ onOpenMenu, showBrand }) {
           {shellContent.signOut}
         </MenuItem>
       </Menu>
+      {changingPassword ? (
+        <ChangePasswordDialog onClose={() => setChangingPassword(false)} />
+      ) : null}
     </Box>
   );
 }

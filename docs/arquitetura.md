@@ -1,6 +1,6 @@
 # Arquitetura do frontend
 
-Este documento descreve como o frontend do VitaCare é construído: tecnologias, camadas, dados simulados, controle de acesso por perfil e identidade visual.
+Este documento descreve como o frontend do VitaCare é construído: tecnologias, camadas, dados simulados, controle de acesso por perfil, identidade visual, acessibilidade e instalação.
 
 As regras de negócio e a proteção dos dados pertencem à API. O frontend apresenta as informações e oculta o que o perfil não pode fazer, mas isso é apenas interface: a autorização acontece no backend.
 
@@ -56,24 +56,41 @@ Os dados simulados ficam em `src/data/mocks/`, com os campos da API, e usam nome
 Os dados de acompanhamento seguem as mesmas regras da API, conferidas por teste:
 
 - **Vínculos de cuidado** (`patientLinks.js`): só cuidador e familiar, no papel igual ao perfil, com no máximo um vínculo vigente por pessoa e paciente. O vínculo de profissional responsável vem do campo `responsible` do paciente.
-- **Registros de acompanhamento** (`followUps.js`): feitos só por cuidador com vínculo vigente, respondendo campos dos formulários de `forms.js`. As datas são relativas ao dia de hoje no fuso de Brasília, porque a evolução da API olha por padrão os últimos 30 dias; com datas fixas, os gráficos ficariam vazios poucas semanas depois. Valores, autores e horários são fixos.
-- **Alertas** (`alerts.js`): os de leitura não são escritos à mão; saem das regras gerais aplicadas aos registros válidos, como na API.
-- **Medicamentos** (`medications.js`): só de pacientes ativos, com unidade e via aceitas pela API.
+- **Formulários** (`forms.js`): no formato de `GET /forms/{formId}`, com as versões publicadas guardadas em `versions` (a vigente é a última) e o rascunho vivo da próxima versão em `draft`. Os dados simulados cobrem as situações da API: formulários com versão 1 publicada, um nunca publicado, um com rascunho pendente, um com duas versões e um desativado. Publicar cria a versão seguinte, e os registros antigos continuam ligados à versão que responderam.
+- **Registros de acompanhamento** (`followUps.js`): feitos só por cuidador com vínculo vigente, respondendo a versão vigente de um formulário que vale para o paciente. As datas são relativas ao dia de hoje no fuso de Brasília, porque a evolução da API olha por padrão os últimos 30 dias; com datas fixas, os gráficos ficariam vazios poucas semanas depois. Valores, autores e horários são fixos.
+- **Anexos** (`attachments.js`): enviados pelo autor do registro, depois dele, nos tipos e no tamanho que a API aceita.
+- **Regras de alerta** (`alertRules.js`): no formato de `GET /alert-rules`, sobre campos de número ou de escala da versão vigente de formulários ativos, gerais ou de um paciente do público do formulário, com uma inativa. Os valores de referência são inventados para a demonstração: a API não traz limiar clínico padrão, e quem define cada um é o profissional.
+- **Alertas** (`alerts.js`), nas três origens da API. Os de valor registrado não são escritos à mão: saem das regras simuladas aplicadas aos registros simulados, com a regra do paciente substituindo as gerais do mesmo campo, como na API; o alerta nasce logo depois do envio do registro, e o registro anulado depois disso continua como origem dele. Os lembretes saem da agenda dos medicamentos simulados com lembrete ligado, nas últimas 24 horas. A ausência é a do paciente que passou do prazo do formulário semanal. As mensagens seguem o texto da API (`src/utils/alertMessages.js`). As varreduras por relógio da API, que geram ausências e lembretes, não rodam na sessão simulada: um medicamento cadastrado ou editado na sessão não gera lembrete.
+- **Auditoria** (`auditActions.js` e `auditEvents.js`): o catálogo de ações copiado do backend, na ordem do seletor da Figura 45, e eventos com as datas relativas ao momento da consulta, porque a lista da API olha por padrão os últimos 30 dias. Há eventos de sistema e de outra organização, que o administrador da plataforma vê com os nomes de pessoas mascarados, como na API.
+- **Organizações clientes** (`organizations.js`): a de demonstração e duas outras, cada uma com o termo de vigência do seu plano. A Clínica Bem Viver fica no Basic, com vencimento poucos dias depois da consulta, para o aviso de vencimento aparecer, e com uma solicitação pendente do Enterprise, para a fila da plataforma não nascer vazia. Usuários e pacientes simulados são só da organização de demonstração, contada pelos estados; as outras têm uso em números fixos, e a cadastrada na sessão nasce com o primeiro administrador e nenhum paciente.
+- **Medicamentos** (`medications.js`): só de pacientes ativos, com unidade e via aceitas pela API, um inativo, intervalos e fins variados e um sem lembrete. As datas são fixas: um tratamento encerrado continua encerrado. O próximo horário e o horário coincidente com outro medicamento ativo do paciente dependem do momento da consulta e são calculados nela, pela regra de agenda do backend (`src/utils/medicationSchedule.js`).
 
-O estado que a API guardaria no banco (paciente cadastrado, editado ou inativado, vínculo criado ou revogado) fica em `src/services/patientStore.js`, que também aplica o alcance de cada perfil e a máscara do familiar. `resetMockState` volta tudo ao início.
+O estado que a API guardaria no banco fica nos serviços, e `resetMockState` volta tudo ao início:
+
+- `src/services/patientStore.js`: paciente cadastrado, editado ou inativado e vínculo criado ou revogado; aplica também o alcance de cada perfil e a máscara do familiar;
+- `src/services/formStore.js`: formulário criado, dados alterados, rascunho, publicação e desativação; aplica o alcance do cuidador, que só lê os formulários ativos que valem para os pacientes dele;
+- `src/services/followUpStore.js`: registros feitos e anulados na sessão, por cima dos simulados;
+- `src/services/alertStore.js`: regras criadas e alteradas, alertas dos registros feitos na sessão e resoluções. O registro novo é avaliado uma vez, quando é gravado, com as regras daquele momento, como a API faz logo depois do envio; por isso editar ou inativar uma regra não muda alerta já gerado, e o alerta mostra o nome atual da regra e a situação atual do registro de origem;
+- `src/services/medicationStore.js`: medicamentos cadastrados, editados, inativados e reativados; monta cada um com o próximo horário e o horário coincidente, que a visão geral do paciente também lê;
+- `src/services/userStore.js`: usuários cadastrados por convite, editados, com perfil ou situação trocados e com convite ou senha provisória emitidos; é a fonte dos usuários para o login, os vínculos de cuidado e o profissional responsável;
+- `src/services/organizationStore.js`: organizações cadastradas e editadas na sessão, com a situação; termo de vigência de cada organização, que a atribuição e a aprovação trocam inteiro, como a API; e solicitações de mudança de plano, com as decisões;
+- `src/services/auditStore.js`: as exportações em PDF feitas na sessão, que a API audita. A lista de relatórios recentes, a contagem de cada tipo e a auditoria são montadas por elas, como na API; as outras ações da sessão não geram evento;
+- o serviço de anexos guarda os anexos enviados e removidos.
+
+As regras de conteúdo que a API confere (campos de formulário por tipo, respostas de registro, anexos, medicamentos e regras de alerta) ficam em `src/utils/`, nas mesmas funções que as telas usam para apontar o problema antes do envio.
 
 Na integração, o corpo de cada serviço passa a chamar a rota correspondente da API. Páginas e hooks não mudam.
 
 Duas alternativas foram descartadas:
 
 - **Importar os dados simulados direto nas páginas.** A integração exigiria alterar todas as telas.
-- **Interceptar requisições HTTP com Mock Service Worker.** Exigiria definir rotas que a API ainda não tem, como painel, relatórios, auditoria e histórico, e colocaria um segundo service worker ao lado do PWA.
+- **Interceptar requisições HTTP com Mock Service Worker.** Colocaria no navegador um service worker só para os dados simulados, e o PWA não usa service worker.
 
 ## Sessão, perfis e permissões
 
 | Perfil | Código | Acesso |
 | --- | --- | --- |
-| Administrador | `admin` | Tudo o que o profissional de saúde faz, mais usuários, organização, plano, painel operacional e auditoria. |
+| Administrador | `admin` | Tudo o que o profissional de saúde faz, mais usuários, organização, plano, painel operacional, relatórios gerenciais e auditoria. |
 | Profissional de saúde | `professional` | Pacientes, histórico e evolução, formulários, consulta e resolução de alertas, regras de alerta, anulação de registros, medicamentos, relatórios e vínculos de cuidado. |
 | Cuidador | `caregiver` | Pacientes vinculados, registro de acompanhamento, consulta e resolução de alertas e consulta de medicamentos. |
 | Familiar | `family` | Consulta do paciente vinculado: cadastro, histórico, evolução, alertas e medicamentos. |
@@ -85,6 +102,8 @@ As telas consultam permissões, por exemplo `can('patients:create')`, e nunca o 
 
 Apenas o cuidador registra acompanhamento. O administrador herda as permissões do profissional de saúde, não as do cuidador.
 
+Todos os perfis, inclusive o administrador da plataforma, têm `profile:manage`, que só alcança o cadastro de quem está na sessão.
+
 A sessão fica no `SessionProvider` e chega às telas pelo hook `useSession`, em um de quatro estados:
 
 | Estado | Quando | Duração |
@@ -94,7 +113,7 @@ A sessão fica no `SessionProvider` e chega às telas pelo hook `useSession`, em
 | `authenticated` | Sessão normal. | 12 horas, como a sessão normal da API. |
 | `expired` | Uma das duas sessões venceu. Usuário e permissões somem, e o login mostra o aviso de sessão expirada. | Até a próxima entrada. |
 
-Enquanto os dados são simulados, o serviço de autenticação (`src/services/authService.js`) reproduz as rotas `auth` da API: login com código da organização, e-mail e senha, bloqueio depois de cinco falhas, primeiro acesso, pedido de recuperação e redefinição pelo link. Os usuários de demonstração compartilham uma senha inventada, guardada em `src/data/mocks/credentials.js` e fora do objeto do usuário, porque a API nunca devolve senha. Os atalhos de demonstração do login continuam entrando direto com um usuário de cada perfil. Nos dois caminhos, as permissões vêm da matriz local, porque a API ainda não tem rota que devolva o usuário autenticado com suas permissões (ver "Em aberto").
+Enquanto os dados são simulados, o serviço de autenticação (`src/services/authService.js`) reproduz as rotas `auth` da API: login com código da organização, e-mail e senha, bloqueio depois de cinco falhas, primeiro acesso, pedido de recuperação, redefinição pelo link e troca da própria senha. Os usuários de demonstração compartilham uma senha inventada, guardada em `src/data/mocks/credentials.js` e fora do objeto do usuário, porque a API nunca devolve senha. Os atalhos de demonstração do login continuam entrando direto com um usuário de cada perfil. Nos dois caminhos, as permissões vêm da matriz local, porque a API ainda não tem rota que devolva o usuário autenticado com suas permissões (ver "Em aberto").
 
 ## Rotas e navegação
 
@@ -104,12 +123,17 @@ Os endereços, a permissão de cada tela e os itens do menu ficam em `src/consta
 - **Primeiro acesso:** `/primeiro-acesso` só abre com a sessão restrita; sem ela, leva ao login. Depois da troca, a API encerra a sessão restrita, e o login abre com o código da organização e o e-mail preenchidos.
 - **Rotas autenticadas:** ficam dentro de `RequireSession`, que leva ao primeiro acesso quem está com a sessão restrita e ao login quem não tem sessão ou está com a sessão expirada; no segundo caso, o login mostra o aviso de sessão expirada (UC01, fluxo alternativo). Cada rota exige a permissão de leitura da sua tela, por `RequirePermission`: sem ela, aparece a página de acesso negado, e a tela não é montada.
 - **Página inicial:** escolhida por permissão, nesta ordem: painel (`dashboard:read`), organizações (`platform_organizations:read`) e pacientes (`patients:read`).
-- **Telas abaixo de um item do menu:** `/pacientes/novo` (cadastro, `patients:create`), `/pacientes/:patientId` (detalhe, `patients:read`), `/pacientes/:patientId/editar` (edição, `patients:update`) e `/pacientes/:patientId/historico` (histórico e evolução, `patient_history:read`). Cada uma exige a permissão que a API pede para a ação dela; o item do menu continua marcado nelas.
+- **Telas abaixo de um item do menu:** `/pacientes/novo` (cadastro, `patients:create`), `/pacientes/:patientId` (detalhe, `patients:read`), `/pacientes/:patientId/editar` (edição, `patients:update`), `/pacientes/:patientId/historico` (histórico e evolução, `patient_history:read`), `/pacientes/:patientId/registrar` (registro de visita, `follow_ups:create`), `/registros/:followUpId` (detalhe do registro, `patient_history:read`), `/alertas/:alertId` (detalhe do alerta, `alerts:read`), `/formularios/novo` (formulário novo, `forms:create`), `/formularios/:formId` (página do formulário, `forms:read`), `/painel/:indicator` (detalhe de um indicador do painel, `dashboard:read`), `/usuarios/:userId` (página do usuário, `users:read`), `/auditoria/:eventId` (detalhe do evento, `audit_events:read`), `/organizacoes/nova` (cadastro de organização, `platform_organizations:create`) e `/organizacoes/:organizationId` (página da organização, `platform_organizations:read`). Cada uma exige a permissão que a API pede para a ação dela; o item do menu continua marcado nelas.
+- **Listas por paciente (Registros, Medicamentos e Alertas):** a API só lista registros, medicamentos e alertas de um paciente, então essas telas pedem o paciente primeiro, pelo componente `PatientPicker`, e o guardam na query do endereço (`/medicamentos?paciente=…`); quem alcança um paciente só entra direto na lista dele. A escolha oferece os pacientes ativos, como a listagem da API; o paciente inativo que vem no endereço, pelo detalhe dele, é buscado pelo id. A lista de registros usa a lista e os filtros do histórico do paciente, e cada registro leva ao detalhe dele. A de alertas guarda a aba na query (`&aba=critico`), e cada alerta leva ao detalhe dele.
+- **Regras de alerta:** ficam na página do formulário publicado, sem endereço próprio, e só aparecem para quem tem `alert_rules:manage`, a única permissão que lê as regras na API.
 - **Listagem de pacientes:** busca, condição, situação e página ficam na query do endereço (`?busca=…&condicao=…&situacao=inactive&pagina=2`), para que o "voltar" do navegador e a busca da barra superior abram a lista no mesmo estado. O familiar com um único paciente vinculado vai direto ao acompanhamento dele; a decisão vem do `viewerLink.role` devolvido pela API, e não do nome do perfil.
+- **Painel, relatórios, usuários, auditoria e organizações:** filtros e página ficam na query do endereço, como na listagem de pacientes: o período do painel (`?periodo=7`); o tipo, o paciente, o período e a condição dos relatórios (`?tipo=alertas&de=…&ate=…&condicao=…`); busca, perfil, situação e página dos usuários; busca, período, ação, gravidade, origem, organização e página da auditoria (`?gravidade=warning&pagina=2`); e busca, situação e página das organizações. O detalhe do paciente leva ao relatório dele (`/relatorios?paciente=…`).
 - **Menu:** um item por tela, agrupado em Cuidado, Gestão e Plataforma. Só aparece o item cuja permissão a sessão tem, para que o menu não leve a uma página de acesso negado. A mesma lista alimenta o menu lateral, o menu recolhível e a barra inferior.
 - **Celular:** abaixo de 900 px, o menu lateral vira um menu recolhível, aberto pela barra superior. Quem tem `follow_ups:create` (hoje, apenas o cuidador) navega por uma barra inferior, porque registra visitas com o aparelho na mão.
-- **Sair:** fica no menu do usuário, na barra superior, presente em todos os layouts.
+- **Menu do usuário:** fica na barra superior, presente em todos os layouts e perfis, com "Alterar senha" e o Sair. A troca de senha encerra todas as sessões da conta, como na API, e volta ao login com o aviso e com a organização e o e-mail preenchidos.
 - **Páginas de estado:** não encontrada, acesso negado, erro inesperado e tela em construção usam o mesmo molde, em `src/pages/Status/`. A tela em construção ocupa o endereço de cada tela que ainda não existe.
+- **Carregamento sob demanda:** cada tela é um arquivo à parte do build, declarado em `src/lazyPages.js` e baixado na primeira vez que a tela é aberta; assim, nenhum arquivo passa de 500 kB, e a primeira carga não traz o código de todas as telas. A página de estado é a exceção e fica no pacote principal, porque é a tela de erro quando o arquivo de outra tela não carrega; o teste do roteador falha se outra tela for importada direto. O roteador troca de tela em transição, mantendo a anterior até a nova chegar, então a barra de carregamento só aparece quando a área é montada: na primeira carga e ao entrar ou sair do layout autenticado, onde ela fica abaixo do menu.
+- **Depois de um deploy:** os arquivos de tela do build anterior somem, e o nginx responde 404 para eles. A página aberta antes do deploy recarrega uma vez, pelo evento `vite:preloadError`, e passa a usar os arquivos novos. A hora da recarga fica no `sessionStorage`: uma segunda falha em menos de um minuto vai para a página de erro, em vez de recarregar sem parar.
 
 ## Identidade visual
 
@@ -123,6 +147,22 @@ A estrutura de telas segue os protótipos do TCC (Figuras 31 a 46). Os valores f
 
 Os contrastes seguem a fórmula de luminância relativa da WCAG 2.1. O teste `tests/styles/theme.test.js` confere o mínimo de 4,5:1 entre cada cor de texto do tema e os fundos em que ela aparece; uma cor nova no tema entra também nesse teste.
 
+## Acessibilidade
+
+- **Foco pelo teclado:** botões, itens de menu e links mostram um contorno de 2 px no teal de ação, afastado 2 px, só quando o foco chega pelo teclado (`Mui-focusVisible`); o clique com mouse não o mostra. O contorno tem 4,98:1 sobre branco e 4,56:1 sobre o fundo cinza-claro, acima dos 3:1 que a WCAG 2.1 pede para indicadores de foco; o teste do tema confere esse mínimo.
+- **Botão de alternância e texto de ajuda de campo desabilitado:** usam a cor de texto secundário do tema, porque os cinzas padrão do Material UI ficam abaixo de 4,5:1; o texto de ajuda de um campo travado é o que explica por que ele não muda.
+- **Sem esmaecer por opacidade:** o registro anulado se distingue pelo selo e pelas respostas riscadas. A opacidade clareava também o link e o selo, abaixo do contraste mínimo.
+- **Tabelas largas:** no celular, a tabela que não cabe rola de lado dentro de `ScrollableRegion`, uma região com nome que recebe foco, para que quem usa só o teclado alcance as colunas escondidas.
+- **Conferência:** varredura com o axe-core (WCAG 2.0 e 2.1, níveis A e AA), fluxos feitos só com teclado e telas de 360 a 1440 px sem rolagem horizontal, no Chromium; no Edge e no Firefox, por um roteiro manual. O Safari depende de um aparelho Apple, e o leitor de tela real não foi testado; os rótulos são conferidos pelo axe.
+
+## Instalação
+
+O manifesto (`public/manifest.webmanifest`) dá o nome, as cores do tema e os ícones de 192 e 512 px, com a versão recortável do Android; o `index.html` liga o manifesto, o ícone da tela de início do iPhone e a cor da barra do navegador. O teste `tests/manifest.test.js` confere os campos, o tamanho de cada ícone e as cores iguais às do tema.
+
+Não há service worker: o TCC não prevê funcionamento offline, e um pré-cache arriscaria mostrar a versão antiga depois de um deploy. Pela documentação do Chrome (atualizada em 05/12/2023), instalar pelo menu do navegador não exige service worker desde o Chrome 112 no computador e o 108 no Android; o aviso automático de instalação ainda exigia um.
+
+O navegador só oferece instalar em contexto seguro (HTTPS ou `localhost`). Em produção, o acesso é por IP e sem HTTPS, então a instalação fica para quando houver domínio com HTTPS; até lá, ela é conferida com `npm run preview`, em `localhost`.
+
 ## Diferenças em relação aos protótipos
 
 | Tela | Protótipo | Implementação | Motivo |
@@ -133,8 +173,40 @@ Os contrastes seguem a fórmula de luminância relativa da WCAG 2.1. O teste `te
 | Recuperação de senha (Figura 32) | Três etapas: e-mail, código de seis dígitos e nova senha | Pedido com código da organização e e-mail, que mostra a orientação da API, e nova senha definida pelo link do e-mail | A API envia um link com token e não tem rota para código; sem servidor de e-mail, orienta a pedir uma senha temporária ao administrador. |
 | Registro de visita (Figuras 38 e 40) | Sem indicação de perfil | Apenas cuidador | Matriz de permissões da API. |
 | Medicamentos (Figura 41) | Percentual de adesão | Não exibido | A API não registra a tomada do medicamento. |
+| Medicamentos (Figura 41) | Condição do medicamento (HAS, DM2) | Não exibida | A API não liga o medicamento a uma condição; as condições ficam no paciente. |
+| Medicamentos (Figura 41) | Situação "Suspenso" e "suspensa em" | "Inativo" e "Inativo desde" | A API guarda a suspensão como inativação, que pode ser revertida. |
+| Medicamentos (Figura 41) | "+ Prescrever Med." | "Novo medicamento" | Não há prescrição eletrônica; é o cadastro do UC08. |
+| Medicamentos (Figura 41) | "1× ao dia – manhã" | Quantidade e horários ("2× ao dia · 08:00 e 20:00"), intervalo em dias e próximo horário | A API guarda horários fixos, e não períodos do dia. |
+| Medicamentos (Figura 41) | Dose em teal | Dose no azul-marinho do texto | O teal é a única cor de ação. |
+| Alertas (Figura 42) | Alertas de todos os pacientes numa lista | Lista de um paciente, escolhido primeiro | `GET /alerts` exige o paciente. |
+| Alertas (Figura 42) | "Marcar todos como lidos" e contador no título | Não exibidos | A leitura é da caixa de notificações de cada usuário, e não do alerta (FE-35). |
+| Alertas (Figura 42) | Aba "Todos" | Aba "Abertos" | A aba não inclui os resolvidos, que têm aba própria. |
+| Alertas (Figura 42) | "Intervenção imediata", "Monitorar de perto" e "Para conhecimento" nos contadores | Só o nome da severidade | Na API, a severidade é só um rótulo, sem interpretação clínica. |
+| Alertas (Figura 42) | Cuidador em cada alerta | Não exibido | O alerta da API não traz o cuidador. |
+| Alertas (Figura 42) | "Há 14 min" | Data e hora | Como nas outras telas, sem um relógio que atualize a lista. |
+| Alertas (Figura 42) | "Medicamento não administrado" e "Visita agendada não confirmada" | Lembrete de medicamento e ausência de registro | A API não registra tomada de medicamento nem agenda de visitas; as origens são valor registrado, ausência e lembrete. |
+| Registro de visita (Figura 38) | Avisos durante a digitação ("Acima do limite", "Alerta será gerado") | Não exibidos; depois de salvar, o registro mostra os alertas que gerou | O cuidador não lê as regras de alerta, e a resposta do registro não traz os alertas. |
+| Registro de visita (Figura 38) | Uma caixa de seleção por atividade | Campo sim ou não com dois botões; caixas só na múltipla escolha, em que nenhuma marcada é "não informado" | Caixa desmarcada valeria "não" e preencheria o registro sozinha. |
+| Registro de visita no celular (Figura 40) | "Valor anterior" abaixo do campo | Não exibido | Fora desta etapa; o último valor de cada medição está no detalhe do paciente. |
+| Configuração de formulários (Figura 39) | Painel duplo, com a lista à esquerda e os campos à direita | Lista de formulários e uma página para cada formulário | O painel duplo não cabe em 375 px e não dá endereço a cada formulário. |
+| Configuração de formulários (Figura 39) | "Publicar alterações" e "Salvar rascunho" valendo para tudo | Dados salvos à parte; campos salvos em rascunho e publicados como versão nova, com confirmação quando já há versão vigente | A API muda os dados sem criar versão e muda os campos só por rascunho e publicação. |
+| Painel (Figura 33) | "Registros Hoje" e gráfico por mês, de janeiro a dezembro | "Registros no período", com atalhos de hoje, 7, 30 e 90 dias, e gráfico por dia do período | A API calcula o painel sobre um período e devolve os registros por dia; "hoje" é o período de um dia. |
+| Relatórios (Figura 43) | "Eficiência dos Cuidadores", com desempenho e cobertura | "Atividade dos cuidadores", só com contagens, sem nota nem classificação | Nome e conteúdo do relatório na API (BE-30). |
+| Relatórios (Figura 43) | Filtros de período, tipo e condição e botão "Gerar Relatório" para todos os tipos | Um cartão por tipo, que abre o relatório com os filtros dele: paciente e período no individual, período e condição nos gerenciais | O relatório individual exige o paciente, e a condição só existe nos gerenciais. |
+| Relatórios (Figura 43) | Formatos PDF e XLSX e ações de editar e cancelar nos recentes | Só PDF; nos recentes, "Gerar de novo" | A API exporta só PDF e não guarda o arquivo: os recentes vêm das exportações auditadas, e gerar de novo repete o pedido. |
+| Relatórios (Figura 43) | Os três tipos para todos | Relatórios gerenciais só para o administrador, no plano Enterprise | Matriz de permissões e recurso do plano na API. |
+| Usuários (Figura 44) | Contadores de total, administradores, cuidadores e familiares, com "Ativos hoje" | Ativos de cada um dos quatro perfis da organização e vagas do plano em uso | Os contadores saem do total da listagem da API, filtrada por perfil e situação. |
+| Usuários (Figura 44) | Botões de editar e inativar em cada linha | Ações na página do usuário | São seis ações, que dependem da situação do usuário, e a edição precisa do CPF inteiro, que a lista da API mascara. |
+| Auditoria (Figura 45) | Filtro "Usuário" | Busca pelo nome de quem fez ou pela ação | A busca da API já procura o nome; a escolha por usuário pediria a lista de usuários, que o administrador da plataforma não lê. |
+| Auditoria (Figura 45) | Perfil "Automação" nos eventos de sistema | "Sistema", sem perfil e sem IP | O evento de sistema da API não tem usuário, perfil nem IP. |
+| Auditoria (Figura 45) | Entidade com código ("Paciente #1047") | Nome e tipo do item; registro, alerta e anexo só com o tipo | A API manda o nome só de usuário, organização, paciente, formulário e medicamento. |
+| Auditoria (Figura 45) | Leituras, como "Acessou painel do paciente" | Não exibidas | A API não audita leitura. |
 | Configurações (Figura 46) | Plano "Pro – Clínica" | Planos Basic e Enterprise | Catálogo do Quadro 2 do TCC, adotado pela API. |
-| Configurações (Figura 46) | Autenticação em dois fatores e preferências de notificação | Não exibidos | Sem requisito funcional nem suporte na API. |
+| Configurações (Figura 46) | Menu lateral com Organização, Notificações, Segurança, Plano & Uso e Integrações | Seções empilhadas: organização e plano e uso, com a mudança de plano | O menu lateral não cabe em 375 px; as outras partes estão nas linhas abaixo. |
+| Configurações (Figura 46) | Notificações da organização (relatório diário, lembrete de medicação pendente, aviso de acesso do familiar) e autenticação em dois fatores | Não exibidos | A API adiou esses recursos; as preferências de notificação que ela tem são de cada usuário, e não da organização. |
+| Configurações (Figura 46) | Seletor "Sessão máxima sem atividade" | Não exibido | A API fixa o tempo da sessão, igual para todos. |
+| Configurações (Figura 46) | Uso de armazenamento e de registros por mês | Uso de usuários (ativos e convidados) e de pacientes ativos | A API limita e conta só usuários e pacientes. |
+| Configurações (Figura 46) | "Ver planos" | "Solicitar mudança de plano", com o catálogo no pedido | O plano muda por solicitação, que o administrador da plataforma aprova (UC04). |
 | Pacientes (Figura 34) | Situação clínica (Crítico, Observação) e "Última consulta" | Situação cadastral (Ativo, Inativo); sem última consulta | A API não classifica o paciente nem traz a última visita na listagem. |
 | Pacientes (Figura 34) | Coluna "Cuidador" | Coluna "Responsável" | A listagem da API traz o profissional responsável; cuidadores aparecem na equipe de cuidado do detalhe. |
 | Cadastro (Figura 35) | Campo "Cuidador Responsável" | Profissional responsável, escolhido entre profissionais e administradores | A API exige um profissional ou administrador como responsável; cuidadores entram como vínculo de cuidado. |
@@ -145,7 +217,7 @@ Os contrastes seguem a fórmula de luminância relativa da WCAG 2.1. O teste `te
 | Todas | Item "Dashboard" | Item "Painel" | Nome do requisito (RF015, painel operacional) e interface em português. |
 | Todas | Botão "Logout" no rodapé do menu lateral | "Sair" no menu do usuário, na barra superior | A barra superior existe em todos os layouts; a barra inferior do cuidador no celular não tem menu lateral. |
 
-Telas sem protótipo, necessárias para os fluxos da API: primeiro acesso (troca da senha provisória), redefinição da senha pelo link, equipe de cuidado do paciente, regras de alerta e, para o administrador da plataforma, organizações e planos.
+Telas sem protótipo, necessárias para os fluxos da API: primeiro acesso (troca da senha provisória), redefinição da senha pelo link, equipe de cuidado do paciente, lista de registros por paciente, detalhe do registro com anexos e anulação, detalhe do alerta, regras de alerta, detalhe de cada indicador do painel, página do usuário, detalhe do evento de auditoria e, para o administrador da plataforma, organizações e planos.
 
 ## Testes
 
@@ -156,5 +228,4 @@ Os testes usam Vitest e Testing Library e ficam em `tests/`, espelhando as pasta
 Situação conforme o `develop` do vitacare-backend em 09/11/2026 (commit `af58a2c`).
 
 - **Usuário autenticado:** o login devolve apenas o estado, o token e os prazos da sessão, e não há rota que devolva o usuário logado com perfil e permissões. Sem ela, o frontend não consegue montar o menu depois da integração.
-- **Painel, relatórios e auditoria:** a API ainda não tem rotas para essas telas.
 - **Nome dos perfis:** a API devolve o nome do perfil sem acentuação ("Profissional de saude"). A interface mostra o nome pelo código do perfil, em `src/data/profiles.js`.

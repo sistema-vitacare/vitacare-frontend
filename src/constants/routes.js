@@ -20,20 +20,30 @@ export const PATHS = Object.freeze({
   FIRST_ACCESS: '/primeiro-acesso',
   HOME: '/',
   DASHBOARD: '/painel',
+  DASHBOARD_INDICATOR: '/painel/:indicator',
   PATIENTS: '/pacientes',
   PATIENT_NEW: '/pacientes/novo',
   PATIENT_DETAIL: '/pacientes/:patientId',
   PATIENT_EDIT: '/pacientes/:patientId/editar',
   PATIENT_HISTORY: '/pacientes/:patientId/historico',
+  PATIENT_VISIT: '/pacientes/:patientId/registrar',
   RECORDS: '/registros',
+  RECORD_DETAIL: '/registros/:followUpId',
   MEDICATIONS: '/medicamentos',
   ALERTS: '/alertas',
+  ALERT_DETAIL: '/alertas/:alertId',
   FORMS: '/formularios',
+  FORM_NEW: '/formularios/novo',
+  FORM_DETAIL: '/formularios/:formId',
   REPORTS: '/relatorios',
   USERS: '/usuarios',
+  USER_DETAIL: '/usuarios/:userId',
   AUDIT: '/auditoria',
+  AUDIT_EVENT: '/auditoria/:eventId',
   SETTINGS: '/configuracoes',
   ORGANIZATIONS: '/organizacoes',
+  ORGANIZATION_NEW: '/organizacoes/nova',
+  ORGANIZATION_DETAIL: '/organizacoes/:organizationId',
 });
 
 /** Ordem dos grupos no menu. */
@@ -152,13 +162,114 @@ export function usesBottomNav(can) {
 const PATIENT_SUBPAGES = Object.freeze({
   edit: 'editar',
   history: 'historico',
+  visit: 'registrar',
 });
 
 /**
- * Endereço de uma página do paciente: detalhe (sem `page`), `edit` ou
- * `history`. O id é codificado porque vem da API, e não do código.
+ * Endereço de uma página do paciente: detalhe (sem `page`), `edit`,
+ * `history` ou `visit`. O id é codificado porque vem da API, e não do
+ * código.
  */
 export function patientPath(patientId, page) {
   const base = `${PATHS.PATIENTS}/${encodeURIComponent(patientId)}`;
   return page ? `${base}/${PATIENT_SUBPAGES[page]}` : base;
+}
+
+/** Página do formulário; o id vem da API e é codificado. */
+export function formPath(formId) {
+  return `${PATHS.FORMS}/${encodeURIComponent(formId)}`;
+}
+
+/** Detalhe do registro de acompanhamento; o id vem da API e é codificado. */
+export function recordPath(followUpId) {
+  return `${PATHS.RECORDS}/${encodeURIComponent(followUpId)}`;
+}
+
+/** Detalhe do alerta; o id vem da API e é codificado. */
+export function alertPath(alertId) {
+  return `${PATHS.ALERTS}/${encodeURIComponent(alertId)}`;
+}
+
+// Paciente das listas que a API só devolve por paciente (registros,
+// medicamentos e alertas), no endereço: o "voltar" do navegador e os links
+// das outras telas trazem a lista dele de volta.
+export const PATIENT_PARAM = 'paciente';
+
+function withPatient(path, patientId) {
+  if (!patientId) {
+    return path;
+  }
+  return `${path}?${new URLSearchParams([[PATIENT_PARAM, patientId]])}`;
+}
+
+/** Lista de registros, já com o paciente escolhido quando há um. */
+export function recordsPath(patientId) {
+  return withPatient(PATHS.RECORDS, patientId);
+}
+
+/** Medicamentos, já com o paciente escolhido quando há um. */
+export function medicationsPath(patientId) {
+  return withPatient(PATHS.MEDICATIONS, patientId);
+}
+
+/** Alertas, já com o paciente escolhido quando há um. */
+export function alertsPath(patientId) {
+  return withPatient(PATHS.ALERTS, patientId);
+}
+
+/** Relatórios, já com o paciente escolhido quando há um. */
+export function reportsPath(patientId) {
+  return withPatient(PATHS.REPORTS, patientId);
+}
+
+/** Página do usuário; o id vem da API e é codificado. */
+export function userPath(userId) {
+  return `${PATHS.USERS}/${encodeURIComponent(userId)}`;
+}
+
+/** Página da organização cliente, na plataforma; o id vem da API e é codificado. */
+export function organizationPath(organizationId) {
+  return `${PATHS.ORGANIZATIONS}/${encodeURIComponent(organizationId)}`;
+}
+
+/** Detalhe do evento de auditoria; o id vem da API e é codificado. */
+export function auditEventPath(eventId) {
+  return `${PATHS.AUDIT}/${encodeURIComponent(eventId)}`;
+}
+
+// Atalho de período do painel no endereço, para que o detalhe de um
+// indicador e a volta ao painel mantenham o mesmo período.
+export const PERIOD_PARAM = 'periodo';
+
+// Trecho do endereço de cada indicador, em português como o resto das rotas.
+const INDICATOR_SLUGS = Object.freeze({
+  patients: 'pacientes',
+  users: 'usuarios',
+  followUps: 'registros',
+  alerts: 'alertas',
+});
+
+function withPeriod(path, period) {
+  if (!period) {
+    return path;
+  }
+  return `${path}?${new URLSearchParams([[PERIOD_PARAM, period]])}`;
+}
+
+/** Painel, com o atalho de período quando há um. */
+export function dashboardPath(period) {
+  return withPeriod(PATHS.DASHBOARD, period);
+}
+
+/** Detalhe de um indicador do painel (UC05, passo 4), com o período. */
+export function dashboardIndicatorPath(indicator, period) {
+  return withPeriod(`${PATHS.DASHBOARD}/${INDICATOR_SLUGS[indicator]}`, period);
+}
+
+/** Indicador do trecho do endereço; `null` quando ele não existe. */
+export function indicatorFromSlug(slug) {
+  const entry = Object.entries(INDICATOR_SLUGS).find(
+    ([, value]) => value === slug,
+  );
+  return entry ? entry[0] : null;
 }

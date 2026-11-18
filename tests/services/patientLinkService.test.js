@@ -11,6 +11,7 @@ import {
   updatePatientLink,
 } from '../../src/services/patientLinkService.js';
 import { getPatient } from '../../src/services/patientService.js';
+import { addUser, changeUser } from '../../src/services/userStore.js';
 
 const DIRCE = '0b639b83-76d0-570a-9017-7b6263d892cf';
 const CLEUSA = '6d0a941f-2690-5190-928c-6b8f43771fe2';
@@ -189,5 +190,33 @@ describe('criação, edição e revogação', () => {
     await startDemoSession('family');
 
     await expect(getPatient(DIRCE)).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe('usuários do estado', () => {
+  it('oferece o usuário cadastrado na sessão e esconde o inativado nela', async () => {
+    await startDemoSession('professional');
+    addUser({
+      id: 'e5e70000-0000-5000-8000-000000000099',
+      name: 'Aline Cuidadora Nova',
+      email: 'aline@ipeamarelo.example',
+      cpf: '52998224725',
+      phone: null,
+      status: 'pending',
+      profile: { code: 'caregiver', name: 'Cuidador' },
+      invitation: null,
+      lastAccessAt: null,
+      createdAt: '2026-11-10T12:00:00.000Z',
+      updatedAt: '2026-11-10T12:00:00.000Z',
+      deletedAt: null,
+    });
+    changeUser(MARCIO, { status: 'inactive' });
+
+    const names = (await listEligibleUsers({ role: 'caregiver' })).data.map(
+      (user) => user.name,
+    );
+
+    expect(names).toContain('Aline Cuidadora Nova');
+    expect(names).not.toContain('Márcio Tavares');
   });
 });

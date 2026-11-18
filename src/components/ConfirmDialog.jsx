@@ -14,12 +14,15 @@ import { confirmDialogContent } from '../data/patientFields.js';
  * Pede confirmação antes de uma ação que muda a situação de um registro
  * (inativar, reativar, revogar). Enquanto `pending`, os botões travam para
  * a ação não sair duas vezes; `error` mostra a falha sem fechar o diálogo.
+ * `cancelLabel` troca o "Cancelar" quando a própria ação é um cancelamento,
+ * para os dois botões não dizerem a mesma coisa.
  */
 export default function ConfirmDialog({
   open,
   title,
   text,
   confirmLabel,
+  cancelLabel = confirmDialogContent.cancel,
   tone = 'primary',
   pending = false,
   error = null,
@@ -46,7 +49,7 @@ export default function ConfirmDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={pending}>
-          {confirmDialogContent.cancel}
+          {cancelLabel}
         </Button>
         <Button
           variant="contained"

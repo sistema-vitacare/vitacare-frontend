@@ -1,4 +1,4 @@
-// Usuários da organização, com os campos de GET /users. `profile.name` repete o valor da API; a interface exibe o perfil pelos próprios rótulos, a partir de `profile.code`.
+// Usuários da organização, com os campos de GET /users (convite no formato do BE-31, conferido em 13/11/2026). `profile.name` repete o valor da API; a interface exibe o perfil pelos próprios rótulos, a partir de `profile.code`.
 export const users = [
   {
     id: 'f43fdabb-62fc-569d-aa6b-02800cd5b1cd',
@@ -148,8 +148,10 @@ export const users = [
       name: 'Cuidador',
     },
     invitation: {
+      channel: 'temporary_password',
       status: 'pending',
       expiresAt: '2026-11-09T14:30:00.000Z',
+      sentAt: null,
     },
     lastAccessAt: null,
     createdAt: '2026-11-08T12:30:00.000Z',

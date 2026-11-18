@@ -4,6 +4,9 @@
 
 export const TIME_ZONE = 'America/Sao_Paulo';
 
+// Brasília está em UTC−3 o ano todo desde 2019, sem horário de verão.
+export const SAO_PAULO_OFFSET = '-03:00';
+
 /** Máscara fixa que a API aplica aos campos ocultos do familiar. */
 export const MASKED_VALUE = '********';
 
@@ -55,6 +58,27 @@ export function formatDateTime(instant) {
   return dateTimeFormatter.format(new Date(instant)).replace(',', '');
 }
 
+// `h23` fixa a meia-noite em 00:00, como o texto da API.
+const messageDateTimeFormatter = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: TIME_ZONE,
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+/** Data e hora de Brasília como as mensagens da API: `16/11/2026 às 09:30`. */
+export function formatMessageDateTime(instant) {
+  const parts = Object.fromEntries(
+    messageDateTimeFormatter
+      .formatToParts(new Date(instant))
+      .map(({ type, value }) => [type, value]),
+  );
+  return `${parts.day}/${parts.month}/${parts.year} às ${parts.hour}:${parts.minute}`;
+}
+
 export function isMasked(value) {
   return value === MASKED_VALUE;
 }
@@ -66,4 +90,54 @@ const numberFormatter = new Intl.NumberFormat('pt-BR', {
 /** Número com vírgula decimal e no máximo duas casas: `36.5` vira `36,5`. */
 export function formatNumber(value) {
   return numberFormatter.format(value);
+}
+
+/**
+ * Valor de uma resposta de registro para leitura: número com vírgula e
+ * unidade, sim ou não pelos rótulos da tela e lista de escolhas separada
+ * por vírgula.
+ */
+export function formatAnswer(answer, { yes, no }) {
+  if (answer.fieldType === 'boolean') {
+    return answer.value ? yes : no;
+  }
+  if (Array.isArray(answer.value)) {
+    return answer.value.join(', ');
+  }
+  if (typeof answer.value === 'number') {
+    const value = formatNumber(answer.value);
+    return answer.unit ? `${value} ${answer.unit}` : value;
+  }
+  return answer.value;
+}
+
+// A dose aceita até três casas (0,125 mg); o resto da tela usa duas.
+const doseFormatter = new Intl.NumberFormat('pt-BR', {
+  maximumFractionDigits: 3,
+});
+
+/**
+ * Dose com vírgula decimal e a unidade no singular ou no plural, como a
+ * mensagem do lembrete da API: `0,5 comprimido`, `2 comprimidos`.
+ */
+export function formatDose(amount, unit, labels) {
+  const label = amount > 1 ? labels[unit].many : labels[unit].one;
+  return `${doseFormatter.format(amount)} ${label}`;
+}
+
+/**
+ * Nome de pessoa mascarado como a API faz para o administrador da plataforma
+ * em outra organização (`auditPersonalData.policy.ts`): a inicial de cada
+ * palavra e um asterisco por letra restante ("Paulo Lima" → "P**** L***").
+ */
+export function maskPersonName(name) {
+  return name
+    .split(/(\s+)/)
+    .map((part) => {
+      const chars = Array.from(part);
+      return /^\s*$/.test(part) || chars.length <= 1
+        ? part
+        : chars[0] + '*'.repeat(chars.length - 1);
+    })
+    .join('');
 }
