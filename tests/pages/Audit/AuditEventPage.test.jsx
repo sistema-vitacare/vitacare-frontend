@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   PATHS,
   auditEventPath,
+  organizationPath,
   userPath,
 } from '../../../src/constants/routes.js';
 import {
@@ -22,6 +23,8 @@ const MEDICATION_UPDATED = eventId(5);
 const FORM_PUBLISHED = eventId(8);
 const ALERT_GENERATED = eventId(3);
 const FOREIGN_USER_CREATED = eventId(23);
+const ORGANIZATION_UPDATED = eventId(16);
+const IPE = '6ac48ac1-6fb6-5621-b4f5-dc00e6b1df3d';
 const PATRICIA = '2fb0cec5-0e79-5ae3-9dd8-bea87be4292f';
 
 function renderEvent(id, { profile = 'admin' } = {}) {
@@ -160,5 +163,27 @@ describe('alcance', () => {
     expect(
       within(valueOf(event, content.fields.entity)).queryByRole('link'),
     ).not.toBeInTheDocument();
+  });
+
+  it('a plataforma abre a organização cliente pelo evento', async () => {
+    renderEvent(ORGANIZATION_UPDATED, { profile: 'platform_admin' });
+
+    const event = await screen.findByRole('region', {
+      name: content.eventTitle,
+    });
+    expect(
+      within(valueOf(event, content.fields.entity)).getByRole('link'),
+    ).toHaveAttribute('href', organizationPath(IPE));
+  });
+
+  it('o administrador abre a própria organização nas Configurações', async () => {
+    renderEvent(ORGANIZATION_UPDATED);
+
+    const event = await screen.findByRole('region', {
+      name: content.eventTitle,
+    });
+    expect(
+      within(valueOf(event, content.fields.entity)).getByRole('link'),
+    ).toHaveAttribute('href', PATHS.SETTINGS);
   });
 });

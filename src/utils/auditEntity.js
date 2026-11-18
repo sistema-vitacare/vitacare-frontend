@@ -1,12 +1,15 @@
 // Endereço da tela do item de um evento de auditoria. O link só aparece
 // quando a tela existe, o item é da organização da sessão e a sessão pode
 // abrir a tela; fora disso o item fica como texto, para não levar a uma
-// página que responderia 403 ou 404.
+// página que responderia 403 ou 404. A exceção é a organização cliente vista
+// pela plataforma: a API grava a ação sobre ela na própria organização
+// cliente, e a página da organização é a única tela da plataforma que a abre.
 import { PERMISSIONS as P } from '../constants/permissions.js';
 import {
   PATHS,
   alertPath,
   formPath,
+  organizationPath,
   patientPath,
   recordPath,
   userPath,
@@ -23,14 +26,19 @@ const SCREENS = {
 
 /** Caminho da tela do item, ou `null` quando não há tela a abrir. */
 export function auditEntityPath(event, { organizationId, can }) {
-  const screen = SCREENS[event.entity?.type];
+  const { entity } = event;
   if (
-    !screen ||
-    !event.entity.id ||
-    event.organization?.id !== organizationId
+    entity?.type === 'organization' &&
+    entity.id &&
+    entity.id !== organizationId &&
+    can(P.PLATFORM_ORGANIZATIONS_READ)
   ) {
+    return organizationPath(entity.id);
+  }
+  const screen = SCREENS[entity?.type];
+  if (!screen || !entity.id || event.organization?.id !== organizationId) {
     return null;
   }
   const [permission, path] = screen;
-  return can(permission) ? path(event.entity.id) : null;
+  return can(permission) ? path(entity.id) : null;
 }
