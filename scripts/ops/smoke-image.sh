@@ -110,6 +110,10 @@ check "$asset com cache imutável" [ "$(header Cache-Control)" = "public, max-ag
 check "$asset entregue em gzip" [ "$(header Content-Encoding)" = "gzip" ]
 check "$asset como JavaScript" sh -c "grep -i '^content-type:' '$work/headers' | grep -q 'application/javascript'"
 check "asset inexistente 404, sem cair no index.html" [ "$(get /assets/nao-existe.js)" = "404" ]
+# O manifesto de instalação tem tipo próprio, declarado no template: o
+# mime.types da imagem não conhece .webmanifest.
+check "/manifest.webmanifest 200" [ "$(get /manifest.webmanifest)" = "200" ]
+check "manifesto como application/manifest+json" sh -c "grep -i '^content-type:' '$work/headers' | grep -q 'application/manifest+json'"
 
 # 6. Só GET e HEAD.
 check "POST recusado com 405" [ "$(get / -X POST)" = "405" ]

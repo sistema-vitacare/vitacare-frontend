@@ -16,10 +16,11 @@ log de acesso JSON (level_name) → Alloy → Loki · cAdvisor → Prometheus ·
 | --- | --- |
 | Stack / label `stack` | `vitacare-frontend` |
 | Container | `app-vitacare-frontend` |
-| Porta (host = interna) | `1040` (a `1050` é a API do VitaCare) |
+| Endereço público | `https://vitacare.bizys.com.br`, pelo Nginx Proxy Manager da stack `proxy` |
+| Porta (host = interna) | `1040`, presa em `127.0.0.1` (a `1050` é a API do VitaCare) |
 | Imagem | `ghcr.io/sistema-vitacare/vitacare-frontend` (`:latest` e `:sha-<commit>`) |
 | Banco, Redis, volume | nenhum: o container não guarda estado |
-| Redes | `proxy` (padrão das stacks); fora da `infra` |
+| Redes | `proxy`, por onde o Nginx Proxy Manager entrega ao container; fora da `infra` |
 
 ## Arquivos
 
@@ -43,7 +44,7 @@ A mesma imagem serve qualquer ambiente; nada da VPS entra no build. Na subida, o
 - responde `/config.js` com `window.__VITACARE_CONFIG__ = { apiUrl }`, carregado pelo `index.html` antes do app. No desenvolvimento, quem responde é `public/config.js`, com a API do compose do backend (`http://localhost:3000`);
 - põe a mesma origem no `connect-src` da Content-Security-Policy: o navegador só aceita chamadas para a própria origem e para a API.
 
-`API_URL` é só a origem (`http://<IP-da-VPS>:1050`), sem caminho nem `/` no fim. Valor ausente ou fora desse formato faz o container sair com `ERRO: API_URL ...` no log, em vez de servir um frontend que não alcança a API.
+`API_URL` é só a origem (`https://api.vitacare.bizys.com.br`), sem caminho nem `/` no fim. Valor ausente ou fora desse formato faz o container sair com `ERRO: API_URL ...` no log, em vez de servir um frontend que não alcança a API.
 
 ## Servidor (nginx)
 
@@ -85,9 +86,9 @@ O frontend é um conjunto de arquivos estáticos entregue pelo nginx: não há s
 
 Conferir depois de uma semana: `docker stats --no-stream app-vitacare-frontend`.
 
-## Passo a passo do zero ao ar (acesso por IP, sem domínio)
+## Passo a passo do zero ao ar (domínio com HTTPS)
 
-O acesso é **sempre** por `http://<IP-da-VPS>:1040`, sem domínio nem HTTPS (decisão de Mateus em 2026-11-10, a mesma do backend). Fora de contexto seguro, o navegador não oferece instalar o PWA: pelo IP, ele abre só como site (ver [Instalação](arquitetura.md#instalação)).
+O acesso é por `https://vitacare.bizys.com.br` desde 2026-11-16 (OPS-01, decisão de Mateus). O HTTPS termina no Nginx Proxy Manager (NPM) da stack `proxy`, que entrega ao container pela rede `proxy`; a porta `1040` escuta só em `127.0.0.1` e fica fechada no firewall. DNS, proxy host, certificado e HSTS dos dois nomes do VitaCare ficam no [passo 7 do deploy do backend](https://github.com/sistema-vitacare/vitacare-backend/blob/main/docs/deploy-vps.md#7-domínio-proxy-e-https). Com HTTPS, o navegador oferece instalar o PWA (ver [Instalação](arquitetura.md#instalação)).
 
 ### 0. Pré-requisitos na VPS
 
@@ -102,16 +103,17 @@ O workflow roda `verify` ✅ e `imagem` ✅; o `deploy` ❌ falha com "Secret PO
 
 ### 2. Firewall
 
-hPanel → VPS → Segurança → Firewall → TCP `1040`. (O `ufw` não vale para porta publicada pelo Docker.)
+Nada a abrir: o NPM já escuta em `80` e `443`, e a `1040` não é aberta. O `ufw` não vale para porta publicada pelo Docker.
 
 ### 3. Variáveis (`.env.production`, nunca commitado)
 
 Sem aspas e sem comentário na mesma linha:
 
 ```dotenv
-API_URL=http://<IP-da-VPS>:1050
-APP_BIND=0.0.0.0
+API_URL=https://api.vitacare.bizys.com.br
 ```
+
+Sem `APP_BIND`: a porta fica em `127.0.0.1`, e o NPM alcança o container pela rede `proxy`.
 
 ### 4. Stack no Portainer
 
@@ -129,31 +131,36 @@ Stacks → Add stack → **Repository**:
 
 **Deploy the stack.**
 
-### 5. CORS na API
+### 5. Proxy host e certificado
 
-Na stack `vitacare` (backend), `CORS_ORIGINS=http://<IP-da-VPS>:1040` → **Update the stack**. Sem isso o navegador bloqueia as chamadas do frontend para a API.
+No NPM, o host `vitacare.bizys.com.br` aponta para `http` · `app-vitacare-frontend` · `1040`, com Block Common Exploits, Force SSL, HTTP/2 e HSTS ligados ([passo 7 do deploy do backend](https://github.com/sistema-vitacare/vitacare-backend/blob/main/docs/deploy-vps.md#7-domínio-proxy-e-https)). O HSTS fica só no NPM: a imagem não envia o cabeçalho.
 
-### 6. Primeiro boot e validação de fora
+### 6. CORS na API
+
+Na stack `vitacare` (backend), `CORS_ORIGINS=https://vitacare.bizys.com.br` → **Update the stack**. Sem isso o navegador bloqueia as chamadas do frontend para a API.
+
+### 7. Primeiro boot e validação de fora
 
 ```bash
 docker ps --filter name=app-vitacare-frontend --format '{{.Names}}\t{{.Status}}'   # Up (healthy)
 docker logs app-vitacare-frontend 2>&1 | grep -E "API_URL|ERRO"
-curl -s http://<IP-da-VPS>:1040/version.txt    # commit do merge
-curl -s http://<IP-da-VPS>:1040/config.js      # apiUrl da stack
-curl -sI http://<IP-da-VPS>:1040/ | grep -i content-security-policy
+curl -s https://vitacare.bizys.com.br/version.txt    # commit do merge
+curl -s https://vitacare.bizys.com.br/config.js      # apiUrl da stack
+curl -sI https://vitacare.bizys.com.br/ | grep -iE 'content-security-policy|strict-transport-security'
+curl -m 5 -s -o /dev/null -w '%{http_code}\n' http://<IP-da-VPS>:1040/healthz || echo 'porta 1040 recusada (ok)'
 ```
 
-### 7. GitHub
+### 8. GitHub
 
-Settings → Secrets and variables → Actions: secret `PORTAINER_WEBHOOK_URL` (URL do passo 4) e variable `APP_URL=http://<IP-da-VPS>:1040`. Em Settings → Environments, o environment `production` é criado pelo primeiro deploy; nele é possível exigir aprovação antes de cada publicação. *Re-run all jobs* do workflow do passo 1: três jobs verdes, com `Versão <commit> no ar em <APP_URL>` no fim do `deploy`.
+Settings → Secrets and variables → Actions: secret `PORTAINER_WEBHOOK_URL` (URL do passo 4) e variable `APP_URL=https://vitacare.bizys.com.br`. Em Settings → Environments, o environment `production` é criado pelo primeiro deploy; nele é possível exigir aprovação antes de cada publicação. *Re-run all jobs* do workflow do passo 1: três jobs verdes, com `Versão <commit> no ar em <APP_URL>` no fim do `deploy`.
 
-### 8. Monitoramento
+### 9. Monitoramento
 
-**Uptime Kuma** (`http://<IP-da-VPS>:3001`), com a notificação SMTP:
+**Uptime Kuma**, com a notificação SMTP:
 
 | Monitor | Tipo | Alvo | Intervalo |
 | --- | --- | --- | --- |
-| `vitacare-frontend` | HTTP | `http://<IP-da-VPS>:1040/healthz` | 60 s |
+| `vitacare frontend` | HTTP | `https://vitacare.bizys.com.br/healthz` | 60 s |
 
 Não há worker nem agendamento, então não há monitor Push. **Backup:** nada a copiar; a imagem de cada commit fica no GHCR (`:sha-<commit>`).
 
@@ -187,7 +194,7 @@ De tempos em tempos: `npm audit --omit=dev --audit-level=high`.
 | Atualizar o nginx e o Alpine da imagem (correção de segurança) | Actions → CI e deploy → **Run workflow** na `main`: o build resolve de novo a tag `1.30-alpine` e publica |
 | Trocar a API | `API_URL` → **Update the stack** (sem rebuild) |
 | Rollback | `APP_IMAGE=ghcr.io/sistema-vitacare/vitacare-frontend:sha-<commit>` → Update; apagar para voltar |
-| Versão no ar | `curl http://<IP-da-VPS>:1040/version.txt` |
+| Versão no ar | `curl https://vitacare.bizys.com.br/version.txt` |
 
 ## Se algo falhar
 
@@ -198,6 +205,6 @@ De tempos em tempos: `npm audit --omit=dev --audit-level=high`.
 | log `ERRO: /etc/nginx/conf.d sem permissão` | `tmpfs` removido do compose com `read_only` | restaurar o compose |
 | `network proxy not found` | stack `proxy` fora do ar | subir a `proxy`, ou `PROXY_NETWORK=<nome>` |
 | `pull access denied` no GHCR | token do registry sem acesso ao pacote | passo 1 |
-| tela carrega, chamadas à API falham por CORS | origem do front fora do `CORS_ORIGINS` do backend | passo 5 |
+| tela carrega, chamadas à API falham por CORS | origem do front fora do `CORS_ORIGINS` do backend | passo 6 |
 | console: `Refused to connect ... Content Security Policy` | `API_URL` diferente da origem real da API | igualar → Update |
-| timeout de fora, ok em `curl 127.0.0.1:1040` | firewall sem 1040 ou `APP_BIND` ausente | passos 2 e 3 |
+| `502 Bad Gateway` pelo domínio | container fora da rede `proxy` ou nome e porta errados no proxy host | passo 5 |

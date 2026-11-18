@@ -1,9 +1,10 @@
 # Cabeçalhos de segurança, incluídos pelo server e por cada location do
 # default.conf. Extensão .inc: fica fora do `include conf.d/*.conf` do http.
 #
-# Acesso por http://IP, sem HTTPS (decisão de 2026-11-10): HSTS,
-# upgrade-insecure-requests e Cross-Origin-Opener-Policy ficam de fora porque
-# o navegador os ignora ou quebraria o acesso fora de contexto seguro.
+# O HTTPS termina no Nginx Proxy Manager, que já envia o HSTS deste host: um
+# segundo Strict-Transport-Security aqui duplicaria o cabeçalho.
+# upgrade-insecure-requests e Cross-Origin-Opener-Policy não são enviados:
+# ainda não foram avaliados com HTTPS.
 #
 # CSP: o Emotion (MUI) injeta <style> em tempo de execução, daí
 # 'unsafe-inline' só em style-src; nenhum script inline é permitido. O

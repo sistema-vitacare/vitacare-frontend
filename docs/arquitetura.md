@@ -20,7 +20,7 @@ As regras de negócio e a proteção dos dados pertencem à API. O frontend apre
 
 O ambiente usa Node.js 24, com versão mínima 24.15, exigida pelo jsdom dos testes.
 
-Em produção, o frontend roda na VPS do backend, na porta 1040, acessado por IP e sem HTTPS, e não na Vercel prevista no TCC. Cada merge na `main` publica uma imagem nova pelo GitHub Actions e pelo Portainer. O endereço da API chega ao app em tempo de execução, por `window.__VITACARE_CONFIG__.apiUrl` (`/config.js`), e não no build. Detalhes em [Deploy na VPS](deploy-vps.md).
+Em produção, o frontend roda na VPS do backend, num container na porta 1040, publicado com HTTPS em `https://vitacare.bizys.com.br` pelo Nginx Proxy Manager, e não na Vercel prevista no TCC. Cada merge na `main` publica uma imagem nova pelo GitHub Actions e pelo Portainer. O endereço da API chega ao app em tempo de execução, por `window.__VITACARE_CONFIG__.apiUrl` (`/config.js`), e não no build. Detalhes em [Deploy na VPS](deploy-vps.md).
 
 ## Camadas
 
@@ -113,7 +113,7 @@ A sessão fica no `SessionProvider` e chega às telas pelo hook `useSession`, em
 | `authenticated` | Sessão normal. | 12 horas, como a sessão normal da API. |
 | `expired` | Uma das duas sessões venceu. Usuário e permissões somem, e o login mostra o aviso de sessão expirada. | Até a próxima entrada. |
 
-Enquanto os dados são simulados, o serviço de autenticação (`src/services/authService.js`) reproduz as rotas `auth` da API: login com código da organização, e-mail e senha, bloqueio depois de cinco falhas, primeiro acesso, pedido de recuperação, redefinição pelo link e troca da própria senha. Os usuários de demonstração compartilham uma senha inventada, guardada em `src/data/mocks/credentials.js` e fora do objeto do usuário, porque a API nunca devolve senha. Os atalhos de demonstração do login continuam entrando direto com um usuário de cada perfil. Nos dois caminhos, as permissões vêm da matriz local, porque a API ainda não tem rota que devolva o usuário autenticado com suas permissões (ver "Em aberto").
+Enquanto os dados são simulados, o serviço de autenticação (`src/services/authService.js`) reproduz as rotas `auth` da API: login com código da organização, e-mail e senha, bloqueio depois de cinco falhas, primeiro acesso, pedido de recuperação, redefinição pelo link e troca da própria senha. Os usuários de demonstração compartilham uma senha inventada, guardada em `src/data/mocks/credentials.js` e fora do objeto do usuário, porque a API nunca devolve senha. Os atalhos de demonstração do login continuam entrando direto com um usuário de cada perfil. Nos dois caminhos, as permissões vêm da matriz local. A API devolve as permissões efetivas do usuário no login (`data.session`) e em `GET /profile`.
 
 ## Rotas e navegação
 
@@ -161,7 +161,7 @@ O manifesto (`public/manifest.webmanifest`) dá o nome, as cores do tema e os í
 
 Não há service worker: o TCC não prevê funcionamento offline, e um pré-cache arriscaria mostrar a versão antiga depois de um deploy. Pela documentação do Chrome (atualizada em 05/12/2023), instalar pelo menu do navegador não exige service worker desde o Chrome 112 no computador e o 108 no Android; o aviso automático de instalação ainda exigia um.
 
-O navegador só oferece instalar em contexto seguro (HTTPS ou `localhost`). Em produção, o acesso é por IP e sem HTTPS, então a instalação fica para quando houver domínio com HTTPS; até lá, ela é conferida com `npm run preview`, em `localhost`.
+O navegador só oferece instalar em contexto seguro (HTTPS ou `localhost`): em produção, pelo domínio com HTTPS, e no desenvolvimento, com `npm run preview`, em `localhost`.
 
 ## Diferenças em relação aos protótipos
 
@@ -170,7 +170,7 @@ O navegador só oferece instalar em contexto seguro (HTTPS ou `localhost`). Em p
 | Login (Figura 31) | E-mail e senha | Código da organização, e-mail e senha | A API autentica o usuário dentro de uma organização. |
 | Login (Figura 31) | Link "Inscreva-se" | Removido | Organizações são cadastradas pelo administrador da plataforma; não existe cadastro público. |
 | Login e recuperação (Figuras 31 e 32) | Foto de uma profissional de saúde na coluna esquerda | Painel azul-marinho com a frase da marca e três destaques | A foto do protótipo não tem licença de uso conhecida. |
-| Recuperação de senha (Figura 32) | Três etapas: e-mail, código de seis dígitos e nova senha | Pedido com código da organização e e-mail, que mostra a orientação da API, e nova senha definida pelo link do e-mail | A API envia um link com token e não tem rota para código; sem servidor de e-mail, orienta a pedir uma senha temporária ao administrador. |
+| Recuperação de senha (Figura 32) | Três etapas: e-mail, código de seis dígitos e nova senha | Pedido com código da organização e e-mail, que mostra a orientação da API, e nova senha definida pelo link do e-mail | A API envia um link com token e não tem rota para código; com o envio de e-mail desligado, orienta a pedir uma senha temporária ao administrador. |
 | Registro de visita (Figuras 38 e 40) | Sem indicação de perfil | Apenas cuidador | Matriz de permissões da API. |
 | Medicamentos (Figura 41) | Percentual de adesão | Não exibido | A API não registra a tomada do medicamento. |
 | Medicamentos (Figura 41) | Condição do medicamento (HAS, DM2) | Não exibida | A API não liga o medicamento a uma condição; as condições ficam no paciente. |
@@ -178,11 +178,11 @@ O navegador só oferece instalar em contexto seguro (HTTPS ou `localhost`). Em p
 | Medicamentos (Figura 41) | "+ Prescrever Med." | "Novo medicamento" | Não há prescrição eletrônica; é o cadastro do UC08. |
 | Medicamentos (Figura 41) | "1× ao dia – manhã" | Quantidade e horários ("2× ao dia · 08:00 e 20:00"), intervalo em dias e próximo horário | A API guarda horários fixos, e não períodos do dia. |
 | Medicamentos (Figura 41) | Dose em teal | Dose no azul-marinho do texto | O teal é a única cor de ação. |
-| Alertas (Figura 42) | Alertas de todos os pacientes numa lista | Lista de um paciente, escolhido primeiro | `GET /alerts` exige o paciente. |
-| Alertas (Figura 42) | "Marcar todos como lidos" e contador no título | Não exibidos | A leitura é da caixa de notificações de cada usuário, e não do alerta (FE-35). |
+| Alertas (Figura 42) | Alertas de todos os pacientes numa lista | Lista de um paciente, escolhido primeiro | A tela é anterior à lista da organização, que a API passou a ter no BE-33 (`GET /alerts` sem `patientId`). |
+| Alertas (Figura 42) | "Marcar todos como lidos" e contador no título | Não exibidos | A leitura é da caixa de notificações de cada usuário, e não do alerta (FE-35); o contador do título (`GET /alerts/summary`) é do BE-33, posterior à tela. |
 | Alertas (Figura 42) | Aba "Todos" | Aba "Abertos" | A aba não inclui os resolvidos, que têm aba própria. |
 | Alertas (Figura 42) | "Intervenção imediata", "Monitorar de perto" e "Para conhecimento" nos contadores | Só o nome da severidade | Na API, a severidade é só um rótulo, sem interpretação clínica. |
-| Alertas (Figura 42) | Cuidador em cada alerta | Não exibido | O alerta da API não traz o cuidador. |
+| Alertas (Figura 42) | Cuidador em cada alerta | Não exibido | Só o alerta de valor registrado tem autor (`followUp.author`); a ausência de registro e o lembrete de medicamento não têm. |
 | Alertas (Figura 42) | "Há 14 min" | Data e hora | Como nas outras telas, sem um relógio que atualize a lista. |
 | Alertas (Figura 42) | "Medicamento não administrado" e "Visita agendada não confirmada" | Lembrete de medicamento e ausência de registro | A API não registra tomada de medicamento nem agenda de visitas; as origens são valor registrado, ausência e lembrete. |
 | Registro de visita (Figura 38) | Avisos durante a digitação ("Acima do limite", "Alerta será gerado") | Não exibidos; depois de salvar, o registro mostra os alertas que gerou | O cuidador não lê as regras de alerta, e a resposta do registro não traz os alertas. |
@@ -225,7 +225,6 @@ Os testes usam Vitest e Testing Library e ficam em `tests/`, espelhando as pasta
 
 ## Em aberto
 
-Situação conforme o `develop` do vitacare-backend em 09/11/2026 (commit `af58a2c`).
+Situação conforme o `develop` do vitacare-backend em 18/11/2026 (commit `3beebe3`).
 
-- **Usuário autenticado:** o login devolve apenas o estado, o token e os prazos da sessão, e não há rota que devolva o usuário logado com perfil e permissões. Sem ela, o frontend não consegue montar o menu depois da integração.
 - **Nome dos perfis:** a API devolve o nome do perfil sem acentuação ("Profissional de saude"). A interface mostra o nome pelo código do perfil, em `src/data/profiles.js`.

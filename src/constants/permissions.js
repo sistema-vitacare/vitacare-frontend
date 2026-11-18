@@ -1,7 +1,7 @@
 // Réplica de `src/modules/Access/access.permissions.ts` do vitacare-backend,
-// que é a fonte oficial. A API não tem rota que devolva as permissões do
-// usuário autenticado; até ter, uma mudança na matriz do backend precisa ser
-// repetida aqui.
+// que é a fonte oficial. Enquanto a sessão é simulada, as permissões saem
+// daqui, e uma mudança na matriz do backend precisa ser repetida; a API
+// devolve as permissões efetivas no login (`data.session`) e em `GET /profile`.
 
 export const PERMISSIONS = Object.freeze({
   PATIENTS_READ: 'patients:read',

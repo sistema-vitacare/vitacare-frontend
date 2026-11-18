@@ -9,6 +9,14 @@ server_tokens off;
 charset utf-8;
 charset_types text/css text/plain application/javascript application/json image/svg+xml application/manifest+json;
 
+# O mime.types da imagem não tem a extensão .webmanifest: sem esta linha, o
+# manifesto sai como application/octet-stream. No bloco http, este types se
+# soma ao mime.types; dentro do server, substituiria todos os tipos e o
+# JavaScript também sairia como application/octet-stream.
+types {
+  application/manifest+json webmanifest;
+}
+
 tcp_nopush on;
 open_file_cache max=1000 inactive=60s;
 open_file_cache_valid 60s;
