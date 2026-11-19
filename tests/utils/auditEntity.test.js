@@ -5,6 +5,7 @@ import {
   PATHS,
   alertPath,
   formPath,
+  organizationPath,
   patientPath,
   recordPath,
   userPath,
@@ -71,6 +72,45 @@ describe('auditEntityPath', () => {
         organizationId: OWN,
         can: nothing,
       }),
+    ).toBeNull();
+  });
+});
+
+describe('auditEntityPath na plataforma', () => {
+  const PLATFORM = 'org-plataforma';
+  const CLIENT = 'org-cliente';
+  const platform = (can = everything) => ({ organizationId: PLATFORM, can });
+
+  it('leva a organização cliente à página dela', () => {
+    expect(
+      auditEntityPath(
+        event({ type: 'organization', id: CLIENT }, CLIENT),
+        platform(),
+      ),
+    ).toBe(organizationPath(CLIENT));
+  });
+
+  it('mantém a organização da sessão nas Configurações', () => {
+    expect(
+      auditEntityPath(
+        event({ type: 'organization', id: PLATFORM }, PLATFORM),
+        platform(),
+      ),
+    ).toBe(PATHS.SETTINGS);
+  });
+
+  it('não leva à organização cliente sem a permissão de consultá-la', () => {
+    expect(
+      auditEntityPath(
+        event({ type: 'organization', id: CLIENT }, CLIENT),
+        platform((permission) => permission !== P.PLATFORM_ORGANIZATIONS_READ),
+      ),
+    ).toBeNull();
+  });
+
+  it('não leva a outros itens da organização cliente', () => {
+    expect(
+      auditEntityPath(event({ type: 'patient', id: 'p1' }, CLIENT), platform()),
     ).toBeNull();
   });
 });

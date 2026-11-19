@@ -6,9 +6,9 @@ Este guia define como o código entra no repositório: branches, mensagens de co
 
 | Branch | Função |
 | --- | --- |
-| `main` | Versão estável. Recebe a `develop` uma vez, quando todas as telas estão prontas (fim do Bloco 7). Cada push na `main` publica em produção ([deploy](docs/deploy-vps.md)). |
+| `main` | Versão em produção. Recebe apenas a `develop`, quando ela está pronta para produção (ver [Pull requests](#pull-requests)). Cada push na `main` publica em produção ([deploy](docs/deploy-vps.md)). |
 | `develop` | Integração. Todo trabalho novo sai dela e volta para ela por pull request. |
-| `bloco-N-assunto` | Uma por bloco de telas do backlog: número do bloco e um resumo curto, em minúsculas e separado por hífens. Os cards do bloco entram nela como commits. Exemplo: `bloco-2-pacientes`. |
+| `bloco-N-assunto` | Uma por bloco do backlog: número do bloco e um resumo curto, em minúsculas e separado por hífens. Os cards do bloco entram nela como commits. Exemplo: `bloco-2-pacientes`. |
 | `fe-NN-assunto` | Uma por card de fundação ou de manutenção, que não pertence a um bloco: identificador do card e um resumo curto. Exemplo: `fe-31-alerta-minimatch`. |
 
 Para começar um bloco:
@@ -59,8 +59,8 @@ O `npm run verify` precisa terminar sem erro antes da abertura do pull request. 
 - Título de um bloco: número, nome e intervalo de cards. Exemplo: `Bloco 2 — Pacientes (FE-11 a FE-15)`.
 - Título de um card fora de bloco: identificador do card e o que ele entrega. Exemplo: `FE-31 — Alerta do minimatch na cadeia do ESLint`.
 - Corpo: o que muda, como foi verificado e o que ficou de fora.
-- Destino: `develop`. A `main` recebe apenas a `develop`, num pull request aberto quando todas as telas estão prontas.
-- Merge só com o check `verify` verde.
+- Destino: `develop`. A `main` recebe apenas a `develop`, num pull request aberto quando a `develop` está pronta para produção. Durante a integração com a API, isso só acontece depois que todos os blocos de integração entram; até lá, a produção continua com os dados simulados.
+- Merge só com os checks `verify` e `imagem` verdes.
 - Merge pela opção "Create a merge commit". As opções de squash e rebase reescrevem os commits da branch, e o squash junta todos em um só.
 
 ## Código

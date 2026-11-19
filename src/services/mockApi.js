@@ -22,7 +22,7 @@ export class ApiError extends Error {
 }
 
 // `crypto.randomUUID` só existe em contexto seguro (HTTPS ou localhost); a
-// versão simulada publicada em `http://IP:porta` quebraria com ele.
+// versão simulada aberta por HTTP fora do localhost quebraria com ele.
 let requestCounter = 0;
 
 function buildMeta(extra = {}) {

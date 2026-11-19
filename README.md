@@ -6,7 +6,7 @@ A aplicação é um PWA responsivo, construído com React e Material UI, que con
 
 ## Situação atual
 
-As telas são construídas com dados simulados, servidos por uma camada de serviços que reproduz o formato de resposta da API. Quando todas as telas estiverem prontas, a integração com o backend substitui a implementação dessa camada, sem alterar as telas.
+Todas as telas estão prontas, com dados simulados servidos por uma camada de serviços que reproduz o formato de resposta da API. A integração com o backend substitui a implementação dessa camada, sem alterar as telas.
 
 ## Como rodar
 
@@ -19,7 +19,7 @@ npm run dev
 
 O servidor de desenvolvimento abre em `http://localhost:5173`. Os demais scripts estão descritos no [guia de contribuição](CONTRIBUTING.md#scripts).
 
-Em produção, o frontend roda na VPS como um container nginx na porta 1040, publicado a cada merge na `main`. Para ensaiar a imagem de produção localmente, `docker compose up --build` abre em `http://localhost:1040`. O roteiro completo está em [Deploy na VPS](docs/deploy-vps.md).
+Em produção, o frontend roda na VPS como um container nginx na porta 1040, publicado a cada merge na `main` e servido em `https://vitacare.bizys.com.br` pelo Nginx Proxy Manager. Para ensaiar a imagem de produção localmente, `docker compose up --build` abre em `http://localhost:1040`. O roteiro completo está em [Deploy na VPS](docs/deploy-vps.md).
 
 ## Estrutura
 

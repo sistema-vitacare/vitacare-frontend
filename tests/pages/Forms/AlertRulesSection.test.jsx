@@ -58,6 +58,9 @@ describe('AlertRulesSection', () => {
   it('lista as regras do formulário com campo, condição, severidade, alcance e situação', async () => {
     renderForm(VITAL_SIGNS);
 
+    // O formulário e as regras carregam em sequência; cada um tem a própria
+    // espera, para que a máquina lenta não some as duas cargas nos 5 s.
+    await screen.findByRole('heading', { level: 1, name: 'Sinais vitais' });
     expect(await rules()).toHaveLength(3);
     const systolic = await rule('Pressão sistólica acima de 160');
     expect(
