@@ -74,6 +74,9 @@ describe('PatientReport', () => {
 
   it('mostra identificação, resumo, evolução, registros e medicamentos no período padrão', async () => {
     renderReport();
+    // O esperado vem do serviço, que precisa da sessão: o login da tela é
+    // assíncrono, como o da API.
+    await screen.findByRole('heading', { name: 'Dirce Albuquerque Moraes' });
     const { data } = await getPatientReport(DIRCE);
 
     expect(
@@ -120,6 +123,7 @@ describe('PatientReport', () => {
 
   it('guarda o período no endereço e informa os indicadores que não podem ser calculados', async () => {
     const router = renderReport();
+    await screen.findByRole('heading', { name: 'Dirce Albuquerque Moraes' });
     const { data } = await getPatientReport(DIRCE);
     const day = todayInSaoPaulo(new Date(data.records.lastVisitedAt));
     await screen.findByText(content.identification.title);

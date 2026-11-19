@@ -1,6 +1,6 @@
 # Arquitetura do frontend
 
-Este documento descreve como o frontend do VitaCare é construído: tecnologias, camadas, dados simulados, controle de acesso por perfil, identidade visual, acessibilidade e instalação.
+Este documento descreve como o frontend do VitaCare é construído: tecnologias, camadas, acesso à API, dados simulados, controle de acesso por perfil, identidade visual, acessibilidade e instalação.
 
 As regras de negócio e a proteção dos dados pertencem à API. O frontend apresenta as informações e oculta o que o perfil não pode fazer, mas isso é apenas interface: a autorização acontece no backend.
 
@@ -31,23 +31,34 @@ As dependências seguem um único sentido: páginas, hooks, serviços, dados.
 | Páginas | `src/pages/` | Uma pasta por tela. Montam o layout e tratam os estados de carregamento, vazio e erro. |
 | Componentes | `src/components/` | Peças usadas em duas ou mais telas. Um trecho vira componente a partir da segunda repetição. |
 | Hooks | `src/hooks/` | Chamam os serviços e entregam dados e estado às páginas. |
-| Serviços | `src/services/` | Único ponto de acesso a dados. |
+| Serviços | `src/services/` | Único ponto de acesso a dados: chamam a API pelo cliente HTTP ou, enquanto a área não é integrada, respondem com os dados simulados. |
 | Dados | `src/data/` | Textos da interface e dados simulados. Nenhum texto, lista ou valor fica fixo dentro de componente. |
 | Constantes | `src/constants/` | Rotas, permissões e listas fechadas, como severidades, unidades de dose e tipos de campo. |
 | Estilos | `src/styles/` | Tema do Material UI: cores, tipografia, espaçamentos, raios, sombras e movimento. |
 | Utilitários | `src/utils/` | Funções puras: máscaras, formatação de datas, cálculo de idade. |
 
+## Acesso à API
+
+O cliente HTTP (`src/services/apiClient.js`) é o único ponto que fala com a API. Ele monta o endereço com a origem do `/config.js` e o prefixo `/api/v1`, envia o token da sessão no cabeçalho `Authorization: Bearer` (menos nas rotas públicas, como o login), devolve o corpo de sucesso como `{ data, meta }` e transforma o corpo `{ error, meta }` num `ApiError`, com `status`, `code`, `message`, `detail` e `fields`. A falha sem resposta da API (rede, CORS ou servidor fora do ar) chega às telas como erro com nova tentativa, de código `NETWORK_ERROR`. Arquivos gerados pela API (PDF, CSV e anexo) chegam por `apiDownload`, com o nome lido de `Content-Disposition`, e o anexo vai por `apiUpload`, em `multipart/form-data`.
+
+Duas respostas mudam a sessão, venham da tela que vierem:
+
+- `401` numa chamada que levava o token da sessão quer dizer que a API encerrou a sessão: logout em outra aba, troca de senha, inatividade de 30 minutos, usuário ou organização inativados. A sessão acaba, e o login mostra o aviso de sessão expirada. O login responde `401` à credencial errada sem token, e isso não encerra nada;
+- `403 TERMS_ACCEPTANCE_REQUIRED` quer dizer que há uma versão do termo de uso ainda não aceita, inclusive uma publicada com a sessão aberta: a sessão passa ao estado `terms`, e as telas levam ao termo.
+
+A integração anda por área: o corpo de cada serviço passa a chamar as rotas da API, e páginas e hooks não mudam. Enquanto uma área não é integrada, os serviços dela respondem com os dados simulados descritos abaixo.
+
 ## Dados simulados
 
-Os serviços respondem no mesmo formato da API do backend. O utilitário `src/services/mockApi.js` monta essas respostas:
+Os serviços ainda não integrados respondem no mesmo formato da API do backend. O utilitário `src/services/mockApi.js` monta essas respostas:
 
 - sucesso: `{ data, meta }`, com `meta.requestId` e `meta.timestamp`;
 - listagem: `meta.pagination` com `page`, `limit`, `total` e `totalPages`, página 1 e limite 20 quando não informados, como na API;
-- erro: um `ApiError` com `status`, `code`, `message`, `detail` e `fields`. É o mesmo objeto que o cliente HTTP vai produzir a partir do corpo `{ error, meta }` da API, então as telas tratam erro do mesmo jeito antes e depois da integração.
+- erro: o mesmo `ApiError` do cliente HTTP, então as telas tratam erro do mesmo jeito nas áreas simuladas e nas integradas.
 
 Cada requisição simulada espera um atraso curto, zerado nos testes. A função `failNextRequest` faz a próxima requisição falhar, para exercitar os estados de erro das telas.
 
-Os serviços simulados sabem quem consulta pela sessão que o `authService` guarda no login, do mesmo jeito que o cliente HTTP vai guardar o token: a tela não passa o usuário a cada chamada, e a integração não muda a assinatura dos serviços.
+Os serviços simulados sabem quem consulta pela sessão da API que o `authService` guarda (`currentViewer()`): a tela não passa o usuário a cada chamada. Com a sessão de uma conta real, o administrador e o profissional veem os dados simulados, que alcançam a organização inteira; o cuidador e o familiar não veem nada, porque os vínculos simulados são dos usuários de demonstração, e as telas que procuram a organização da sessão nos dados simulados não a encontram. Nos testes, as sessões são as dos usuários de demonstração, e essas telas funcionam.
 
 As telas não chamam os serviços direto. Para ler, usam o hook `useResource`, que devolve um de quatro estados (`loading`, `success`, `empty` ou `error`) e uma função `retry` para tentar de novo depois de uma falha. Para enviar um formulário, usam o `useSubmit`, que devolve `idle`, `submitting`, `success` ou `error`, com os dados, o `meta` e o erro da resposta. A sessão é a exceção: login, primeiro acesso e Sair passam pelo `SessionProvider`, que guarda o resultado.
 
@@ -79,8 +90,6 @@ O estado que a API guardaria no banco fica nos serviços, e `resetMockState` vol
 
 As regras de conteúdo que a API confere (campos de formulário por tipo, respostas de registro, anexos, medicamentos e regras de alerta) ficam em `src/utils/`, nas mesmas funções que as telas usam para apontar o problema antes do envio.
 
-Na integração, o corpo de cada serviço passa a chamar a rota correspondente da API. Páginas e hooks não mudam.
-
 Duas alternativas foram descartadas:
 
 - **Importar os dados simulados direto nas páginas.** A integração exigiria alterar todas as telas.
@@ -96,7 +105,7 @@ Duas alternativas foram descartadas:
 | Familiar | `family` | Consulta do paciente vinculado: cadastro, histórico, evolução, alertas e medicamentos. |
 | Administrador da plataforma | `platform_admin` | Organizações clientes e seus planos, e a auditoria de todas as organizações. |
 
-A matriz de permissões replica `src/modules/Access/access.permissions.ts` do vitacare-backend, que é a fonte oficial. Mudança na matriz do backend precisa ser repetida aqui.
+As permissões da sessão são as efetivas que a API devolve no login e em `GET /profile`. A matriz local (`src/constants/permissions.js`) replica `src/modules/Access/access.permissions.ts` do vitacare-backend, a fonte oficial, e serve aos códigos que as telas consultam, aos serviços ainda simulados e às sessões dos testes; mudança na matriz do backend continua sendo repetida aqui.
 
 As telas consultam permissões, por exemplo `can('patients:create')`, e nunca o nome do perfil. Assim, uma mudança na matriz não exige alterar telas. Conteúdo que depende de uma permissão fica dentro de `RequirePermission`: sem a permissão, o conteúdo não é renderizado e não carrega dados.
 
@@ -104,24 +113,28 @@ Apenas o cuidador registra acompanhamento. O administrador herda as permissões 
 
 Todos os perfis, inclusive o administrador da plataforma, têm `profile:manage`, que só alcança o cadastro de quem está na sessão.
 
-A sessão fica no `SessionProvider` e chega às telas pelo hook `useSession`, em um de quatro estados:
+A sessão fica no `SessionProvider` e chega às telas pelo hook `useSession`, em um de cinco estados:
 
 | Estado | Quando | Duração |
 | --- | --- | --- |
 | `anonymous` | Ninguém entrou, ou saiu pelo Sair. | — |
 | `restricted` | O login respondeu `password_change_required`: usuário convidado, ou com senha provisória a trocar. Só alcança o primeiro acesso e o Sair, e não tem permissões. | 10 minutos, como a sessão restrita da API. |
-| `authenticated` | Sessão normal. | 12 horas, como a sessão normal da API. |
-| `expired` | Uma das duas sessões venceu. Usuário e permissões somem, e o login mostra o aviso de sessão expirada. | Até a próxima entrada. |
+| `terms` | O login respondeu `terms_acceptance_required`, ou uma chamada respondeu `403 TERMS_ACCEPTANCE_REQUIRED`. Só alcança o termo de uso e o Sair, e não tem permissões até o aceite. | A da sessão normal. |
+| `authenticated` | Sessão normal. | 12 horas absolutas e 30 minutos sem atividade, como na API; a inatividade chega como `401`. |
+| `expired` | O prazo da sessão chegou, ou a API respondeu `401` a uma chamada com o token. Usuário e permissões somem, e o login mostra o aviso de sessão expirada. | Até a próxima entrada. |
 
-Enquanto os dados são simulados, o serviço de autenticação (`src/services/authService.js`) reproduz as rotas `auth` da API: login com código da organização, e-mail e senha, bloqueio depois de cinco falhas, primeiro acesso, pedido de recuperação, redefinição pelo link e troca da própria senha. Os usuários de demonstração compartilham uma senha inventada, guardada em `src/data/mocks/credentials.js` e fora do objeto do usuário, porque a API nunca devolve senha. Os atalhos de demonstração do login continuam entrando direto com um usuário de cada perfil. Nos dois caminhos, as permissões vêm da matriz local. A API devolve as permissões efetivas do usuário no login (`data.session`) e em `GET /profile`.
+O serviço de autenticação (`src/services/authService.js`) usa as rotas `auth` e `profile` da API: login com código da organização, e-mail e senha, primeiro acesso, pedido de recuperação, redefinição pelo link, troca da própria senha, Sair e, depois do aceite do termo, a sessão recarregada por `GET /profile`. A sessão do login (`data.session`) chega às telas com o perfil dentro do usuário e o nome fantasia em `tradeName`, o formato que elas já liam. O token e a sessão ficam no `sessionStorage`: recarregar a página, inclusive a recarga automática depois de um deploy, mantém a sessão, e outra aba ou outro navegador não a herdam. O `localStorage` não é usado, porque é compartilhado entre as abas e continua depois que o navegador fecha. O Sair encerra a sessão na tela antes da resposta da API, para que um logout que falhe não prenda ninguém. Bloqueio por tentativas, prazos e mensagens são os da API.
+
+O termo de uso (`/termo-de-uso`) mostra o texto vigente, que a API manda em Markdown com só cinco construções (títulos de dois níveis, parágrafos, listas e negrito); `src/utils/termsMarkdown.js` as lê e a tela as monta em React, sem HTML injetado. O aceite envia a versão exibida: se outra versão saiu durante a leitura, a API recusa, e o texto novo é lido de novo.
 
 ## Rotas e navegação
 
 Os endereços, a permissão de cada tela e os itens do menu ficam em `src/constants/routes.js`; a árvore de rotas, em `src/routes.jsx`.
 
-- **Rotas públicas:** login (`/login`), pedido de recuperação de senha (`/recuperar-senha`) e redefinição pelo link enviado por e-mail (`/redefinir-senha?token=`). Quem já tem sessão e abre o login vai para a página inicial.
+- **Rotas públicas:** login (`/login`), pedido de recuperação de senha (`/recuperar-senha`), redefinição pelo link enviado por e-mail (`/redefinir-senha?token=`) e aceite do convite pelo link enviado por e-mail (`/aceitar-convite?token=`). Os dois endereços dos e-mails são os que a API usa para montar os links (`PASSWORD_RESET_URL` e `INVITATION_ACCEPT_URL`); o token sai só do endereço e não é guardado no navegador. Quem já tem sessão e abre o login vai para a página inicial.
+- **Termo de uso:** `/termo-de-uso` só abre com a sessão no estado `terms`; o aceite libera a mesma sessão e leva à página inicial. O rodapé de todas as telas, inclusive o login, leva à página pública do termo na origem da API (`/termos`), em outra aba.
 - **Primeiro acesso:** `/primeiro-acesso` só abre com a sessão restrita; sem ela, leva ao login. Depois da troca, a API encerra a sessão restrita, e o login abre com o código da organização e o e-mail preenchidos.
-- **Rotas autenticadas:** ficam dentro de `RequireSession`, que leva ao primeiro acesso quem está com a sessão restrita e ao login quem não tem sessão ou está com a sessão expirada; no segundo caso, o login mostra o aviso de sessão expirada (UC01, fluxo alternativo). Cada rota exige a permissão de leitura da sua tela, por `RequirePermission`: sem ela, aparece a página de acesso negado, e a tela não é montada.
+- **Rotas autenticadas:** ficam dentro de `RequireSession`, que leva ao primeiro acesso quem está com a sessão restrita, ao termo de uso quem ainda não aceitou a versão vigente e ao login quem não tem sessão ou está com a sessão expirada; no segundo caso, o login mostra o aviso de sessão expirada (UC01, fluxo alternativo). Cada rota exige a permissão de leitura da sua tela, por `RequirePermission`: sem ela, aparece a página de acesso negado, e a tela não é montada.
 - **Página inicial:** escolhida por permissão, nesta ordem: painel (`dashboard:read`), organizações (`platform_organizations:read`) e pacientes (`patients:read`).
 - **Telas abaixo de um item do menu:** `/pacientes/novo` (cadastro, `patients:create`), `/pacientes/:patientId` (detalhe, `patients:read`), `/pacientes/:patientId/editar` (edição, `patients:update`), `/pacientes/:patientId/historico` (histórico e evolução, `patient_history:read`), `/pacientes/:patientId/registrar` (registro de visita, `follow_ups:create`), `/registros/:followUpId` (detalhe do registro, `patient_history:read`), `/alertas/:alertId` (detalhe do alerta, `alerts:read`), `/formularios/novo` (formulário novo, `forms:create`), `/formularios/:formId` (página do formulário, `forms:read`), `/painel/:indicator` (detalhe de um indicador do painel, `dashboard:read`), `/usuarios/:userId` (página do usuário, `users:read`), `/auditoria/:eventId` (detalhe do evento, `audit_events:read`), `/organizacoes/nova` (cadastro de organização, `platform_organizations:create`) e `/organizacoes/:organizationId` (página da organização, `platform_organizations:read`). Cada uma exige a permissão que a API pede para a ação dela; o item do menu continua marcado nelas.
 - **Listas por paciente (Registros, Medicamentos e Alertas):** a API só lista registros, medicamentos e alertas de um paciente, então essas telas pedem o paciente primeiro, pelo componente `PatientPicker`, e o guardam na query do endereço (`/medicamentos?paciente=…`); quem alcança um paciente só entra direto na lista dele. A escolha oferece os pacientes ativos, como a listagem da API; o paciente inativo que vem no endereço, pelo detalhe dele, é buscado pelo id. A lista de registros usa a lista e os filtros do histórico do paciente, e cada registro leva ao detalhe dele. A de alertas guarda a aba na query (`&aba=critico`), e cada alerta leva ao detalhe dele.
@@ -217,11 +230,11 @@ O navegador só oferece instalar em contexto seguro (HTTPS ou `localhost`): em p
 | Todas | Item "Dashboard" | Item "Painel" | Nome do requisito (RF015, painel operacional) e interface em português. |
 | Todas | Botão "Logout" no rodapé do menu lateral | "Sair" no menu do usuário, na barra superior | A barra superior existe em todos os layouts; a barra inferior do cuidador no celular não tem menu lateral. |
 
-Telas sem protótipo, necessárias para os fluxos da API: primeiro acesso (troca da senha provisória), redefinição da senha pelo link, equipe de cuidado do paciente, lista de registros por paciente, detalhe do registro com anexos e anulação, detalhe do alerta, regras de alerta, detalhe de cada indicador do painel, página do usuário, detalhe do evento de auditoria e, para o administrador da plataforma, organizações e planos.
+Telas sem protótipo, necessárias para os fluxos da API: primeiro acesso (troca da senha provisória), termo de uso e privacidade, aceite do convite pelo link, redefinição da senha pelo link, equipe de cuidado do paciente, lista de registros por paciente, detalhe do registro com anexos e anulação, detalhe do alerta, regras de alerta, detalhe de cada indicador do painel, página do usuário, detalhe do evento de auditoria e, para o administrador da plataforma, organizações e planos.
 
 ## Testes
 
-Os testes usam Vitest e Testing Library e ficam em `tests/`, espelhando as pastas de `src/`. A lógica, como permissões, máscaras, filtros, paginação e montagem de formulários dinâmicos, é escrita com o teste antes do código. As telas são testadas pelo comportamento visível: o que aparece em cada estado (carregando, vazio, erro, com dados) e o que cada perfil pode ou não fazer.
+Os testes usam Vitest e Testing Library e ficam em `tests/`, espelhando as pastas de `src/`. A lógica, como permissões, máscaras, filtros, paginação e montagem de formulários dinâmicos, é escrita com o teste antes do código. As telas são testadas pelo comportamento visível: o que aparece em cada estado (carregando, vazio, erro, com dados) e o que cada perfil pode ou não fazer. Nenhum teste chama a API real: o `fetch` responde por um stub, e cada teste diz qual seria a resposta da API e confere o que a tela pediu ([como contribuir](../CONTRIBUTING.md#testes)).
 
 ## Em aberto
 

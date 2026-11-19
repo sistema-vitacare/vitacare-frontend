@@ -1,44 +1,23 @@
-// Autenticação simulada, no formato das rotas `auth` da API (manual da API,
-// `docs/api/endpoints/auth-*.md`, conferido em 10/11/2026). Na integração,
-// cada função passa a chamar a rota correspondente, e telas e sessão não mudam.
+// Sessão e autenticação pelas rotas `auth` e `profile` da API (manual da API,
+// `auth-*.md` e `profile-consultar.md`, conferido em 19/11/2026 no commit
+// `3beebe3` do backend). A sessão fica na aba (`sessionStorage`): recarregar
+// a página, inclusive a recarga automática depois de um deploy, não pede
+// login de novo, e outra aba ou outro navegador não a herdam.
 import { permissionsFor } from '../constants/permissions.js';
-import {
-  DEMO_PASSWORD,
-  DEMO_RESET_LINK,
-  RECOVERY_GUIDANCE,
-} from '../data/mocks/credentials.js';
 import { organization } from '../data/mocks/organization.js';
 import { platformAdmin, platformOrganization } from '../data/mocks/platform.js';
 import {
   normalizeEmail,
   normalizeOrganizationCode,
-  validateEmail,
-  validateOrganizationCode,
-  validatePassword,
 } from '../utils/authValidation.js';
-import {
-  ApiError,
-  mockRequest,
-  notFoundError,
-  registerMockState,
-  respond,
-  validationError,
-} from './mockApi.js';
-import { allUsers, changeUser } from './userStore.js';
-
-const MINUTE_MS = 60 * 1000;
-
-// Prazos de `src/config/auth.config.ts` do backend.
-const SESSION_DURATION_MS = 12 * 60 * MINUTE_MS;
-const RESTRICTED_SESSION_DURATION_MS = 10 * MINUTE_MS;
-const LOGIN_MAX_FAILURES = 5;
-const LOGIN_BLOCK_MS = 15 * MINUTE_MS;
-const RECOVERY_MAX_PER_ACCOUNT = 3;
-const RECOVERY_WINDOW_MS = 60 * MINUTE_MS;
+import { apiGet, apiPost, apiPut, configureApiSession } from './apiClient.js';
+import { registerMockState } from './mockApi.js';
+import { allUsers } from './userStore.js';
 
 export const SESSION_STATES = Object.freeze({
   AUTHENTICATED: 'authenticated',
   PASSWORD_CHANGE_REQUIRED: 'password_change_required',
+  TERMS_ACCEPTANCE_REQUIRED: 'terms_acceptance_required',
 });
 
 export const AUTH_ERRORS = Object.freeze({
@@ -50,121 +29,253 @@ export const AUTH_ERRORS = Object.freeze({
   RESET_TOKEN_INVALID: 'AUTH_RESET_TOKEN_INVALID_OR_EXPIRED',
 });
 
-export const DEMO_PROFILES = [
-  'admin',
-  'professional',
-  'caregiver',
-  'family',
-  'platform_admin',
-];
+const STORAGE_KEY = 'vitacare:session';
 
-// Mensagens iguais às da API; as telas mostram os próprios textos, pelo código.
-const invalidCredentials = () =>
-  new ApiError({
-    status: 401,
-    code: AUTH_ERRORS.INVALID_CREDENTIALS,
-    message: 'Credenciais inválidas.',
-  });
-const temporarilyBlocked = () =>
-  new ApiError({
-    status: 429,
-    code: AUTH_ERRORS.TEMPORARILY_BLOCKED,
-    message: 'Muitas tentativas. Aguarde antes de tentar novamente.',
-  });
-const unauthenticated = () =>
-  new ApiError({
-    status: 401,
-    code: AUTH_ERRORS.UNAUTHENTICATED,
-    message: 'Sessão inválida ou expirada.',
-  });
-const passwordReuse = () =>
-  new ApiError({
-    status: 422,
-    code: AUTH_ERRORS.PASSWORD_REUSE,
-    message: 'A nova senha não pode ser igual à atual.',
-  });
-const resetTokenInvalid = () =>
-  new ApiError({
-    status: 422,
-    code: AUTH_ERRORS.RESET_TOKEN_INVALID,
-    message: 'Token de redefinição inválido ou expirado.',
-  });
+// Token e sessão da aba. O `sessionStorage` é a fonte: a leitura acompanha o
+// que está guardado, e o objeto só muda quando o texto guardado muda. Sem
+// ele (modo privado restrito), a sessão fica na memória até recarregar.
+let memory = null;
+let cache = { text: null, value: null };
+const listeners = new Set();
 
-// Estado que a API guarda no banco e no Redis: senha trocada, falhas de
-// login, pedidos de recuperação e link já usado. A situação do usuário fica
-// no estado dos usuários (`userStore.js`), que as telas de usuários mudam.
-let accounts = new Map();
-let loginFailures = new Map();
-let recoveryRequests = new Map();
-let resetLinkUsed = false;
-// Sessão de quem consulta. Na API, o token diz quem é; aqui, os serviços
-// simulados leem a sessão guardada no login, como o cliente HTTP vai guardar
-// o token.
-let viewer = null;
-
-registerMockState(() => {
-  accounts = new Map();
-  loginFailures = new Map();
-  recoveryRequests = new Map();
-  resetLinkUsed = false;
-  viewer = null;
-});
-
-/** Sessão simulada em uso pelos serviços; `null` sem login. */
-export function currentViewer() {
-  return viewer;
-}
-
-function openSession(account, state) {
-  viewer = buildSession(account, state);
-  return respond(viewer);
-}
-
-function directories() {
-  return [
-    { organization, members: allUsers() },
-    { organization: platformOrganization, members: [platformAdmin] },
-  ];
-}
-
-function findAccount(organizationCode, email) {
-  const directory = directories().find(
-    (entry) => entry.organization.code === organizationCode,
-  );
-  const user = directory?.members.find((member) => member.email === email);
-  if (!user) {
+function storage() {
+  try {
+    return window.sessionStorage ?? null;
+  } catch {
     return null;
   }
-  const changes = accounts.get(user.id) ?? {};
+}
+
+function save(value) {
+  const store = storage();
+  if (!store) {
+    memory = value;
+    return;
+  }
+  try {
+    if (value) {
+      const text = JSON.stringify(value);
+      store.setItem(STORAGE_KEY, text);
+      cache = { text, value };
+    } else {
+      store.removeItem(STORAGE_KEY);
+      cache = { text: null, value: null };
+    }
+  } catch {
+    memory = value;
+  }
+}
+
+function read() {
+  const store = storage();
+  if (!store) {
+    return memory;
+  }
+  try {
+    const text = store.getItem(STORAGE_KEY);
+    if (text !== cache.text) {
+      cache = { text, value: text ? JSON.parse(text) : null };
+    }
+    return cache.value;
+  } catch {
+    return memory;
+  }
+}
+
+function load() {
+  const stored = read();
+  if (stored && Date.now() >= Date.parse(stored.session.expiresAt)) {
+    // Sessão que passou do prazo absoluto não volta: a API já a recusa.
+    save(null);
+    return null;
+  }
+  return stored;
+}
+
+function notify(event) {
+  listeners.forEach((listener) => listener(event));
+}
+
+/**
+ * Sessão da API no formato que as telas e os serviços ainda simulados leem:
+ * o perfil dentro do usuário e o nome fantasia em `tradeName`.
+ */
+function toSession({ state, expiresAt, idleTimeoutSeconds, session }) {
   return {
-    user,
-    organization: directory.organization,
-    password: changes.password ?? DEMO_PASSWORD,
-    status: user.status,
+    state,
+    expiresAt,
+    idleTimeoutSeconds: idleTimeoutSeconds ?? null,
+    user: { ...session.user, profile: session.profile },
+    organization: {
+      id: session.organization.id,
+      code: session.organization.code,
+      tradeName: session.organization.name,
+      legalName: session.organization.legalName,
+      kind: session.organization.kind,
+      status: session.organization.status,
+      plan: session.organization.plan,
+    },
+    permissions: session.permissions,
+    terms: session.terms,
   };
 }
 
-function updateAccount(userId, changes) {
-  accounts.set(userId, { ...accounts.get(userId), ...changes });
+configureApiSession({
+  getToken: () => load()?.token ?? null,
+  onUnauthorized: () => {
+    save(null);
+    notify({ type: 'expired' });
+  },
+  // Termo novo publicado com a sessão aberta: as rotas passam a responder
+  // 403 até o aceite, e as permissões da sessão deixam de valer.
+  onTermsRequired: () => {
+    const stored = load();
+    if (!stored) {
+      return;
+    }
+    const session = {
+      ...stored.session,
+      state: SESSION_STATES.TERMS_ACCEPTANCE_REQUIRED,
+      permissions: [],
+      terms: { ...stored.session.terms, required: true },
+    };
+    save({ ...stored, session });
+    notify({ type: 'terms', session });
+  },
+});
+
+registerMockState(() => {
+  save(null);
+  memory = null;
+  listeners.clear();
+});
+
+/** Sessão de quem consulta; `null` sem login. */
+export function currentViewer() {
+  return load()?.session ?? null;
 }
 
-function assertValid(checks) {
-  const fields = Object.entries(checks)
-    .filter(([, error]) => error)
-    .map(([field, code]) => ({ field, code }));
-  if (fields.length > 0) {
-    throw validationError(fields);
+/** Sessão guardada na aba, se ainda estiver no prazo. */
+export function restoreSession() {
+  return currentViewer();
+}
+
+/**
+ * Avisa quando a API encerra a sessão (`{ type: 'expired' }`) ou pede o
+ * termo (`{ type: 'terms', session }`). Devolve a função que cancela.
+ */
+export function subscribeSession(listener) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+export async function login({ organizationCode, email, password }) {
+  const { data, meta } = await apiPost(
+    '/auth/login',
+    {
+      organizationCode: normalizeOrganizationCode(organizationCode),
+      email: normalizeEmail(email),
+      password,
+    },
+    { auth: false },
+  );
+  const session = toSession(data);
+  save({ token: data.accessToken, session });
+  return { data: session, meta };
+}
+
+/**
+ * GET /profile: as permissões depois do aceite do termo. O prazo e o estado
+ * são os da sessão guardada; o termo pendente vem de `terms.required`.
+ */
+export async function refreshSession() {
+  const stored = load();
+  const { data } = await apiGet('/profile');
+  const session = toSession({
+    state: data.terms.required
+      ? SESSION_STATES.TERMS_ACCEPTANCE_REQUIRED
+      : SESSION_STATES.AUTHENTICATED,
+    expiresAt: stored.session.expiresAt,
+    idleTimeoutSeconds: stored.session.idleTimeoutSeconds,
+    session: data,
+  });
+  save({ ...stored, session });
+  return session;
+}
+
+/**
+ * Sai pela API. A sessão termina na tela antes da resposta: o logout que
+ * falha ou responde 401 não deixa ninguém preso numa sessão.
+ */
+export async function endSession() {
+  const token = load()?.token;
+  save(null);
+  if (token) {
+    await apiPost('/auth/logout', undefined, { token }).catch(() => null);
   }
+  return { data: null, meta: {} };
 }
 
-function buildSession({ user, organization: org }, state) {
-  const restricted = state === SESSION_STATES.PASSWORD_CHANGE_REQUIRED;
-  const duration = restricted
-    ? RESTRICTED_SESSION_DURATION_MS
-    : SESSION_DURATION_MS;
-  return {
-    state,
-    expiresAt: new Date(Date.now() + duration).toISOString(),
+/** Troca da senha provisória, com o token da sessão restrita. */
+export async function completeFirstAccess({ newPassword }) {
+  const response = await apiPost('/auth/password/first-access', {
+    newPassword,
+  });
+  // A API encerra a sessão restrita e exige login com a senha nova.
+  save(null);
+  return response;
+}
+
+/** PUT /auth/password: a troca encerra todas as sessões da conta. */
+export async function changePassword({ currentPassword, newPassword }) {
+  const response = await apiPut('/auth/password', {
+    currentPassword,
+    newPassword,
+  });
+  save(null);
+  return response;
+}
+
+/** A resposta (`202`) é a mesma para conta existente ou não. */
+export function requestPasswordRecovery({ organizationCode, email }) {
+  return apiPost(
+    '/auth/password-recovery/request',
+    {
+      organizationCode: normalizeOrganizationCode(organizationCode),
+      email: normalizeEmail(email),
+    },
+    { auth: false },
+  );
+}
+
+export function resetPassword({ token, newPassword }) {
+  return apiPost(
+    '/auth/password-recovery/reset',
+    { token, newPassword },
+    { auth: false },
+  );
+}
+
+// Sessão de demonstração, sem a API. Fica só para os testes dos serviços
+// ainda simulados, que leem quem consulta por ela, e sai com o último deles
+// (FE-65 do INTEGRACAO.md).
+function demoAccount(profileCode) {
+  if (profileCode === 'platform_admin') {
+    return { user: platformAdmin, organization: platformOrganization };
+  }
+  const user = allUsers().find(
+    (candidate) =>
+      candidate.profile.code === profileCode && candidate.status === 'active',
+  );
+  return { user, organization };
+}
+
+export async function startDemoSession(profileCode) {
+  const { user, organization: org } = demoAccount(profileCode);
+  const session = {
+    state: SESSION_STATES.AUTHENTICATED,
+    expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
+    idleTimeoutSeconds: null,
     user: {
       id: user.id,
       name: user.name,
@@ -177,185 +288,9 @@ function buildSession({ user, organization: org }, state) {
       tradeName: org.tradeName,
       kind: org.kind ?? 'tenant',
     },
-    // A sessão restrita só alcança o primeiro acesso e o Sair.
-    permissions: restricted ? [] : permissionsFor(user.profile.code),
+    permissions: permissionsFor(user.profile.code),
+    terms: { required: false },
   };
-}
-
-// Como a API: o bloqueio é conferido antes da senha, então até a senha certa
-// é recusada enquanto ele dura; cada falha renova o prazo de 15 minutos.
-function assertLoginAllowed(key) {
-  const failures = loginFailures.get(key);
-  if (!failures || Date.now() >= failures.until) {
-    loginFailures.delete(key);
-    return;
-  }
-  if (failures.count >= LOGIN_MAX_FAILURES) {
-    throw temporarilyBlocked();
-  }
-}
-
-function recordLoginFailure(key) {
-  const count = (loginFailures.get(key)?.count ?? 0) + 1;
-  loginFailures.set(key, { count, until: Date.now() + LOGIN_BLOCK_MS });
-}
-
-export function login(credentials) {
-  return mockRequest(() => {
-    assertValid({
-      organizationCode: validateOrganizationCode(credentials.organizationCode),
-      email: validateEmail(credentials.email),
-      password: validatePassword(credentials.password),
-    });
-    const organizationCode = normalizeOrganizationCode(
-      credentials.organizationCode,
-    );
-    const email = normalizeEmail(credentials.email);
-    const key = `${organizationCode}|${email}`;
-    assertLoginAllowed(key);
-
-    const account = findAccount(organizationCode, email);
-    const allowed = ['active', 'pending'].includes(account?.status);
-    if (!allowed || account.password !== credentials.password) {
-      recordLoginFailure(key);
-      throw invalidCredentials();
-    }
-    loginFailures.delete(key);
-
-    // O convite vencido (24 h) também responde 401 na API; aqui ele é
-    // ignorado, porque as datas dos dados simulados ficam no passado e a
-    // convidada deixaria de demonstrar o primeiro acesso.
-    const state =
-      account.status === 'pending'
-        ? SESSION_STATES.PASSWORD_CHANGE_REQUIRED
-        : SESSION_STATES.AUTHENTICATED;
-    return openSession(account, state);
-  });
-}
-
-export function completeFirstAccess(session, { newPassword }) {
-  return mockRequest(() => {
-    const valid =
-      session?.state === SESSION_STATES.PASSWORD_CHANGE_REQUIRED &&
-      Date.now() < Date.parse(session.expiresAt);
-    if (!valid) {
-      throw unauthenticated();
-    }
-    assertValid({ newPassword: validatePassword(newPassword) });
-    const account = findAccount(session.organization.code, session.user.email);
-    if (newPassword === account.password) {
-      throw passwordReuse();
-    }
-    // O convidado aceita o convite neste passo, como na API.
-    updateAccount(account.user.id, { password: newPassword });
-    if (account.user.id !== platformAdmin.id) {
-      changeUser(account.user.id, { status: 'active', invitation: null });
-    }
-    return respond(null);
-  });
-}
-
-export function requestPasswordRecovery(request) {
-  return mockRequest(() => {
-    assertValid({
-      organizationCode: validateOrganizationCode(request.organizationCode),
-      email: validateEmail(request.email),
-    });
-    const key = `${normalizeOrganizationCode(request.organizationCode)}|${normalizeEmail(request.email)}`;
-    const now = Date.now();
-    const current = recoveryRequests.get(key);
-    const window =
-      current && now < current.until
-        ? current
-        : { count: 0, until: now + RECOVERY_WINDOW_MS };
-    if (window.count >= RECOVERY_MAX_PER_ACCOUNT) {
-      throw temporarilyBlocked();
-    }
-    recoveryRequests.set(key, { ...window, count: window.count + 1 });
-    // A resposta é a mesma exista ou não a conta, para que a rota não revele
-    // quem tem conta em qual organização.
-    return respond(null, { message: RECOVERY_GUIDANCE });
-  });
-}
-
-export function resetPassword({ token, newPassword }) {
-  return mockRequest(() => {
-    assertValid({ newPassword: validatePassword(newPassword) });
-    if (token !== DEMO_RESET_LINK.token || resetLinkUsed) {
-      throw resetTokenInvalid();
-    }
-    const account = findAccount(
-      DEMO_RESET_LINK.organizationCode,
-      DEMO_RESET_LINK.email,
-    );
-    resetLinkUsed = true;
-    updateAccount(account.user.id, { password: newPassword });
-    return respond(null);
-  });
-}
-
-function demoAccount(profileCode) {
-  if (profileCode === 'platform_admin') {
-    return { user: platformAdmin, organization: platformOrganization };
-  }
-  const user = allUsers().find(
-    (candidate) =>
-      candidate.profile.code === profileCode && candidate.status === 'active',
-  );
-  return user ? { user, organization } : null;
-}
-
-/** Atalho de demonstração: entra direto com um usuário do perfil escolhido. */
-export function startDemoSession(profileCode) {
-  return mockRequest(() => {
-    const account = demoAccount(profileCode);
-    if (!account) {
-      throw notFoundError('Não há usuário de demonstração para este perfil.');
-    }
-    return openSession(account, SESSION_STATES.AUTHENTICATED);
-  });
-}
-
-export function endSession() {
-  return mockRequest(() => {
-    viewer = null;
-    return respond(null);
-  });
-}
-
-const currentPasswordInvalid = () =>
-  new ApiError({
-    status: 422,
-    code: AUTH_ERRORS.CURRENT_PASSWORD_INVALID,
-    message: 'A senha atual não confere.',
-  });
-
-/**
- * PUT /auth/password: troca a senha de quem está na sessão. Como na API, a
- * troca encerra todas as sessões da conta, inclusive esta, e o login
- * seguinte pede a senha nova.
- */
-export function changePassword({ currentPassword, newPassword } = {}) {
-  return mockRequest(() => {
-    const valid =
-      viewer?.state === SESSION_STATES.AUTHENTICATED &&
-      Date.now() < Date.parse(viewer.expiresAt);
-    if (!valid) {
-      throw unauthenticated();
-    }
-    assertValid({
-      currentPassword: validatePassword(currentPassword ?? ''),
-      newPassword: validatePassword(newPassword ?? ''),
-    });
-    const account = findAccount(viewer.organization.code, viewer.user.email);
-    if (account.password !== currentPassword) {
-      throw currentPasswordInvalid();
-    }
-    if (newPassword === currentPassword) {
-      throw passwordReuse();
-    }
-    updateAccount(account.user.id, { password: newPassword });
-    viewer = null;
-    return respond(null);
-  });
+  save({ token: null, session });
+  return { data: session, meta: {} };
 }

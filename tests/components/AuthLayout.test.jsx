@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import AuthLayout from '../../src/components/AuthLayout.jsx';
 import { accessLayout } from '../../src/data/access.js';
+import { termsLinkContent } from '../../src/data/terms.js';
 import { theme } from '../../src/styles/theme.js';
 
 function renderLayout(ui) {
@@ -31,5 +32,13 @@ describe('AuthLayout', () => {
     for (const highlight of accessLayout.highlights) {
       expect(screen.getByText(highlight)).toBeInTheDocument();
     }
+  });
+
+  it('leva ao termo de uso pelo rodapé, inclusive no login', () => {
+    renderLayout(<AuthLayout title="Entrar">conteúdo</AuthLayout>);
+
+    expect(
+      screen.getByRole('link', { name: termsLinkContent.label }),
+    ).toHaveAttribute('href', 'http://api.test/termos');
   });
 });

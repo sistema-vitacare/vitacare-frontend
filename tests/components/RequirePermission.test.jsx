@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import RequirePermission from '../../src/components/RequirePermission.jsx';
 import SessionProvider from '../../src/components/SessionProvider.jsx';
 import { useSession } from '../../src/hooks/useSession.js';
+import { credentialsFor } from '../support/fixtures/sessions.js';
 
 function renderProtected() {
   const loadData = vi.fn();
@@ -30,7 +31,11 @@ function renderProtected() {
     </SessionProvider>,
   );
 
-  return { loadData, signIn: (profile) => act(() => session.signIn(profile)) };
+  return {
+    loadData,
+    signIn: (profile) =>
+      act(() => session.signInWithPassword(credentialsFor(profile))),
+  };
 }
 
 describe('RequirePermission', () => {

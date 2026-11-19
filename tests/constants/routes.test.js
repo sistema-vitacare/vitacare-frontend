@@ -224,3 +224,13 @@ describe('endereços de usuários, relatórios e auditoria', () => {
     expect(reportsPath()).toBe('/relatorios');
   });
 });
+
+describe('endereços que a API manda por e-mail', () => {
+  // A API monta os links com `PASSWORD_RESET_URL` e `INVITATION_ACCEPT_URL`
+  // (`.env.example` e `deploy-vps.md` do backend): mudar um destes endereços
+  // quebra os links já enviados.
+  it('mantém a redefinição de senha e o aceite do convite nos endereços da API', () => {
+    expect(PATHS.PASSWORD_RESET).toBe('/redefinir-senha');
+    expect(PATHS.INVITATION_ACCEPT).toBe('/aceitar-convite');
+  });
+});

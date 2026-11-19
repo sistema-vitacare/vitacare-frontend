@@ -14,15 +14,16 @@ import SessionProvider from '../../src/components/SessionProvider.jsx';
 import { navGroupLabels, navLabels } from '../../src/data/navigation.js';
 import { useSession } from '../../src/hooks/useSession.js';
 import { theme } from '../../src/styles/theme.js';
+import { credentialsFor } from '../support/fixtures/sessions.js';
 import { resetViewport, setViewportWidth } from '../support/viewport.js';
 
 // Entra com o perfil pedido e só então mostra o layout, como faz a
 // proteção por sessão nas rotas.
 function SignedIn({ profile }) {
-  const { status, signIn } = useSession();
+  const { status, signInWithPassword } = useSession();
   useEffect(() => {
-    signIn(profile);
-  }, [profile, signIn]);
+    signInWithPassword(credentialsFor(profile));
+  }, [profile, signInWithPassword]);
   return status === 'authenticated' ? <AppShell /> : null;
 }
 

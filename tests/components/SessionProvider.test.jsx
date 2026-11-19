@@ -1,20 +1,22 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import SessionProvider from '../../src/components/SessionProvider.jsx';
-import { DEMO_PASSWORD } from '../../src/data/mocks/credentials.js';
 import { useSession } from '../../src/hooks/useSession.js';
+import { apiGet } from '../../src/services/apiClient.js';
 import { resetMockState } from '../../src/services/mockApi.js';
+import { apiFailure, apiStub } from '../support/apiStub.js';
+import {
+  credentialsFor,
+  invitedUser,
+  sessionHandlers,
+} from '../support/fixtures/sessions.js';
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 
-const helena = {
-  organizationCode: 'ipe-amarelo',
-  email: 'helena.vasconcelos@ipeamarelo.example',
-  password: DEMO_PASSWORD,
-};
-// Convidada (status `pending`) dos dados simulados.
-const edna = { ...helena, email: 'edna.pires@ipeamarelo.example' };
+const helena = credentialsFor('admin');
+// Convidada (status `pending`) dos dados de demonstração.
+const edna = { ...helena, email: invitedUser.email };
 
 function renderSession() {
   return renderHook(() => useSession(), { wrapper: SessionProvider });
@@ -35,56 +37,13 @@ describe('SessionProvider', () => {
     expect(result.current.can('patients:read')).toBe(false);
   });
 
-  it('entra com o perfil escolhido e passa a ter as permissões dele', async () => {
-    const { result } = renderSession();
-
-    await act(() => result.current.signIn('professional'));
-
-    expect(result.current.status).toBe('authenticated');
-    expect(result.current.session.user.profile.code).toBe('professional');
-    expect(result.current.can('patients:create')).toBe(true);
-    expect(result.current.can('users:read')).toBe(false);
-  });
-
-  it('sai e volta ao estado anonymous', async () => {
-    const { result } = renderSession();
-    await act(() => result.current.signIn('caregiver'));
-    expect(result.current.status).toBe('authenticated');
-
-    await act(() => result.current.signOut());
-
-    expect(result.current.status).toBe('anonymous');
-    expect(result.current.can('follow_ups:create')).toBe(false);
-  });
-
-  it('continua autenticada até o último minuto das 12 horas', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
-    const { result } = renderSession();
-    await act(() => result.current.signIn('admin'));
-
-    act(() => vi.advanceTimersByTime(12 * HOUR - 60 * 1000));
-
-    expect(result.current.status).toBe('authenticated');
-  });
-
-  it('expira depois de 12 horas e perde usuário e permissões', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
-    const { result } = renderSession();
-    await act(() => result.current.signIn('admin'));
-
-    act(() => vi.advanceTimersByTime(12 * HOUR));
-
-    expect(result.current.status).toBe('expired');
-    expect(result.current.session).toBeNull();
-    expect(result.current.can('dashboard:read')).toBe(false);
-  });
-
-  it('entra pelo formulário com código, e-mail e senha', async () => {
+  it('entra pelo formulário e passa a ter as permissões que a API devolve', async () => {
     const { result } = renderSession();
 
     await act(() => result.current.signInWithPassword(helena));
 
     expect(result.current.status).toBe('authenticated');
+    expect(result.current.session.user.profile.code).toBe('admin');
     expect(result.current.can('dashboard:read')).toBe(true);
   });
 
@@ -110,6 +69,92 @@ describe('SessionProvider', () => {
     expect(result.current.can('patients:read')).toBe(false);
   });
 
+  it('deixa quem não aceitou o termo vigente no estado terms, sem permissões', async () => {
+    apiStub().use(sessionHandlers({ termsPending: ['admin'] }));
+    const { result } = renderSession();
+
+    await act(() => result.current.signInWithPassword(helena));
+
+    expect(result.current.status).toBe('terms');
+    expect(result.current.can('dashboard:read')).toBe(false);
+  });
+
+  it('libera a mesma sessão depois do aceite, recarregando-a pelo GET /profile', async () => {
+    apiStub().use(sessionHandlers({ termsPending: ['admin'] }));
+    const { result } = renderSession();
+    await act(() => result.current.signInWithPassword(helena));
+
+    await act(() => result.current.reloadSession());
+
+    expect(result.current.status).toBe('authenticated');
+    expect(result.current.can('dashboard:read')).toBe(true);
+  });
+
+  it('volta com a sessão guardada na aba quando a página recarrega', async () => {
+    const first = renderSession();
+    await act(() => first.result.current.signInWithPassword(helena));
+    first.unmount();
+
+    const { result } = renderSession();
+
+    expect(result.current.status).toBe('authenticated');
+    expect(result.current.session.user.email).toBe(helena.email);
+  });
+
+  it('passa a expired quando a API encerra a sessão numa chamada qualquer', async () => {
+    const { result } = renderSession();
+    await act(() => result.current.signInWithPassword(helena));
+    apiStub().use({
+      'GET /patients': () =>
+        apiFailure(401, 'AUTH_UNAUTHENTICATED', 'Autenticação necessária.'),
+    });
+
+    await act(() => apiGet('/patients').catch(() => null));
+
+    expect(result.current.status).toBe('expired');
+    expect(result.current.session).toBeNull();
+  });
+
+  it('passa ao termo quando a API pede o aceite numa chamada qualquer', async () => {
+    const { result } = renderSession();
+    await act(() => result.current.signInWithPassword(helena));
+    apiStub().use({
+      'GET /patients': () =>
+        apiFailure(
+          403,
+          'TERMS_ACCEPTANCE_REQUIRED',
+          'Aceite o termo de uso para continuar.',
+        ),
+    });
+
+    await act(() => apiGet('/patients').catch(() => null));
+
+    expect(result.current.status).toBe('terms');
+    expect(result.current.can('dashboard:read')).toBe(false);
+  });
+
+  it('continua autenticada até o último minuto das 12 horas', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    const { result } = renderSession();
+    await act(() => result.current.signInWithPassword(helena));
+
+    act(() => vi.advanceTimersByTime(12 * HOUR - 60 * 1000));
+
+    expect(result.current.status).toBe('authenticated');
+  });
+
+  it('expira depois de 12 horas e perde usuário e permissões', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    const { result } = renderSession();
+    await act(() => result.current.signInWithPassword(helena));
+
+    act(() => vi.advanceTimersByTime(12 * HOUR));
+
+    expect(result.current.status).toBe('expired');
+    expect(result.current.session).toBeNull();
+    expect(result.current.can('dashboard:read')).toBe(false);
+  });
+
   it('expira a sessão restrita em 10 minutos', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
     const { result } = renderSession();
@@ -123,27 +168,55 @@ describe('SessionProvider', () => {
   });
 
   it('conclui o primeiro acesso, encerra a sessão restrita e guarda organização e e-mail para o login', async () => {
+    apiStub().use({
+      'POST /auth/password/first-access': () => ({ data: null, meta: {} }),
+    });
     const { result } = renderSession();
     await act(() => result.current.signInWithPassword(edna));
 
     await act(() => result.current.completeFirstAccess('senha-definitiva'));
 
+    expect(apiStub().last('POST /auth/password/first-access').body).toEqual({
+      newPassword: 'senha-definitiva',
+    });
     expect(result.current.status).toBe('anonymous');
     expect(result.current.session).toBeNull();
     expect(result.current.notice).toEqual({
       kind: 'passwordChanged',
       organizationCode: 'ipe-amarelo',
-      email: 'edna.pires@ipeamarelo.example',
+      email: invitedUser.email,
     });
   });
 
+  it('mantém a sessão restrita quando o primeiro acesso é recusado', async () => {
+    apiStub().use({
+      'POST /auth/password/first-access': () =>
+        apiFailure(
+          422,
+          'AUTH_PASSWORD_REUSE',
+          'A nova senha não pode ser igual à atual.',
+        ),
+    });
+    const { result } = renderSession();
+    await act(() => result.current.signInWithPassword(edna));
+
+    await act(() =>
+      expect(
+        result.current.completeFirstAccess('senha-provisoria'),
+      ).rejects.toMatchObject({ code: 'AUTH_PASSWORD_REUSE' }),
+    );
+
+    expect(result.current.status).toBe('restricted');
+  });
+
   it('troca a própria senha, encerra a sessão e guarda organização e e-mail para o login', async () => {
+    apiStub().use({ 'PUT /auth/password': () => ({ data: null, meta: {} }) });
     const { result } = renderSession();
     await act(() => result.current.signInWithPassword(helena));
 
     await act(() =>
       result.current.changePassword({
-        currentPassword: DEMO_PASSWORD,
+        currentPassword: helena.password,
         newPassword: 'senha-nova-da-helena',
       }),
     );
@@ -152,18 +225,19 @@ describe('SessionProvider', () => {
     expect(result.current.notice).toEqual({
       kind: 'passwordChanged',
       organizationCode: 'ipe-amarelo',
-      email: 'helena.vasconcelos@ipeamarelo.example',
+      email: helena.email,
     });
-    await act(() =>
-      result.current.signInWithPassword({
-        ...helena,
-        password: 'senha-nova-da-helena',
-      }),
-    );
-    expect(result.current.status).toBe('authenticated');
   });
 
   it('mantém a sessão quando a senha atual não confere', async () => {
+    apiStub().use({
+      'PUT /auth/password': () =>
+        apiFailure(
+          422,
+          'AUTH_CURRENT_PASSWORD_INVALID',
+          'Senha atual inválida.',
+        ),
+    });
     const { result } = renderSession();
     await act(() => result.current.signInWithPassword(helena));
 
@@ -179,39 +253,34 @@ describe('SessionProvider', () => {
     expect(result.current.status).toBe('authenticated');
   });
 
-  it('mantém a sessão restrita quando o primeiro acesso é recusado', async () => {
-    const { result } = renderSession();
-    await act(() => result.current.signInWithPassword(edna));
-
-    await act(() =>
-      expect(
-        result.current.completeFirstAccess(DEMO_PASSWORD),
-      ).rejects.toMatchObject({ code: 'AUTH_PASSWORD_REUSE' }),
-    );
-
-    expect(result.current.status).toBe('restricted');
-  });
-
   it('limpa o aviso do primeiro acesso na próxima entrada', async () => {
+    apiStub().use({
+      'POST /auth/password/first-access': () => ({ data: null, meta: {} }),
+    });
     const { result } = renderSession();
     await act(() => result.current.signInWithPassword(edna));
     await act(() => result.current.completeFirstAccess('senha-definitiva'));
 
-    await act(() =>
-      result.current.signInWithPassword({
-        ...edna,
-        password: 'senha-definitiva',
-      }),
-    );
+    await act(() => result.current.signInWithPassword(helena));
 
     expect(result.current.status).toBe('authenticated');
     expect(result.current.notice).toBeNull();
   });
 
+  it('sai pela API e volta ao estado anonymous', async () => {
+    const { result } = renderSession();
+    await act(() => result.current.signInWithPassword(helena));
+
+    await act(() => result.current.signOut());
+
+    expect(apiStub().last('POST /auth/logout')).toBeDefined();
+    expect(result.current.status).toBe('anonymous');
+    expect(result.current.can('dashboard:read')).toBe(false);
+  });
+
   it('sai da sessão restrita pelo Sair', async () => {
     const { result } = renderSession();
     await act(() => result.current.signInWithPassword(edna));
-    expect(result.current.status).toBe('restricted');
 
     await act(() => result.current.signOut());
 

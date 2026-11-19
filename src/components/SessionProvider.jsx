@@ -7,22 +7,45 @@ import {
   completeFirstAccess as completeFirstAccessRequest,
   endSession,
   login,
-  startDemoSession,
+  refreshSession,
+  restoreSession,
+  subscribeSession,
 } from '../services/authService.js';
 
 const ANONYMOUS = { status: 'anonymous', session: null, notice: null };
 const EXPIRED = { status: 'expired', session: null, notice: null };
 
+const STATUS_BY_STATE = {
+  [SESSION_STATES.PASSWORD_CHANGE_REQUIRED]: 'restricted',
+  [SESSION_STATES.TERMS_ACCEPTANCE_REQUIRED]: 'terms',
+};
+
 function stateFor(session) {
-  const status =
-    session.state === SESSION_STATES.PASSWORD_CHANGE_REQUIRED
-      ? 'restricted'
-      : 'authenticated';
+  if (!session) {
+    return ANONYMOUS;
+  }
+  const status = STATUS_BY_STATE[session.state] ?? 'authenticated';
   return { status, session, notice: null };
 }
 
 export default function SessionProvider({ children }) {
-  const [state, setState] = useState(ANONYMOUS);
+  // A sessão guardada na aba volta ao recarregar a página.
+  const [state, setState] = useState(() => stateFor(restoreSession()));
+
+  // A API encerra a sessão (401 de qualquer chamada, inclusive pela
+  // inatividade de 30 minutos) ou pede o termo novo (403) sem que a tela
+  // saiba: o serviço de autenticação avisa, e a sessão muda aqui.
+  useEffect(
+    () =>
+      subscribeSession((event) => {
+        if (event.type === 'expired') {
+          setState(EXPIRED);
+        } else if (event.type === 'terms') {
+          setState(stateFor(event.session));
+        }
+      }),
+    [],
+  );
 
   // Ao chegar o prazo absoluto, a sessão acaba mesmo sem interação, como na
   // API: depois disso, nenhuma tela pode continuar mostrando dados. Vale para
@@ -36,14 +59,14 @@ export default function SessionProvider({ children }) {
     return () => clearTimeout(timer);
   }, [state.session]);
 
-  const signIn = useCallback(async (profileCode) => {
-    const response = await startDemoSession(profileCode);
-    setState(stateFor(response.data));
-  }, []);
-
   const signInWithPassword = useCallback(async (credentials) => {
     const response = await login(credentials);
     setState(stateFor(response.data));
+  }, []);
+
+  // Depois do aceite do termo, a mesma sessão passa a ter as permissões.
+  const reloadSession = useCallback(async () => {
+    setState(stateFor(await refreshSession()));
   }, []);
 
   const { session } = state;
@@ -76,10 +99,8 @@ export default function SessionProvider({ children }) {
   // A API encerra a sessão restrita e exige login com a senha nova.
   const completeFirstAccess = useCallback(
     (newPassword) =>
-      endWithNewPassword(() =>
-        completeFirstAccessRequest(session, { newPassword }),
-      ),
-    [endWithNewPassword, session],
+      endWithNewPassword(() => completeFirstAccessRequest({ newPassword })),
+    [endWithNewPassword],
   );
 
   // A troca da própria senha encerra todas as sessões da conta, inclusive
@@ -99,16 +120,16 @@ export default function SessionProvider({ children }) {
     return {
       ...state,
       can: (permission) => granted.has(permission),
-      signIn,
       signInWithPassword,
+      reloadSession,
       completeFirstAccess,
       changePassword,
       signOut,
     };
   }, [
     state,
-    signIn,
     signInWithPassword,
+    reloadSession,
     completeFirstAccess,
     changePassword,
     signOut,

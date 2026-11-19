@@ -4,14 +4,19 @@ import { useSession } from '../hooks/useSession.js';
 
 /**
  * Libera as rotas filhas só com sessão ativa. A sessão restrita vai ao
- * primeiro acesso, o único lugar que ela alcança na API. Sem sessão, ou com a
- * sessão expirada, leva ao login; no segundo caso, o próprio login mostra o
- * aviso, porque o estado `expired` continua na sessão até a próxima entrada.
+ * primeiro acesso, o único lugar que ela alcança na API, e a sessão com o
+ * termo pendente vai ao termo de uso, porque a API recusa as outras rotas
+ * até o aceite. Sem sessão, ou com a sessão expirada, leva ao login; no
+ * segundo caso, o próprio login mostra o aviso, porque o estado `expired`
+ * continua na sessão até a próxima entrada.
  */
 export default function RequireSession() {
   const { status } = useSession();
   if (status === 'restricted') {
     return <Navigate to={PATHS.FIRST_ACCESS} replace />;
+  }
+  if (status === 'terms') {
+    return <Navigate to={PATHS.TERMS} replace />;
   }
   if (status !== 'authenticated') {
     return <Navigate to={PATHS.LOGIN} replace />;
