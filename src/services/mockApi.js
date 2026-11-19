@@ -2,6 +2,8 @@
 // estas funções enquanto não há integração; depois, o cliente HTTP produz os
 // mesmos objetos, e páginas e hooks não mudam.
 
+import { ApiError } from './apiClient.js';
+
 // Nos testes não há espera; no navegador, o atraso deixa os estados de
 // carregamento visíveis, como numa rede real.
 const DELAY_MS = import.meta.env.MODE === 'test' ? 0 : 350;
@@ -9,17 +11,8 @@ const DELAY_MS = import.meta.env.MODE === 'test' ? 0 : 350;
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 
-/** Erro com os campos do corpo `{ error }` da API. */
-export class ApiError extends Error {
-  constructor({ status, code, message, detail = null, fields = null }) {
-    super(message);
-    this.name = 'ApiError';
-    this.status = status;
-    this.code = code;
-    this.detail = detail;
-    this.fields = fields;
-  }
-}
+// O erro é o do cliente HTTP, para que simulado e API cheguem iguais às telas.
+export { ApiError };
 
 // `crypto.randomUUID` só existe em contexto seguro (HTTPS ou localhost); a
 // versão simulada aberta por HTTP fora do localhost quebraria com ele.
