@@ -5,9 +5,13 @@ import { afterEach, describe, expect, it } from 'vitest';
 import RequireSession from '../../src/components/RequireSession.jsx';
 import SessionProvider from '../../src/components/SessionProvider.jsx';
 import { PATHS } from '../../src/constants/routes.js';
-import { DEMO_PASSWORD } from '../../src/data/mocks/credentials.js';
 import { useSession } from '../../src/hooks/useSession.js';
 import { resetMockState } from '../../src/services/mockApi.js';
+import { apiStub } from '../support/apiStub.js';
+import {
+  TEST_PASSWORD,
+  sessionHandlers,
+} from '../support/fixtures/sessions.js';
 
 // Entra sem passar pela tela de login, que tem testes próprios.
 function SignInButton({ email }) {
@@ -19,7 +23,7 @@ function SignInButton({ email }) {
         signInWithPassword({
           organizationCode: 'ipe-amarelo',
           email,
-          password: DEMO_PASSWORD,
+          password: TEST_PASSWORD,
         })
       }
     >
@@ -48,6 +52,7 @@ function renderGuard() {
       },
       { path: PATHS.LOGIN, element: <LoginStub /> },
       { path: PATHS.FIRST_ACCESS, element: <p>Primeiro acesso</p> },
+      { path: PATHS.TERMS, element: <p>Termo de uso</p> },
     ],
     { initialEntries: ['/pacientes'] },
   );
@@ -100,6 +105,22 @@ describe('RequireSession', () => {
 
     await waitFor(() =>
       expect(router.state.location.pathname).toBe(PATHS.FIRST_ACCESS),
+    );
+    expect(screen.queryByText('Tela protegida')).not.toBeInTheDocument();
+  });
+
+  it('leva ao termo de uso quem ainda não aceitou a versão vigente', async () => {
+    apiStub().use(sessionHandlers({ termsPending: ['admin'] }));
+    const router = renderGuard();
+
+    await signInAndOpenProtected(
+      router,
+      'helena.vasconcelos@ipeamarelo.example',
+      'terms',
+    );
+
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(PATHS.TERMS),
     );
     expect(screen.queryByText('Tela protegida')).not.toBeInTheDocument();
   });

@@ -26,17 +26,12 @@ import { firstAccessContent } from '../src/data/firstAccess.js';
 import { followUpDetailContent } from '../src/data/followUpPages.js';
 import { formPageContent } from '../src/data/formPage.js';
 import { loginContent } from '../src/data/login.js';
-import {
-  DEMO_PASSWORD,
-  DEMO_RESET_LINK,
-} from '../src/data/mocks/credentials.js';
 import { navLabels } from '../src/data/navigation.js';
 import { organizationNewContent } from '../src/data/organizationPages.js';
 import { patientDetailContent } from '../src/data/patientDetail.js';
 import { patientFormContent } from '../src/data/patientForm.js';
 import { patientHistoryContent } from '../src/data/patientHistory.js';
 import { recoveryContent, resetContent } from '../src/data/passwordRecovery.js';
-import { profileLabels } from '../src/data/profiles.js';
 import { statusContent } from '../src/data/status.js';
 import { visitRecordContent } from '../src/data/visitRecord.js';
 import { reportsPageContent } from '../src/data/managementReports.js';
@@ -49,6 +44,8 @@ import { resetMockState } from '../src/services/mockApi.js';
 import { theme } from '../src/styles/theme.js';
 import { preloadPages } from './support/preloadPages.js';
 import { resetViewport, setViewportWidth } from './support/viewport.js';
+import { apiStub } from './support/apiStub.js';
+import { credentialsFor } from './support/fixtures/sessions.js';
 
 await preloadPages();
 
@@ -76,21 +73,18 @@ function heading(name) {
   return screen.findByRole('heading', { level: 1, name });
 }
 
-// Entra pelo atalho de demonstração da tela de login.
+// Entra pelo formulário de login, com o usuário de demonstração do perfil,
+// que o stub da API reconhece.
 async function signInAs(profile) {
-  fireEvent.click(
-    await screen.findByRole('button', { name: profileLabels[profile] }),
-  );
+  await fillLogin(credentialsFor(profile));
 }
 
-// Entra pelo formulário de login, com a senha de demonstração.
 async function signInWithForm(email) {
+  await fillLogin({ ...credentialsFor('admin'), email });
+}
+
+async function fillLogin(values) {
   await heading(loginContent.title);
-  const values = {
-    organizationCode: 'ipe-amarelo',
-    email,
-    password: DEMO_PASSWORD,
-  };
   for (const [name, value] of Object.entries(values)) {
     fireEvent.change(
       screen.getByLabelText(accessFields[name].label, { selector: 'input' }),
@@ -269,7 +263,7 @@ describe('rotas', () => {
   });
 
   it('abre a redefinição de senha pelo endereço do link do e-mail, sem sessão', async () => {
-    renderApp(`${PATHS.PASSWORD_RESET}?token=${DEMO_RESET_LINK.token}`);
+    renderApp(`${PATHS.PASSWORD_RESET}?token=token-do-link`);
 
     expect(await heading(resetContent.title)).toBeInTheDocument();
   });
@@ -341,16 +335,17 @@ describe('rotas', () => {
     expect(await heading(navLabels.forms)).toBeInTheDocument();
   });
 
-  it('abre o registro de visita para a cuidadora e o nega a quem não registra', async () => {
+  it('abre o registro de visita para a cuidadora', async () => {
     const router = renderApp(PATHS.LOGIN);
     await signInAs('caregiver');
     await heading(navLabels.patients);
 
     await act(() => router.navigate(patientPath(DIRCE, 'visit')));
     expect(await heading(visitRecordContent.title)).toBeInTheDocument();
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: /Rosângela Prado/ }));
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Sair' }));
+  it('nega o registro de visita a quem não registra', async () => {
+    const router = renderApp(PATHS.LOGIN);
     await signInAs('professional');
     await heading(navLabels.patients);
     await act(() => router.navigate(patientPath(DIRCE, 'visit')));
@@ -386,7 +381,7 @@ describe('rotas', () => {
     expect(await heading(navLabels.alerts)).toBeInTheDocument();
   });
 
-  it('abre o detalhe do alerta a quem lê alertas e o nega à plataforma', async () => {
+  it('abre o detalhe do alerta a quem lê alertas', async () => {
     const router = renderApp(PATHS.LOGIN);
     await signInAs('professional');
     await heading(navLabels.patients);
@@ -398,11 +393,10 @@ describe('rotas', () => {
 
     await act(() => router.navigate(alertPath('nao-existe')));
     expect(await heading(alertDetailContent.notFound)).toBeInTheDocument();
+  });
 
-    fireEvent.click(
-      screen.getByRole('button', { name: /Rafael Moura Brandão/ }),
-    );
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Sair' }));
+  it('nega o detalhe do alerta à plataforma', async () => {
+    const router = renderApp(PATHS.LOGIN);
     await signInAs('platform_admin');
     // A página inicial da plataforma são as organizações.
     await heading(navLabels.organizations);
@@ -412,7 +406,7 @@ describe('rotas', () => {
     expect(await heading(statusContent.accessDenied.title)).toBeInTheDocument();
   });
 
-  it('abre o painel e o detalhe de um indicador ao administrador e os nega ao profissional', async () => {
+  it('abre o painel e o detalhe de um indicador ao administrador', async () => {
     const router = renderApp(PATHS.LOGIN);
     await signInAs('admin');
     await heading(navLabels.dashboard);
@@ -421,16 +415,17 @@ describe('rotas', () => {
     expect(
       await heading(dashboardIndicatorContent.titles.users),
     ).toBeInTheDocument();
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: /Helena Vasconcelos/ }));
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Sair' }));
+  it('nega o detalhe de um indicador ao profissional', async () => {
+    const router = renderApp(PATHS.LOGIN);
     await signInAs('professional');
     await heading(navLabels.patients);
     await act(() => router.navigate(dashboardIndicatorPath('users')));
     expect(await heading(statusContent.accessDenied.title)).toBeInTheDocument();
   });
 
-  it('liga a lista de usuários à página do usuário e as nega ao profissional', async () => {
+  it('liga a lista de usuários à página do usuário', async () => {
     const router = renderApp(PATHS.LOGIN);
     await signInAs('admin');
     await heading(navLabels.dashboard);
@@ -444,16 +439,17 @@ describe('rotas', () => {
     );
     expect(await heading('Rafael Moura Brandão')).toBeInTheDocument();
     expect(router.state.location.pathname).toBe(userPath(RAFAEL));
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: /Helena Vasconcelos/ }));
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Sair' }));
+  it('nega a página do usuário ao profissional', async () => {
+    const router = renderApp(PATHS.LOGIN);
     await signInAs('professional');
     await heading(navLabels.patients);
     await act(() => router.navigate(userPath(RAFAEL)));
     expect(await heading(statusContent.accessDenied.title)).toBeInTheDocument();
   });
 
-  it('abre os relatórios pelo menu e pelo detalhe do paciente e os nega à cuidadora', async () => {
+  it('abre os relatórios pelo menu e pelo detalhe do paciente', async () => {
     const router = renderApp(PATHS.LOGIN);
     await signInAs('professional');
     await heading(navLabels.patients);
@@ -469,11 +465,10 @@ describe('rotas', () => {
       await screen.findByRole('heading', { name: 'Dirce Albuquerque Moraes' }),
     ).toBeInTheDocument();
     expect(router.state.location.search).toBe(`?paciente=${DIRCE}`);
+  });
 
-    fireEvent.click(
-      screen.getByRole('button', { name: /Rafael Moura Brandão/ }),
-    );
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Sair' }));
+  it('nega os relatórios à cuidadora', async () => {
+    const router = renderApp(PATHS.LOGIN);
     await signInAs('caregiver');
     await heading(navLabels.patients);
     await act(() => router.navigate(PATHS.REPORTS));
@@ -483,7 +478,7 @@ describe('rotas', () => {
     ).toBeNull();
   });
 
-  it('liga a auditoria ao evento e o evento ao item, e nega a auditoria ao profissional', async () => {
+  it('liga a auditoria ao evento e o evento ao item', async () => {
     const router = renderApp(PATHS.LOGIN);
     await signInAs('admin');
     await heading(navLabels.dashboard);
@@ -503,16 +498,17 @@ describe('rotas', () => {
       await screen.findByRole('link', { name: 'Patrícia Lemos Duarte' }),
     );
     expect(await heading('Patrícia Lemos Duarte')).toBeInTheDocument();
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: /Helena Vasconcelos/ }));
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Sair' }));
+  it('nega o evento de auditoria ao profissional', async () => {
+    const router = renderApp(PATHS.LOGIN);
     await signInAs('professional');
     await heading(navLabels.patients);
     await act(() => router.navigate(auditEventPath(PROFILE_CHANGED_EVENT)));
     expect(await heading(statusContent.accessDenied.title)).toBeInTheDocument();
   });
 
-  it('liga as organizações ao cadastro e à página da organização, e as nega ao administrador da organização', async () => {
+  it('liga as organizações ao cadastro e à página da organização', async () => {
     const router = renderApp(PATHS.LOGIN);
     await signInAs('platform_admin');
     await heading(navLabels.organizations);
@@ -530,9 +526,10 @@ describe('rotas', () => {
     );
     expect(await heading('Clínica Bem Viver')).toBeInTheDocument();
     expect(router.state.location.pathname).toBe(organizationPath(BEM_VIVER));
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: /Caio Furtado/ }));
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Sair' }));
+  it('nega as organizações ao administrador da organização', async () => {
+    const router = renderApp(PATHS.LOGIN);
     await signInAs('admin');
     await heading(navLabels.dashboard);
     for (const path of [
@@ -548,6 +545,7 @@ describe('rotas', () => {
   });
 
   it('abre as configurações pelo menu e troca a senha pelo menu do usuário, de volta ao login com o aviso', async () => {
+    apiStub().use({ 'PUT /auth/password': () => ({ data: null, meta: {} }) });
     const router = renderApp(PATHS.LOGIN);
     await signInAs('admin');
     await heading(navLabels.dashboard);
@@ -570,7 +568,7 @@ describe('rotas', () => {
       name: changePasswordContent.title,
     });
     const values = {
-      currentPassword: DEMO_PASSWORD,
+      currentPassword: credentialsFor('admin').password,
       newPassword: 'senha-nova-da-helena',
       confirmation: 'senha-nova-da-helena',
     };

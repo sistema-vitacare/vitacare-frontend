@@ -1,11 +1,5 @@
 import { ThemeProvider } from '@mui/material';
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Navigate, createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -17,15 +11,17 @@ import {
   fieldErrorMessages,
 } from '../../../src/data/access.js';
 import { loginContent } from '../../../src/data/login.js';
-import { DEMO_PASSWORD } from '../../../src/data/mocks/credentials.js';
 import { profileLabels } from '../../../src/data/profiles.js';
 import { useSession } from '../../../src/hooks/useSession.js';
-import {
-  failNextRequest,
-  resetMockState,
-} from '../../../src/services/mockApi.js';
 import LoginPage from '../../../src/pages/Login/LoginPage.jsx';
+import { resetMockState } from '../../../src/services/mockApi.js';
 import { theme } from '../../../src/styles/theme.js';
+import { apiFailure, apiStub } from '../../support/apiStub.js';
+import {
+  credentialsFor,
+  invitedUser,
+  sessionHandlers,
+} from '../../support/fixtures/sessions.js';
 
 // Primeiro acesso simplificado: conclui a troca com um clique, para que o
 // teste chegue ao login com o aviso de senha definida.
@@ -41,15 +37,16 @@ function FirstAccessStub() {
   );
 }
 
-function renderLogin() {
+function renderLogin(entry = PATHS.LOGIN) {
   const router = createMemoryRouter(
     [
       { path: PATHS.LOGIN, element: <LoginPage /> },
       { path: PATHS.DASHBOARD, element: <p>Painel</p> },
       { path: PATHS.FIRST_ACCESS, element: <FirstAccessStub /> },
+      { path: PATHS.TERMS, element: <p>Termo de uso</p> },
       { path: PATHS.PASSWORD_RECOVERY, element: <p>Recuperação</p> },
     ],
-    { initialEntries: [PATHS.LOGIN] },
+    { initialEntries: [entry] },
   );
   render(
     <ThemeProvider theme={theme}>
@@ -77,11 +74,7 @@ function submit() {
   fireEvent.click(screen.getByRole('button', { name: loginContent.submit }));
 }
 
-const helena = {
-  organizationCode: 'ipe-amarelo',
-  email: 'helena.vasconcelos@ipeamarelo.example',
-  password: DEMO_PASSWORD,
-};
+const helena = credentialsFor('admin');
 
 afterEach(() => {
   resetMockState();
@@ -163,15 +156,18 @@ describe('LoginPage', () => {
     expect(field('password')).toHaveValue('');
   });
 
-  it('avisa do bloqueio na sexta tentativa, depois de cinco falhas', async () => {
+  it('avisa do bloqueio temporário que a API aplica depois de cinco falhas', async () => {
+    apiStub().use({
+      'POST /auth/login': () =>
+        apiFailure(
+          429,
+          'AUTH_TEMPORARILY_BLOCKED',
+          'Muitas tentativas. Aguarde antes de tentar novamente.',
+        ),
+    });
     renderLogin();
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      fill({ ...helena, password: 'senha-errada' });
-      submit();
-      await screen.findByText(loginContent.invalidCredentials);
-    }
-
     fill(helena);
+
     submit();
 
     expect(await screen.findByText(loginContent.blocked)).toBeInTheDocument();
@@ -189,7 +185,7 @@ describe('LoginPage', () => {
 
   it('leva a convidada ao primeiro acesso', async () => {
     const router = renderLogin();
-    fill({ ...helena, email: 'edna.pires@ipeamarelo.example' });
+    fill({ ...helena, email: invitedUser.email });
 
     submit();
 
@@ -198,9 +194,24 @@ describe('LoginPage', () => {
     );
   });
 
+  it('leva ao termo de uso quem ainda não aceitou a versão vigente', async () => {
+    apiStub().use(sessionHandlers({ termsPending: ['admin'] }));
+    const router = renderLogin();
+    fill(helena);
+
+    submit();
+
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(PATHS.TERMS),
+    );
+  });
+
   it('volta do primeiro acesso com o aviso e com código e e-mail preenchidos', async () => {
+    apiStub().use({
+      'POST /auth/password/first-access': () => ({ data: null, meta: {} }),
+    });
     renderLogin();
-    fill({ ...helena, email: 'edna.pires@ipeamarelo.example' });
+    fill({ ...helena, email: invitedUser.email });
     submit();
 
     fireEvent.click(
@@ -211,14 +222,36 @@ describe('LoginPage', () => {
       await screen.findByText(loginContent.passwordChanged),
     ).toBeInTheDocument();
     expect(field('organizationCode')).toHaveValue('ipe-amarelo');
-    expect(field('email')).toHaveValue('edna.pires@ipeamarelo.example');
+    expect(field('email')).toHaveValue(invitedUser.email);
     expect(field('password')).toHaveValue('');
+  });
+
+  it('abre depois do aceite do convite com a mensagem da API e os campos preenchidos', async () => {
+    renderLogin({
+      pathname: PATHS.LOGIN,
+      state: {
+        notice: {
+          kind: 'invitationAccepted',
+          organizationCode: 'ipe-amarelo',
+          email: 'nova.pessoa@ipeamarelo.example',
+          message: 'Senha cadastrada. Entre com seu e-mail e a nova senha.',
+        },
+      },
+    });
+
+    expect(
+      await screen.findByText(
+        'Senha cadastrada. Entre com seu e-mail e a nova senha.',
+      ),
+    ).toBeInTheDocument();
+    expect(field('organizationCode')).toHaveValue('ipe-amarelo');
+    expect(field('email')).toHaveValue('nova.pessoa@ipeamarelo.example');
   });
 
   it('mostra erro com nova tentativa quando a requisição falha', async () => {
     renderLogin();
     fill(helena);
-    failNextRequest();
+    apiStub().fail('POST /auth/login');
 
     submit();
 
@@ -226,18 +259,14 @@ describe('LoginPage', () => {
       await screen.findByText(accessErrors.unexpected),
     ).toBeInTheDocument();
     expect(screen.queryByText(loginContent.invalidCredentials)).toBeNull();
-    expect(field('password')).toHaveValue(DEMO_PASSWORD);
+    expect(field('password')).toHaveValue(helena.password);
   });
 
-  it('mantém os atalhos de demonstração, que levam à página inicial', async () => {
-    const router = renderLogin();
-    const demo = screen.getByRole('region', { name: loginContent.demoTitle });
+  it('não oferece mais os atalhos de demonstração: a entrada é pela API', () => {
+    renderLogin();
 
-    fireEvent.click(
-      within(demo).getByRole('button', { name: profileLabels.admin }),
-    );
-
-    expect(await screen.findByText('Painel')).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe(PATHS.DASHBOARD);
+    for (const label of Object.values(profileLabels)) {
+      expect(screen.queryByRole('button', { name: label })).toBeNull();
+    }
   });
 });

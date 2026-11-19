@@ -4,11 +4,18 @@ import TopBar from '../../src/components/TopBar.jsx';
 import { PATHS } from '../../src/constants/routes.js';
 import { changePasswordContent } from '../../src/data/access.js';
 import { profileLabels } from '../../src/data/profiles.js';
-import { DEMO_PROFILES } from '../../src/services/authService.js';
 import { topBarSearchContent } from '../../src/data/patientList.js';
 import { resetMockState } from '../../src/services/mockApi.js';
 import { renderPage } from '../support/renderPage.jsx';
 import { resetViewport } from '../support/viewport.js';
+
+const PROFILES = [
+  'admin',
+  'professional',
+  'caregiver',
+  'family',
+  'platform_admin',
+];
 
 function renderTopBar(profile) {
   return renderPage(
@@ -50,7 +57,7 @@ describe('busca da barra superior', () => {
 });
 
 describe('menu do usuário', () => {
-  it.each(DEMO_PROFILES)(
+  it.each(PROFILES)(
     'oferece "Alterar senha" e "Sair" ao perfil %s',
     async (profile) => {
       renderTopBar(profile);

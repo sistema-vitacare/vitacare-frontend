@@ -18,6 +18,10 @@ export const PATHS = Object.freeze({
   PASSWORD_RECOVERY: '/recuperar-senha',
   PASSWORD_RESET: '/redefinir-senha',
   FIRST_ACCESS: '/primeiro-acesso',
+  // Os dois endereços abaixo e o da redefinição chegam por e-mail: a API
+  // monta os links com `INVITATION_ACCEPT_URL` e `PASSWORD_RESET_URL`.
+  INVITATION_ACCEPT: '/aceitar-convite',
+  TERMS: '/termo-de-uso',
   HOME: '/',
   DASHBOARD: '/painel',
   DASHBOARD_INDICATOR: '/painel/:indicator',

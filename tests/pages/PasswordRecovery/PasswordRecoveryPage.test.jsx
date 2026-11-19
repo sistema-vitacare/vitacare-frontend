@@ -9,14 +9,22 @@ import {
   accessFields,
   fieldErrorMessages,
 } from '../../../src/data/access.js';
-import { RECOVERY_GUIDANCE } from '../../../src/data/mocks/credentials.js';
 import { recoveryContent } from '../../../src/data/passwordRecovery.js';
 import PasswordRecoveryPage from '../../../src/pages/PasswordRecovery/PasswordRecoveryPage.jsx';
-import {
-  failNextRequest,
-  resetMockState,
-} from '../../../src/services/mockApi.js';
+import { resetMockState } from '../../../src/services/mockApi.js';
 import { theme } from '../../../src/styles/theme.js';
+import { apiFailure, apiStub, reply } from '../../support/apiStub.js';
+
+const REQUEST = 'POST /auth/password-recovery/request';
+// A API escolhe o texto pelo SMTP do servidor; a tela só o mostra.
+const GUIDANCE =
+  'Se a conta estiver ativa, enviaremos ao e-mail informado um link válido por 15 minutos.';
+
+function answerWithGuidance() {
+  apiStub().use({
+    [REQUEST]: () => reply(202, { data: null, meta: { message: GUIDANCE } }),
+  });
+}
 
 function renderRecovery() {
   const router = createMemoryRouter(
@@ -84,31 +92,30 @@ describe('PasswordRecoveryPage', () => {
   });
 
   it('mostra a orientação da API depois do pedido', async () => {
+    answerWithGuidance();
     renderRecovery();
 
     request('helena.vasconcelos@ipeamarelo.example');
 
-    expect(await screen.findByText(RECOVERY_GUIDANCE)).toBeInTheDocument();
+    expect(await screen.findByText(GUIDANCE)).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: recoveryContent.submit }),
     ).not.toBeInTheDocument();
+    expect(apiStub().last(REQUEST).body).toEqual({
+      organizationCode: 'ipe-amarelo',
+      email: 'helena.vasconcelos@ipeamarelo.example',
+    });
   });
 
-  it('dá a mesma orientação para e-mail sem conta', async () => {
-    renderRecovery();
-
-    request('ninguem@ipeamarelo.example');
-
-    expect(await screen.findByText(RECOVERY_GUIDANCE)).toBeInTheDocument();
-  });
-
-  it('avisa do limite de pedidos da mesma conta', async () => {
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      renderRecovery();
-      request('helena.vasconcelos@ipeamarelo.example');
-      await screen.findByText(RECOVERY_GUIDANCE);
-      document.body.innerHTML = '';
-    }
+  it('avisa do limite de pedidos que a API aplica', async () => {
+    apiStub().use({
+      [REQUEST]: () =>
+        apiFailure(
+          429,
+          'AUTH_TEMPORARILY_BLOCKED',
+          'Muitas tentativas. Aguarde antes de tentar novamente.',
+        ),
+    });
     renderRecovery();
 
     request('helena.vasconcelos@ipeamarelo.example');
@@ -120,7 +127,7 @@ describe('PasswordRecoveryPage', () => {
 
   it('mostra erro e mantém o formulário quando a requisição falha', async () => {
     renderRecovery();
-    failNextRequest();
+    apiStub().fail(REQUEST);
 
     request('helena.vasconcelos@ipeamarelo.example');
 

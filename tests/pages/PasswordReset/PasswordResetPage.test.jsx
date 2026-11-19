@@ -5,11 +5,14 @@ import { RouterProvider } from 'react-router/dom';
 import { afterEach, describe, expect, it } from 'vitest';
 import { PATHS } from '../../../src/constants/routes.js';
 import { accessFields, fieldErrorMessages } from '../../../src/data/access.js';
-import { DEMO_RESET_LINK } from '../../../src/data/mocks/credentials.js';
 import { resetContent } from '../../../src/data/passwordRecovery.js';
 import PasswordResetPage from '../../../src/pages/PasswordReset/PasswordResetPage.jsx';
 import { resetMockState } from '../../../src/services/mockApi.js';
 import { theme } from '../../../src/styles/theme.js';
+import { apiFailure, apiStub, reply } from '../../support/apiStub.js';
+
+const RESET = 'POST /auth/password-recovery/reset';
+const LINK_TOKEN = 'token-do-link';
 
 function renderReset(token) {
   const query = token === undefined ? '' : `?token=${token}`;
@@ -63,7 +66,7 @@ describe('PasswordResetPage', () => {
   });
 
   it('valida o tamanho da nova senha e a confirmação antes do envio', async () => {
-    renderReset(DEMO_RESET_LINK.token);
+    renderReset(LINK_TOKEN);
 
     save('1234567', '1234568');
 
@@ -75,12 +78,17 @@ describe('PasswordResetPage', () => {
     ).toBeVisible();
   });
 
-  it('redefine a senha com o link válido e leva ao login', async () => {
-    const router = renderReset(DEMO_RESET_LINK.token);
+  it('redefine a senha com o token do link e leva ao login', async () => {
+    apiStub().use({ [RESET]: () => reply(201, { data: null, meta: {} }) });
+    const router = renderReset(LINK_TOKEN);
 
     save('senha-recuperada');
 
     expect(await screen.findByText(resetContent.success)).toBeInTheDocument();
+    expect(apiStub().last(RESET)).toMatchObject({
+      token: null,
+      body: { token: LINK_TOKEN, newPassword: 'senha-recuperada' },
+    });
     fireEvent.click(
       screen.getByRole('link', { name: resetContent.backToLogin }),
     );
@@ -90,6 +98,14 @@ describe('PasswordResetPage', () => {
   });
 
   it('com link desconhecido ou já usado, orienta a pedir outro', async () => {
+    apiStub().use({
+      [RESET]: () =>
+        apiFailure(
+          422,
+          'AUTH_RESET_TOKEN_INVALID_OR_EXPIRED',
+          'Token de redefinição inválido ou expirado.',
+        ),
+    });
     renderReset('link-qualquer');
 
     save('senha-recuperada');

@@ -15,18 +15,21 @@ import {
   changePasswordContent as content,
   fieldErrorMessages,
 } from '../../src/data/access.js';
-import { DEMO_PASSWORD } from '../../src/data/mocks/credentials.js';
 import { useSession } from '../../src/hooks/useSession.js';
 import { resetMockState } from '../../src/services/mockApi.js';
 import { theme } from '../../src/styles/theme.js';
+import { apiFailure, apiStub } from '../support/apiStub.js';
+import { credentialsFor } from '../support/fixtures/sessions.js';
+
+const admin = credentialsFor('admin');
 
 // Entra como administradora e mostra o estado da sessão ao lado do diálogo,
 // para conferir que a troca encerra a sessão.
 function Harness({ onClose }) {
-  const { status, signIn } = useSession();
+  const { status, signInWithPassword } = useSession();
   useEffect(() => {
-    signIn('admin');
-  }, [signIn]);
+    signInWithPassword(admin);
+  }, [signInWithPassword]);
   return (
     <>
       <p>Sessão: {status}</p>
@@ -92,6 +95,14 @@ describe('ChangePasswordDialog', () => {
   });
 
   it('aponta a senha atual que não confere', async () => {
+    apiStub().use({
+      'PUT /auth/password': () =>
+        apiFailure(
+          422,
+          'AUTH_CURRENT_PASSWORD_INVALID',
+          'Senha atual inválida.',
+        ),
+    });
     renderDialog();
     const dialog = await fill({
       currentPassword: 'senha-errada',
@@ -108,11 +119,19 @@ describe('ChangePasswordDialog', () => {
   });
 
   it('aponta a nova senha igual à atual', async () => {
+    apiStub().use({
+      'PUT /auth/password': () =>
+        apiFailure(
+          422,
+          'AUTH_PASSWORD_REUSE',
+          'A nova senha não pode ser igual à atual.',
+        ),
+    });
     renderDialog();
     const dialog = await fill({
-      currentPassword: DEMO_PASSWORD,
-      newPassword: DEMO_PASSWORD,
-      confirmation: DEMO_PASSWORD,
+      currentPassword: admin.password,
+      newPassword: admin.password,
+      confirmation: admin.password,
     });
 
     submit(dialog);
@@ -124,10 +143,11 @@ describe('ChangePasswordDialog', () => {
     ).toBeInTheDocument();
   });
 
-  it('troca a senha e encerra a sessão', async () => {
+  it('troca a senha pela API e encerra a sessão', async () => {
+    apiStub().use({ 'PUT /auth/password': () => ({ data: null, meta: {} }) });
     renderDialog();
     const dialog = await fill({
-      currentPassword: DEMO_PASSWORD,
+      currentPassword: admin.password,
       newPassword: 'senha-nova-123',
       confirmation: 'senha-nova-123',
     });
@@ -135,6 +155,10 @@ describe('ChangePasswordDialog', () => {
     submit(dialog);
 
     expect(await screen.findByText('Sessão: anonymous')).toBeInTheDocument();
+    expect(apiStub().last('PUT /auth/password').body).toEqual({
+      currentPassword: admin.password,
+      newPassword: 'senha-nova-123',
+    });
   });
 
   it('fecha pelo Cancelar', async () => {

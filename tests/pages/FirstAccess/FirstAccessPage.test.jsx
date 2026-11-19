@@ -14,11 +14,16 @@ import { PATHS } from '../../../src/constants/routes.js';
 import { accessFields, fieldErrorMessages } from '../../../src/data/access.js';
 import { firstAccessContent } from '../../../src/data/firstAccess.js';
 import { loginContent } from '../../../src/data/login.js';
-import { DEMO_PASSWORD } from '../../../src/data/mocks/credentials.js';
 import FirstAccessPage from '../../../src/pages/FirstAccess/FirstAccessPage.jsx';
 import LoginPage from '../../../src/pages/Login/LoginPage.jsx';
 import { resetMockState } from '../../../src/services/mockApi.js';
 import { theme } from '../../../src/styles/theme.js';
+import { apiFailure, apiStub } from '../../support/apiStub.js';
+import {
+  TEST_PASSWORD,
+  invitedUser,
+  loginData,
+} from '../../support/fixtures/sessions.js';
 
 const MINUTE = 60 * 1000;
 
@@ -54,10 +59,10 @@ function fill(values) {
 }
 
 // Entra pelo login como a convidada e espera a tela de primeiro acesso.
-async function enterAsInvited(password = DEMO_PASSWORD) {
+async function enterAsInvited(password = TEST_PASSWORD) {
   fill({
     organizationCode: 'ipe-amarelo',
-    email: 'edna.pires@ipeamarelo.example',
+    email: invitedUser.email,
     password,
   });
   fireEvent.click(screen.getByRole('button', { name: loginContent.submit }));
@@ -94,7 +99,13 @@ describe('FirstAccessPage', () => {
     await enterAsInvited();
 
     expect(screen.getByText('Edna Carvalho Pires')).toBeInTheDocument();
-    expect(screen.queryAllByRole('link')).toEqual([]);
+    // Nenhum link leva para dentro do aplicativo; o do termo de uso, no
+    // rodapé, abre a página pública da API.
+    expect(
+      screen
+        .queryAllByRole('link')
+        .filter((link) => link.getAttribute('href').startsWith('/')),
+    ).toEqual([]);
     expect(
       screen
         .getAllByRole('button')
@@ -118,10 +129,18 @@ describe('FirstAccessPage', () => {
   });
 
   it('recusa a nova senha igual à provisória, com o erro no campo', async () => {
+    apiStub().use({
+      'POST /auth/password/first-access': () =>
+        apiFailure(
+          422,
+          'AUTH_PASSWORD_REUSE',
+          'A nova senha não pode ser igual à atual.',
+        ),
+    });
     renderFlow();
     await enterAsInvited();
 
-    save(DEMO_PASSWORD);
+    save(TEST_PASSWORD);
 
     expect(
       await screen.findByText(fieldErrorMessages.newPassword.reuse),
@@ -130,6 +149,9 @@ describe('FirstAccessPage', () => {
   });
 
   it('depois da troca, volta ao login preenchido e entra com a senha nova', async () => {
+    apiStub().use({
+      'POST /auth/password/first-access': () => ({ data: null, meta: {} }),
+    });
     const router = renderFlow();
     await enterAsInvited();
 
@@ -138,8 +160,23 @@ describe('FirstAccessPage', () => {
     expect(
       await screen.findByText(loginContent.passwordChanged),
     ).toBeInTheDocument();
-    expect(field('email')).toHaveValue('edna.pires@ipeamarelo.example');
+    expect(apiStub().last('POST /auth/password/first-access')).toMatchObject({
+      token: `token-${invitedUser.id}`,
+      body: { newPassword: 'senha-definitiva' },
+    });
+    expect(field('email')).toHaveValue(invitedUser.email);
 
+    // Depois do primeiro acesso, a API ativa a conta e a senha nova vale.
+    apiStub().use({
+      'POST /auth/login': ({ body }) =>
+        body.password === 'senha-definitiva'
+          ? { data: loginData({ ...invitedUser, status: 'active' }), meta: {} }
+          : apiFailure(
+              401,
+              'AUTH_INVALID_CREDENTIALS',
+              'Credenciais inválidas.',
+            ),
+    });
     fill({ password: 'senha-definitiva' });
     fireEvent.click(screen.getByRole('button', { name: loginContent.submit }));
 

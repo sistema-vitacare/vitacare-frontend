@@ -1,8 +1,8 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEMO_PASSWORD } from '../../src/data/mocks/credentials.js';
 import { login, startDemoSession } from '../../src/services/authService.js';
 import { resetMockState } from '../../src/services/mockApi.js';
+import { TEST_PASSWORD } from '../support/fixtures/sessions.js';
 import {
   PATIENT_ERROR_CODES as CODES,
   createPatient,
@@ -35,7 +35,7 @@ async function signInWithEmail(email) {
   await login({
     organizationCode: 'ipe-amarelo',
     email,
-    password: DEMO_PASSWORD,
+    password: TEST_PASSWORD,
   });
 }
 
