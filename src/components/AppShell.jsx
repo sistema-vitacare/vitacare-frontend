@@ -7,6 +7,7 @@ import { shellContent } from '../data/navigation.js';
 import { useSession } from '../hooks/useSession.js';
 import BottomNav from './BottomNav.jsx';
 import NavList from './NavList.jsx';
+import TermsLink from './TermsLink.jsx';
 import TopBar from './TopBar.jsx';
 
 const SIDEBAR_WIDTH = 264;
@@ -144,11 +145,22 @@ export default function AppShell() {
             maxWidth: 1320,
             px: { xs: 2, md: 4 },
             pt: { xs: 3, md: 4 },
+            pb: { xs: 3, md: 4 },
+          }}
+        >
+          <Outlet />
+        </Box>
+        <Box
+          component="footer"
+          sx={{
+            width: '100%',
+            maxWidth: 1320,
+            px: { xs: 2, md: 4 },
             // Espaço para a barra inferior fixa não cobrir o fim da tela.
             pb: bottomNav ? 12 : { xs: 3, md: 4 },
           }}
         >
-          <Outlet />
+          <TermsLink />
         </Box>
       </Box>
 

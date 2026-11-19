@@ -20,6 +20,7 @@ import {
   FollowUpListPage,
   FormListPage,
   FormPage,
+  InvitationAcceptPage,
   LoginPage,
   MedicationListPage,
   OrganizationDetailPage,
@@ -33,6 +34,7 @@ import {
   PatientListPage,
   ReportsPage,
   SettingsPage,
+  TermsPage,
   UserDetailPage,
   UserListPage,
   VisitPage,
@@ -169,12 +171,18 @@ export const appRoutes = [
     errorElement: <StatusPage kind="error" />,
     element: pageSuspense,
     children: [
-      // Fora do `RequireSession`: quem esqueceu a senha não tem sessão, e o
-      // primeiro acesso usa a sessão restrita, que a própria tela confere.
+      // Fora do `RequireSession`: quem esqueceu a senha ou abre o convite não
+      // tem sessão; o primeiro acesso usa a sessão restrita e o termo de uso,
+      // a sessão com o termo pendente, que a própria tela confere.
       { path: PATHS.LOGIN, element: <LoginPage /> },
       { path: PATHS.PASSWORD_RECOVERY, element: <PasswordRecoveryPage /> },
       { path: PATHS.PASSWORD_RESET, element: <PasswordResetPage /> },
       { path: PATHS.FIRST_ACCESS, element: <FirstAccessPage /> },
+      { path: PATHS.TERMS, element: <TermsPage /> },
+      {
+        path: PATHS.INVITATION_ACCEPT,
+        element: <InvitationAcceptPage />,
+      },
       {
         element: <RequireSession />,
         children: [

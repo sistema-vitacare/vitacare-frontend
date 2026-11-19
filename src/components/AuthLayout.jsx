@@ -4,6 +4,7 @@ import { CheckCircle } from '@phosphor-icons/react';
 import { accessLayout } from '../data/access.js';
 import { appInfo } from '../data/app.js';
 import { shellContent } from '../data/navigation.js';
+import TermsLink from './TermsLink.jsx';
 
 // Entrada do formulário só com opacidade e deslocamento; o tema zera a
 // duração quando o sistema pede movimento reduzido.
@@ -136,6 +137,9 @@ export default function AuthLayout({ title, subtitle, children }) {
           >
             {appInfo.description}
           </Typography>
+          <Box sx={{ mt: 1 }}>
+            <TermsLink />
+          </Box>
         </Box>
       </Box>
     </Box>

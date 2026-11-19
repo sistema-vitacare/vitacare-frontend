@@ -36,6 +36,9 @@ export const FormListPage = lazy(
   () => import('./pages/Forms/FormListPage.jsx'),
 );
 export const FormPage = lazy(() => import('./pages/Forms/FormPage.jsx'));
+export const InvitationAcceptPage = lazy(
+  () => import('./pages/InvitationAccept/InvitationAcceptPage.jsx'),
+);
 export const LoginPage = lazy(() => import('./pages/Login/LoginPage.jsx'));
 export const MedicationListPage = lazy(
   () => import('./pages/Medications/MedicationListPage.jsx'),
@@ -73,6 +76,7 @@ export const ReportsPage = lazy(
 export const SettingsPage = lazy(
   () => import('./pages/Settings/SettingsPage.jsx'),
 );
+export const TermsPage = lazy(() => import('./pages/Terms/TermsPage.jsx'));
 export const UserDetailPage = lazy(
   () => import('./pages/Users/UserDetailPage.jsx'),
 );
