@@ -9,7 +9,7 @@ import {
   updateMedication,
 } from '../../src/services/medicationService.js';
 import { resetMockState } from '../../src/services/mockApi.js';
-import { deactivatePatient } from '../../src/services/patientService.js';
+import { changePatient } from '../../src/services/patientStore.js';
 
 // 10/11/2026, 12:00 em Brasília.
 const NOW = new Date('2026-11-10T15:00:00.000Z');
@@ -228,7 +228,7 @@ describe('updateMedication', () => {
     ).rejects.toMatchObject({ status: 409, code: 'MEDICATION_INACTIVE' });
 
     await startDemoSession('admin');
-    await deactivatePatient(DIRCE);
+    changePatient(DIRCE, { status: 'inactive' });
     await expect(
       updateMedication(LOSARTANA, { name: 'Losartana 100 mg' }),
     ).rejects.toMatchObject({
@@ -292,7 +292,7 @@ describe('deactivateMedication e reactivateMedication', () => {
 
   it('com o paciente inativo, inativa mas não reativa', async () => {
     await startDemoSession('admin');
-    await deactivatePatient(DIRCE);
+    changePatient(DIRCE, { status: 'inactive' });
 
     await expect(deactivateMedication(LOSARTANA)).resolves.toMatchObject({
       data: { status: 'inactive' },

@@ -42,7 +42,7 @@ export default function ResourceState({
   if (resource.status === 'empty') {
     return (
       <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
-        {emptyText}
+        {resource.meta?.message ?? emptyText}
       </Typography>
     );
   }
