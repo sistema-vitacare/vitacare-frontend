@@ -6,11 +6,9 @@ import { allFollowUps } from '../../src/services/followUpStore.js';
 import { allMedications } from '../../src/services/medicationStore.js';
 import { resetMockState } from '../../src/services/mockApi.js';
 import {
-  getPatientEvolution,
-  followUpsInPeriod,
-} from '../../src/services/patientService.js';
-import {
+  evolutionSeries,
   exportPatientReportPdf,
+  followUpsInPeriod,
   getPatientReport,
 } from '../../src/services/reportService.js';
 
@@ -77,13 +75,14 @@ describe('getPatientReport', () => {
     expect(sum(data.records.byAuthor)).toBe(data.records.total);
   });
 
-  it('tem as mesmas séries da evolução e os medicamentos ativos', async () => {
+  it('tem as séries de evolução dos registros do período e os medicamentos ativos', async () => {
     await startDemoSession('professional');
 
     const { data } = await getPatientReport(DIRCE);
-    const evolution = await getPatientEvolution(DIRCE);
+    const records = followUpsInPeriod(DIRCE, data.period, NOW);
 
-    expect(data.series).toEqual(evolution.data.series);
+    expect(data.series.length).toBeGreaterThan(0);
+    expect(data.series).toEqual(evolutionSeries(records));
     expect(data.medications.length).toBeGreaterThan(0);
     expect(data.medications.every((item) => item.status === 'active')).toBe(
       true,

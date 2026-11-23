@@ -98,11 +98,11 @@ function Counts({ overview }) {
 // importa na visita, e a série completa está no histórico.
 const PREVIOUS_COLUMN = { display: { xs: 'none', sm: 'table-cell' } };
 
-function Measurements({ measurements }) {
+function Measurements({ measurements, emptyMessage }) {
   if (measurements.length === 0) {
     return (
       <Typography color="text.secondary">
-        {content.measurements.empty}
+        {emptyMessage ?? content.measurements.empty}
       </Typography>
     );
   }
@@ -277,7 +277,7 @@ function Overview({ patientId }) {
   const overview = useResource(load);
   return (
     <ResourceState resource={overview}>
-      {(data) => (
+      {(data, meta) => (
         <Stack spacing={2.5}>
           <Counts overview={data} />
           <Box
@@ -292,7 +292,10 @@ function Overview({ patientId }) {
               title={content.measurements.title}
               subtitle={content.measurements.subtitle}
             >
-              <Measurements measurements={data.measurements} />
+              <Measurements
+                measurements={data.measurements}
+                emptyMessage={meta?.message}
+              />
             </SectionCard>
             <Stack spacing={2.5}>
               {data.activeMedications ? (

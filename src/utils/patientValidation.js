@@ -176,6 +176,31 @@ export function toPatientPayload(values) {
   };
 }
 
+const differs = (a, b) => JSON.stringify(a) !== JSON.stringify(b);
+
+/**
+ * Corpo do PATCH da edição: só o que mudou em relação ao paciente carregado,
+ * e no endereço só as partes alteradas. Mandar tudo traria de volta, em
+ * silêncio, um responsável que outra pessoa trocou durante a edição. Os dois
+ * lados passam pelo mesmo `toPatientPayload`, para máscara não contar como
+ * mudança.
+ */
+export function changedPatientFields(patient, values) {
+  const before = toPatientPayload(patientToValues(patient));
+  const after = toPatientPayload(values);
+  const changes = Object.fromEntries(
+    Object.entries(after).filter(
+      ([field, value]) => field !== 'address' && differs(value, before[field]),
+    ),
+  );
+  const address = Object.fromEntries(
+    Object.entries(after.address).filter(
+      ([part, value]) => value !== before.address[part],
+    ),
+  );
+  return Object.keys(address).length > 0 ? { ...changes, address } : changes;
+}
+
 /** Valores do formulário de edição a partir do paciente da API. */
 export function patientToValues(patient) {
   const address = Object.fromEntries(

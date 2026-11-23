@@ -65,6 +65,10 @@ export const patientDetailContent = {
       'O plano atingiu o limite de pacientes ativos. Inative outro paciente ou peça a mudança de plano.',
     PATIENT_PLAN_EXPIRED:
       'A vigência do plano venceu. A reativação fica bloqueada até a renovação.',
+    PATIENT_ALREADY_INACTIVE:
+      'O paciente já foi inativado, talvez em outra aba. Recarregue a página.',
+    PATIENT_ALREADY_ACTIVE:
+      'O paciente já foi reativado, talvez em outra aba. Recarregue a página.',
     unexpected: 'Não foi possível concluir agora. Tente de novo.',
   },
 };

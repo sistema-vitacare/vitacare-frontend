@@ -54,10 +54,10 @@ function Evolution({ patientId, filters }) {
         ) : null}
       </Box>
       <ResourceState resource={evolution}>
-        {(data) =>
+        {(data, meta) =>
           data.series.length === 0 ? (
             <Typography color="text.secondary">
-              {content.evolution.empty}
+              {meta?.message ?? content.evolution.empty}
             </Typography>
           ) : (
             <Box

@@ -20,12 +20,21 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { MagnifyingGlass, Plus } from '@phosphor-icons/react';
 import { useCallback } from 'react';
-import { Navigate, Link as RouterLink, useSearchParams } from 'react-router';
+import {
+  Navigate,
+  Link as RouterLink,
+  useLocation,
+  useSearchParams,
+} from 'react-router';
 import PageHeader from '../../components/PageHeader.jsx';
 import PatientStatusChip from '../../components/PatientStatusChip.jsx';
 import ResourceState from '../../components/ResourceState.jsx';
 import { PERMISSIONS as P } from '../../constants/permissions.js';
-import { PATHS, patientPath } from '../../constants/routes.js';
+import {
+  PATHS,
+  isDocumentSearch,
+  patientPath,
+} from '../../constants/routes.js';
 import { patientListContent as content } from '../../data/patientList.js';
 import { useResource } from '../../hooks/useResource.js';
 import { useSession } from '../../hooks/useSession.js';
@@ -36,7 +45,8 @@ import { initials } from '../../utils/initials.js';
 const PAGE_SIZE = 20;
 
 // Filtros no endereço, com nomes em português: o "voltar" do navegador e a
-// busca da barra superior abrem a lista no mesmo estado.
+// busca da barra superior abrem a lista no mesmo estado. A busca por CPF fica
+// no estado da rota, para o documento não ir ao histórico do navegador.
 const PARAMS = {
   search: 'busca',
   condition: 'condicao',
@@ -46,8 +56,9 @@ const PARAMS = {
 
 function useFilters() {
   const [params, setParams] = useSearchParams();
+  const { state } = useLocation();
   const filters = {
-    search: params.get(PARAMS.search) ?? '',
+    search: params.get(PARAMS.search) ?? state?.search ?? '',
     condition: params.get(PARAMS.condition) ?? '',
     status: params.get(PARAMS.status) === 'inactive' ? 'inactive' : 'active',
     page: Math.max(1, Number(params.get(PARAMS.page)) || 1),
@@ -56,13 +67,17 @@ function useFilters() {
   // Mudar um filtro volta à primeira página; valor padrão sai do endereço.
   function update(changes) {
     const next = { ...filters, page: 1, ...changes };
+    const document = isDocumentSearch(next.search);
     const entries = [
-      [PARAMS.search, next.search],
+      [PARAMS.search, document ? '' : next.search],
       [PARAMS.condition, next.condition],
       [PARAMS.status, next.status === 'active' ? '' : next.status],
       [PARAMS.page, next.page === 1 ? '' : String(next.page)],
     ].filter(([, value]) => value !== '');
-    setParams(new URLSearchParams(entries), { replace: true });
+    setParams(new URLSearchParams(entries), {
+      replace: true,
+      state: document ? { search: next.search } : null,
+    });
   }
 
   return [filters, update];

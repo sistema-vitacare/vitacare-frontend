@@ -136,6 +136,19 @@ export async function apiRequest(
   return payload ?? { data: null, meta: {} };
 }
 
+/**
+ * Rota com os valores escapados: `apiPath\`/patients/${id}\``. Um id vindo do
+ * endereço, como `../users/<id>`, levaria a chamada a outra rota da API com o
+ * token da sessão; escapado, vira um id só, que a API recusa.
+ */
+export function apiPath(parts, ...values) {
+  return parts
+    .map((part, index) =>
+      index < values.length ? part + encodeURIComponent(values[index]) : part,
+    )
+    .join('');
+}
+
 export const apiGet = (path, query, options) =>
   apiRequest('GET', path, { ...options, query });
 export const apiPost = (path, body, options) =>

@@ -20,7 +20,7 @@ import {
 import { useId, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { PERMISSIONS as P } from '../constants/permissions.js';
-import { PATHS } from '../constants/routes.js';
+import { patientSearch } from '../constants/routes.js';
 import { changePasswordContent } from '../data/access.js';
 import { shellContent } from '../data/navigation.js';
 import { topBarSearchContent } from '../data/patientList.js';
@@ -29,20 +29,17 @@ import { useSession } from '../hooks/useSession.js';
 import { initials } from '../utils/initials.js';
 import ChangePasswordDialog from './ChangePasswordDialog.jsx';
 
-// Busca de pacientes: leva à listagem com o termo no endereço, que a própria
-// listagem lê. Fica escondida no celular, onde a listagem tem a dela.
+// Busca de pacientes: leva à listagem com o termo, que a própria listagem lê
+// (o CPF pelo estado da rota, fora do endereço). Fica escondida no celular,
+// onde a listagem tem a dela.
 function PatientSearch() {
   const navigate = useNavigate();
   const [term, setTerm] = useState('');
 
   function handleSubmit(event) {
     event.preventDefault();
-    const query = term.trim();
-    navigate(
-      query
-        ? `${PATHS.PATIENTS}?${new URLSearchParams({ busca: query })}`
-        : PATHS.PATIENTS,
-    );
+    const { to, state } = patientSearch(term);
+    navigate(to, { state });
   }
 
   return (
