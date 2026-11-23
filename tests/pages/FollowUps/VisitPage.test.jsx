@@ -1,14 +1,19 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PATHS, patientPath } from '../../../src/constants/routes.js';
 import { visitRecordContent as content } from '../../../src/data/visitRecord.js';
 import VisitPage from '../../../src/pages/FollowUps/VisitPage.jsx';
-import { startDemoSession } from '../../../src/services/authService.js';
 import { listFollowUps } from '../../../src/services/followUpService.js';
 import { resetMockState } from '../../../src/services/mockApi.js';
-import { deactivatePatient } from '../../../src/services/patientService.js';
+import { changePatient } from '../../../src/services/patientStore.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
+import { apiStub } from '../../support/apiStub.js';
+import {
+  activePatients,
+  apiPatient,
+  patientRoutes,
+} from '../../support/fixtures/patients.js';
 
 const DIRCE = '0b639b83-76d0-570a-9017-7b6263d892cf';
 const CLEUSA = '6d0a941f-2690-5190-928c-6b8f43771fe2';
@@ -38,6 +43,11 @@ async function chooseForm(name) {
 afterEach(() => {
   resetMockState();
   resetViewport();
+});
+
+// As telas ainda simuladas escolhem o paciente pela API (Bloco 10).
+beforeEach(() => {
+  apiStub().use(patientRoutes());
 });
 
 describe('VisitPage', () => {
@@ -172,8 +182,13 @@ describe('VisitPage', () => {
   });
 
   it('diz que paciente inativo não recebe registro', async () => {
-    await startDemoSession('professional');
-    await deactivatePatient(CLEUSA);
+    // Inativo para a API e para os registros simulados.
+    changePatient(CLEUSA, { status: 'inactive' });
+    apiStub().use(
+      patientRoutes(activePatients(), [
+        apiPatient(CLEUSA, { status: 'inactive' }),
+      ]),
+    );
 
     renderVisit(CLEUSA);
 

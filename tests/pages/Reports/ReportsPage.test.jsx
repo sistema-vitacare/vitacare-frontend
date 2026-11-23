@@ -16,6 +16,8 @@ import { resetMockState } from '../../../src/services/mockApi.js';
 import { changeTerm } from '../../../src/services/organizationStore.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
+import { apiStub } from '../../support/apiStub.js';
+import { patientRoutes } from '../../support/fixtures/patients.js';
 
 const NOW = new Date('2026-11-13T15:00:00.000Z');
 
@@ -40,6 +42,11 @@ afterEach(() => {
   vi.restoreAllMocks();
   delete URL.createObjectURL;
   delete URL.revokeObjectURL;
+});
+
+// As telas ainda simuladas escolhem o paciente pela API (Bloco 10).
+beforeEach(() => {
+  apiStub().use(patientRoutes());
 });
 
 describe('ReportsPage', () => {

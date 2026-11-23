@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PATHS, medicationsPath } from '../../../src/constants/routes.js';
 import {
   medicationCardContent as cards,
@@ -8,11 +8,16 @@ import {
   medicationListContent as list,
 } from '../../../src/data/medicationPages.js';
 import MedicationListPage from '../../../src/pages/Medications/MedicationListPage.jsx';
-import { startDemoSession } from '../../../src/services/authService.js';
 import { resetMockState } from '../../../src/services/mockApi.js';
-import { deactivatePatient } from '../../../src/services/patientService.js';
+import { changePatient } from '../../../src/services/patientStore.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
+import { apiStub } from '../../support/apiStub.js';
+import {
+  activePatients,
+  apiPatient,
+  patientRoutes,
+} from '../../support/fixtures/patients.js';
 
 const DIRCE = '0b639b83-76d0-570a-9017-7b6263d892cf';
 const BENEDITO = 'c7c8c69f-5e5b-5334-9e76-a51461033100';
@@ -44,6 +49,11 @@ function choose(label, option) {
 afterEach(() => {
   resetMockState();
   resetViewport();
+});
+
+// As telas ainda simuladas escolhem o paciente pela API (Bloco 10).
+beforeEach(() => {
+  apiStub().use(patientRoutes());
 });
 
 describe('MedicationListPage', () => {
@@ -248,8 +258,14 @@ describe('MedicationListPage', () => {
   });
 
   it('com o paciente inativo, só deixa inativar e explica por quê', async () => {
-    await startDemoSession('admin');
-    await deactivatePatient(DIRCE);
+    // Inativo para a API, que não o lista, e para os medicamentos simulados.
+    changePatient(DIRCE, { status: 'inactive' });
+    apiStub().use(
+      patientRoutes(
+        activePatients().filter((patient) => patient.id !== DIRCE),
+        [apiPatient(DIRCE, { status: 'inactive' })],
+      ),
+    );
     renderList('professional', medicationsPath(DIRCE));
 
     expect(await screen.findByText(list.inactivePatient)).toBeVisible();

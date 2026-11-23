@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PATHS, alertsPath } from '../../../src/constants/routes.js';
 import {
   alertListContent as content,
@@ -9,6 +9,8 @@ import AlertListPage from '../../../src/pages/Alerts/AlertListPage.jsx';
 import { resetMockState } from '../../../src/services/mockApi.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
+import { apiStub } from '../../support/apiStub.js';
+import { apiPatient, patientRoutes } from '../../support/fixtures/patients.js';
 
 const DIRCE = '0b639b83-76d0-570a-9017-7b6263d892cf';
 const OSVALDO = '91fb0349-7fb0-5be9-ac72-eb28afa2b17e';
@@ -39,6 +41,11 @@ function counter(label) {
 afterEach(() => {
   resetMockState();
   resetViewport();
+});
+
+// As telas ainda simuladas escolhem o paciente pela API (Bloco 10).
+beforeEach(() => {
+  apiStub().use(patientRoutes());
 });
 
 describe('AlertListPage', () => {
@@ -112,6 +119,7 @@ describe('AlertListPage', () => {
   });
 
   it('mostra os alertas à familiar, sem o botão de resolver', async () => {
+    apiStub().use(patientRoutes([apiPatient(DIRCE)]));
     renderList('family');
 
     expect(await tab(content.tabs.open, 4)).toBeVisible();
