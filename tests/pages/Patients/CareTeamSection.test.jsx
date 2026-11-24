@@ -262,6 +262,70 @@ describe('CareTeamSection', () => {
     expect(apiStub().last(REVOKE).params).toEqual({ linkId: 'l3' });
   });
 
+  it('fecha a revogação e recarrega a equipe quando o vínculo já foi revogado', async () => {
+    renderSection(apiPatient(DIRCE));
+    await waitFor(() => expect(members()).toHaveLength(3));
+    // Outra aba revogou a Sônia antes: a API recusa e a lista já não a traz.
+    const revoked =
+      'O vínculo já foi revogado. Para devolver o acesso, crie outro.';
+    apiStub().use({
+      'GET /patient-links': () =>
+        apiPage([
+          apiLink('l2', 'caregiver', ROSANGELA),
+          apiLink('l1', 'responsible_professional', RAFAEL),
+        ]),
+      [REVOKE]: () => apiFailure(409, 'PATIENT_LINK_REVOKED', revoked),
+    });
+
+    fireEvent.click(screen.getAllByRole('button', { name: content.revoke })[1]);
+    const dialog = await screen.findByRole('dialog', {
+      name: content.revokeDialog.title,
+    });
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: content.revokeDialog.confirm,
+      }),
+    );
+
+    expect(await screen.findByText(revoked)).toBeInTheDocument();
+    await waitFor(() => expect(members()).toHaveLength(2));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    // A próxima revogação começa limpa: sem o aviso e sem o erro anterior.
+    fireEvent.click(screen.getByRole('button', { name: content.revoke }));
+    const next = await screen.findByRole('dialog', {
+      name: content.revokeDialog.title,
+    });
+    expect(within(next).queryByText(content.revokeDialog.error)).toBeNull();
+    expect(screen.queryByText(revoked)).toBeNull();
+  });
+
+  it('fecha a edição e recarrega a equipe quando o vínculo não existe mais', async () => {
+    renderSection(apiPatient(DIRCE));
+    await waitFor(() => expect(members()).toHaveLength(3));
+    const gone = 'Vínculo não encontrado.';
+    apiStub().use({
+      'GET /patient-links': () =>
+        apiPage([
+          apiLink('l3', 'family', SONIA, { linkType: 'Filha' }),
+          apiLink('l1', 'responsible_professional', RAFAEL),
+        ]),
+      [UPDATE]: () => apiFailure(404, 'PATIENT_LINK_NOT_FOUND', gone),
+    });
+
+    fireEvent.click(screen.getAllByRole('button', { name: content.edit })[0]);
+    const dialog = await screen.findByRole('dialog', {
+      name: content.dialog.editTitle,
+    });
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: content.dialog.save }),
+    );
+
+    expect(await screen.findByText(gone)).toBeInTheDocument();
+    await waitFor(() => expect(members()).toHaveLength(2));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
   it('não aceita vínculo novo em paciente inativo', async () => {
     renderSection(apiPatient(ALZIRA_INACTIVE, { status: 'inactive' }));
 
