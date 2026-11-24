@@ -312,6 +312,63 @@ describe('FollowUpDetailPage', () => {
     ).toBeInTheDocument();
   });
 
+  // Outra pessoa removeu o anexo antes: a rota pedida responde 404, e a lista
+  // nova já não o traz.
+  function removedElsewhere(route) {
+    const [first] = followUpRoutes()[ATTACHMENTS]({
+      params: { followUpId: LAST_VITAL_SIGNS },
+    }).data;
+    let removed = false;
+    apiStub().use({
+      [ATTACHMENTS]: () => apiPage(removed ? [] : [first]),
+      [route]: () => {
+        removed = true;
+        return apiFailure(404, 'ATTACHMENT_NOT_FOUND', 'Anexo não encontrado.');
+      },
+    });
+  }
+
+  it('recarrega os anexos quando o anexo a baixar já foi removido', async () => {
+    removedElsewhere(CONTENT);
+    renderDetail(LAST_VITAL_SIGNS, 'family');
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: content.attachments.download('receita-medica.pdf'),
+      }),
+    );
+
+    expect(
+      await screen.findByText(content.attachments.errors.ATTACHMENT_NOT_FOUND),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByText('receita-medica.pdf')).toBeNull(),
+    );
+  });
+
+  it('recarrega os anexos quando o anexo a remover já foi removido', async () => {
+    removedElsewhere(REMOVE);
+    renderDetail(LAST_VITAL_SIGNS);
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: content.attachments.remove('receita-medica.pdf'),
+      }),
+    );
+    fireEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: content.attachments.removeDialog.confirm,
+      }),
+    );
+
+    expect(
+      await screen.findByText(content.attachments.errors.ATTACHMENT_NOT_FOUND),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByText('receita-medica.pdf')).toBeNull(),
+    );
+  });
+
   it('deixa o profissional remover, mas não anexar', async () => {
     renderDetail(LAST_VITAL_SIGNS);
     await screen.findByText('receita-medica.pdf');

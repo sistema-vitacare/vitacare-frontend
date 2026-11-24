@@ -99,13 +99,22 @@ export default function AttachmentsSection({ record, patientActive }) {
     attachments.retry();
   }
 
+  // Outra pessoa removeu o anexo antes: tentar de novo falharia igual, então a
+  // lista é recarregada sem ele.
+  function fail(error) {
+    setError(errorText(error.code));
+    if (error.code === 'ATTACHMENT_NOT_FOUND') {
+      attachments.retry();
+    }
+  }
+
   async function download(attachment) {
     const outcome = await request.submit(() =>
       downloadAttachment(record.id, attachment.id),
     );
     setMessage(null);
     if (outcome.error) {
-      setError(errorText(outcome.error.code));
+      fail(outcome.error);
       return;
     }
     setError(null);
@@ -118,7 +127,7 @@ export default function AttachmentsSection({ record, patientActive }) {
     );
     setRemoveOpen(false);
     if (outcome.error) {
-      setError(errorText(outcome.error.code));
+      fail(outcome.error);
       return;
     }
     setError(null);
