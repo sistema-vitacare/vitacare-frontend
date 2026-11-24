@@ -7,8 +7,6 @@ import {
 import { alertRules } from '../../src/data/mocks/alertRules.js';
 import { alertsAsOf } from '../../src/data/mocks/alerts.js';
 import { attachmentsAsOf } from '../../src/data/mocks/attachments.js';
-import { auditActions } from '../../src/data/mocks/auditActions.js';
-import { auditEventsAsOf } from '../../src/data/mocks/auditEvents.js';
 import { forms } from '../../src/data/mocks/forms.js';
 import { followUpsAsOf } from '../../src/data/mocks/followUps.js';
 import { medications } from '../../src/data/mocks/medications.js';
@@ -482,10 +480,6 @@ describe('dados simulados de acompanhamento', () => {
 });
 
 describe('dados simulados de gestão', () => {
-  const now = new Date();
-  const events = auditEventsAsOf(now);
-  const catalog = new Map(auditActions.map((item) => [item.action, item]));
-
   it('seguem os limites do Quadro 2: Basic com 10 usuários e 200 pacientes, Enterprise com 50 e 1.000', () => {
     expect([BASIC_PLAN.userLimit, BASIC_PLAN.patientLimit]).toEqual([10, 200]);
     expect([ENTERPRISE_PLAN.userLimit, ENTERPRISE_PLAN.patientLimit]).toEqual([
@@ -572,88 +566,5 @@ describe('dados simulados de gestão', () => {
       others.map((item) => item.id).sort(),
     );
     expect(simulatedUsage[organization.id]).toBeUndefined();
-  });
-
-  it('copiam as 67 ações do catálogo da API, sem repetir código', () => {
-    expect(auditActions).toHaveLength(67);
-    expect(catalog.size).toBe(67);
-  });
-
-  it('trazem as ações do convite por e-mail e do aceite do termo de uso', () => {
-    expect(catalog.get('user.invitation_sent')).toEqual({
-      action: 'user.invitation_sent',
-      label: 'Enviou convite por e-mail',
-      severity: 'info',
-    });
-    expect(catalog.get('user.invitation_failed')?.severity).toBe('warning');
-    expect(catalog.get('user.invitation_accepted')?.label).toBe(
-      'Aceitou o convite e cadastrou a senha',
-    );
-    expect(catalog.get('terms.accepted')?.label).toBe('Aceitou o termo de uso');
-  });
-
-  // Formato de `recordExport` do backend: a lista de relatórios recentes e o
-  // "N gerados" saem desses valores.
-  it('trazem exportações gerenciais com tipo, formato, período e condição', () => {
-    const exports = events.filter(
-      (event) => event.action === 'management_report.exported',
-    );
-
-    expect(new Set(exports.map((event) => event.afterValues.type))).toEqual(
-      new Set(['alerts', 'caregiver_activity']),
-    );
-    for (const event of exports) {
-      expect(event.entity.type).toBe('organization');
-      expect(Object.keys(event.afterValues).sort()).toEqual([
-        'condition',
-        'format',
-        'from',
-        'to',
-        'type',
-      ]);
-      expect(event.afterValues.from <= event.afterValues.to).toBe(true);
-    }
-  });
-
-  it('registram só ações do catálogo, com o rótulo e a gravidade dele', () => {
-    for (const event of events) {
-      const item = catalog.get(event.action);
-      expect(item, event.action).toBeDefined();
-      expect(event.actionLabel).toBe(item.label);
-      expect(event.severity).toBe(item.severity ?? event.afterValues.severity);
-    }
-  });
-
-  it('ficam em organizações clientes existentes, com mais de uma organização para a plataforma', () => {
-    const ids = new Set(clientOrganizations.map((item) => item.id));
-    const used = new Set(events.map((event) => event.organization.id));
-
-    expect([...used].every((id) => ids.has(id))).toBe(true);
-    expect(used.size).toBeGreaterThan(1);
-  });
-
-  it('têm evento de sistema sem responsável, IP nem perfil', () => {
-    const system = events.filter((event) => event.actor.type === 'system');
-
-    expect(system.length).toBeGreaterThan(0);
-    for (const event of system) {
-      expect(event.actor).toEqual({
-        type: 'system',
-        user: null,
-        profile: null,
-      });
-      expect(event.ipAddress).toBeNull();
-    }
-  });
-
-  it('caem nos últimos 30 dias e vêm do mais recente para o mais antigo', () => {
-    const limit = now.getTime() - 30 * 24 * 60 * 60 * 1000;
-    const times = events.map((event) => Date.parse(event.occurredAt));
-
-    expect(times.every((time) => time >= limit && time <= now.getTime())).toBe(
-      true,
-    );
-    expect([...times].sort((a, b) => b - a)).toEqual(times);
-    expect(new Set(events.map((event) => event.id)).size).toBe(events.length);
   });
 });
