@@ -46,7 +46,17 @@ function Picker({ patients, content, children }) {
   );
   const matches = useResource(loadMatches);
   const answered = ['success', 'empty'].includes(matches.status);
-  const found = term && answered ? (matches.data ?? []) : patients;
+  // A busca da API não ignora acento; o filtro do Autocomplete, sim. Somar a
+  // resposta à primeira página mantém quem já aparecia ao digitar sem acento.
+  const found =
+    term && answered
+      ? [
+          ...patients,
+          ...(matches.data ?? []).filter(
+            (match) => !patients.some((patient) => patient.id === match.id),
+          ),
+        ]
+      : patients;
 
   const listed =
     [...patients, ...found].find((patient) => patient.id === patientId) ?? null;

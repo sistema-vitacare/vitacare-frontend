@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import PatientPicker from '../../src/components/PatientPicker.jsx';
 import { PATHS, medicationsPath } from '../../src/constants/routes.js';
@@ -102,6 +102,39 @@ describe('PatientPicker', () => {
       limit: '100',
     });
     expect(router.state.location.search).toBe(`?paciente=${OSVALDO}`);
+  });
+
+  it('mantém o paciente com acento da primeira página quando a busca da API não o acha', async () => {
+    // A busca da API compara sem tirar o acento ("marcal" não acha "Marçal");
+    // o filtro da escolha tira. A resposta vazia é solta depois do texto.
+    let answer;
+    const search = new Promise((resolve) => {
+      answer = resolve;
+    });
+    apiStub().use({
+      [LIST]: ({ query }) =>
+        query.search ? search : apiPage(activePatients(), { limit: 100 }),
+    });
+    renderPicker('professional');
+    await screen.findByText(content.choosePatient);
+
+    fireEvent.change(screen.getByRole('combobox', { name: content.patient }), {
+      target: { value: 'marcal' },
+    });
+    await waitFor(() =>
+      expect(apiStub().last(LIST).query.search).toBe('marcal'),
+    );
+    expect(
+      screen.getByRole('option', { name: 'Cleusa Marçal Rezende' }),
+    ).toBeInTheDocument();
+    await act(async () => {
+      answer(apiPage([], { limit: 100 }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(
+      screen.getByRole('option', { name: 'Cleusa Marçal Rezende' }),
+    ).toBeInTheDocument();
   });
 
   it('entra direto em quem alcança um paciente só', async () => {
