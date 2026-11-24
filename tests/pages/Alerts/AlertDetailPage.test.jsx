@@ -18,10 +18,7 @@ import {
   resolveAlert,
 } from '../../../src/services/alertService.js';
 import { startDemoSession } from '../../../src/services/authService.js';
-import {
-  annulFollowUp,
-  createFollowUp,
-} from '../../../src/services/followUpService.js';
+import { annulFollowUp } from '../../../src/services/followUpStore.js';
 import { resetMockState } from '../../../src/services/mockApi.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
@@ -77,19 +74,16 @@ describe('AlertDetailPage', () => {
   });
 
   it('marca o registro de origem anulado depois do alerta', async () => {
+    // Um alerta dos dados simulados cujo registro de origem é anulado depois;
+    // a anulação vai pelo estado simulado, porque o serviço passa a ser da API.
     await startDemoSession('caregiver');
-    const { data: followUp } = await createFollowUp({
-      patientId: DIRCE,
-      formId: '8c0342e9-d9e9-58c2-a229-1c32168a8bf2',
-      formVersionId: '50c78bb2-d907-58b1-a4c0-44bea30d6b0a',
-      answers: [
-        { fieldId: '3c44a6a8-5472-5c65-ad6a-42a6a946740e', value: 172 },
-        { fieldId: '9570caa1-28fc-5e06-8327-bac0266a6c63', value: 95 },
-      ],
-    });
-    await annulFollowUp(followUp.id, { reason: 'Valor digitado errado.' });
     const { data } = await listPatientAlerts({ patientId: DIRCE });
-    const alert = data.find((item) => item.followUp?.id === followUp.id);
+    const alert = data.find((item) => item.followUp?.status === 'valid');
+    annulFollowUp(alert.followUp.id, {
+      reason: 'Valor digitado errado.',
+      annulledAt: new Date().toISOString(),
+      annulledBy: { id: 'x', name: 'X' },
+    });
 
     renderDetail('professional', alert.id);
 
