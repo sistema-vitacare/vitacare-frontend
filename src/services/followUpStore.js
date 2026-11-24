@@ -1,6 +1,6 @@
-// Registros simulados que os alertas, o painel e os relatórios ainda leem,
-// até os Blocos 12 e 13. As telas de registros leem a API desde o Bloco 11;
-// aqui fica só a anulação, que esses serviços e os testes deles aplicam.
+// Registros simulados que os alertas ainda leem, até o Bloco 12. As telas de
+// registros (Bloco 11), o painel e os relatórios (Bloco 13) leem a API; aqui
+// fica só a anulação, que os alertas e os testes deles aplicam.
 import { followUpsAsOf } from '../data/mocks/followUps.js';
 import { registerMockState } from './mockApi.js';
 

@@ -6,7 +6,13 @@ import FollowUpDetailPage from '../../../src/pages/FollowUps/FollowUpDetailPage.
 import { resetMockState } from '../../../src/services/mockApi.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
-import { apiFailure, apiPage, apiStub, reply } from '../../support/apiStub.js';
+import {
+  apiFailure,
+  apiFile,
+  apiPage,
+  apiStub,
+  reply,
+} from '../../support/apiStub.js';
 import { followUpRoutes } from '../../support/fixtures/followUps.js';
 import { patientRoutes } from '../../support/fixtures/patients.js';
 import { demoUser } from '../../support/fixtures/sessions.js';
@@ -263,12 +269,10 @@ describe('FollowUpDetailPage', () => {
     );
     apiStub().use({
       [CONTENT]: () =>
-        new Response('%PDF', {
-          headers: {
-            'Content-Type': 'application/pdf',
-            // Outro nome que o da lista: o arquivo sai com o da API.
-            'Content-Disposition': 'attachment; filename="receita-2026.pdf"',
-          },
+        // Outro nome que o da lista: o arquivo sai com o da API.
+        apiFile('%PDF', {
+          fileName: 'receita-2026.pdf',
+          type: 'application/pdf',
         }),
     });
     renderDetail(LAST_VITAL_SIGNS, 'family');

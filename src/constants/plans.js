@@ -12,10 +12,6 @@ export const PLAN_FEATURES = Object.freeze([
   'custom_deployment',
 ]);
 
-// Só este recurso é conferido por rota na API: sem ele, o painel responde 403.
-export const DASHBOARD_FEATURE = 'operational_dashboard';
-export const MANAGEMENT_REPORTS_FEATURE = 'management_reports';
-
 // Aviso de vencimento da vigência (BE-28): sete dias antes, um dia antes e
 // vencido.
 export const EXPIRY_WARNINGS = Object.freeze([

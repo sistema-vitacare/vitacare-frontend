@@ -7,7 +7,13 @@ import {
 } from '../../src/services/attachmentService.js';
 import { login } from '../../src/services/authService.js';
 import { resetMockState } from '../../src/services/mockApi.js';
-import { apiFailure, apiPage, apiStub, reply } from '../support/apiStub.js';
+import {
+  apiFailure,
+  apiFile,
+  apiPage,
+  apiStub,
+  reply,
+} from '../support/apiStub.js';
 import { credentialsFor, demoUser } from '../support/fixtures/sessions.js';
 
 const FOLLOW_UP_ID = 'f0110000-0000-5000-8000-000100000013';
@@ -61,12 +67,7 @@ describe('attachmentService', () => {
     await signIn();
     apiStub().use({
       [CONTENT]: () =>
-        new Response('PNG', {
-          headers: {
-            'Content-Type': 'image/png',
-            'Content-Disposition': 'attachment; filename="curativo.png"',
-          },
-        }),
+        apiFile('PNG', { fileName: 'curativo.png', type: 'image/png' }),
     });
 
     const { data } = await downloadAttachment(FOLLOW_UP_ID, ATTACHMENT_ID);

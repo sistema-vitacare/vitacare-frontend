@@ -6,7 +6,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Link as RouterLink, useSearchParams } from 'react-router';
 import PageHeader from '../../components/PageHeader.jsx';
 import { PERMISSIONS as P } from '../../constants/permissions.js';
@@ -97,10 +97,19 @@ const REPORTS = {
 export default function ReportsPage() {
   const { can } = useSession();
   const [params, setParams] = useSearchParams();
-  const catalog = useResource(listManagementReports);
+  // Sem a permissão, a API responderia 403: o catálogo nem é pedido.
+  const generates = can(P.MANAGEMENT_REPORTS_GENERATE);
+  const loadCatalog = useCallback(
+    () =>
+      generates
+        ? listManagementReports()
+        : Promise.resolve({ data: null, meta: {} }),
+    [generates],
+  );
+  const catalog = useResource(loadCatalog);
   const [recentKey, setRecentKey] = useState(0);
 
-  if (!can(P.MANAGEMENT_REPORTS_GENERATE)) {
+  if (!generates) {
     return (
       <>
         <PageHeader title={content.title} />

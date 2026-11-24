@@ -5,15 +5,25 @@ import {
   auditListContent as content,
   auditSeverityLabels,
 } from '../../../src/data/auditPages.js';
-import { BEM_VIVER_ID } from '../../../src/data/mocks/organizations.js';
 import { periodFieldsContent } from '../../../src/data/periodFields.js';
 import AuditListPage from '../../../src/pages/Audit/AuditListPage.jsx';
 import { resetMockState } from '../../../src/services/mockApi.js';
 import { formatDateTime } from '../../../src/utils/format.js';
+import { apiFailure, apiFile, apiStub } from '../../support/apiStub.js';
+import {
+  AUDIT_EVENTS,
+  BEM_VIVER,
+  auditRoutes,
+  eventId,
+} from '../../support/fixtures/audit.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
 
 const NOW = new Date('2026-11-13T15:00:00.000Z');
+const LIST = 'GET /audit-events';
+const OWN_EVENTS = AUDIT_EVENTS.filter(
+  (event) => event.organization.id !== BEM_VIVER.id,
+);
 const EMPTY_MESSAGE =
   'Nenhum evento de auditoria para os filtros selecionados.';
 
@@ -27,15 +37,14 @@ function renderList({ profile = 'admin', path = PATHS.AUDIT, width } = {}) {
   );
 }
 
-const rowOf = (actionLabel) =>
-  screen.getByRole('link', { name: actionLabel }).closest('tr');
-
 function choose(label, option) {
   fireEvent.mouseDown(
     screen.getByRole('combobox', { name: new RegExp(label) }),
   );
   fireEvent.click(screen.getByRole('option', { name: option }));
 }
+
+const lastQuery = () => apiStub().last(LIST).query;
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'], shouldAdvanceTime: true });
@@ -52,12 +61,11 @@ afterEach(() => {
 
 describe('lista de eventos', () => {
   it('mostra data e hora, responsável, perfil no momento, ação, item, IP e gravidade', async () => {
+    apiStub().use(auditRoutes({ events: OWN_EVENTS }));
     renderList();
 
     const row = (
-      await screen.findByRole('link', {
-        name: 'Alterou perfil de usuário',
-      })
+      await screen.findByRole('link', { name: 'Alterou perfil de usuário' })
     ).closest('tr');
     const cells = within(row).getAllByRole('cell');
     expect(cells.map((cell) => cell.textContent)).toEqual([
@@ -71,13 +79,12 @@ describe('lista de eventos', () => {
     ]);
     expect(
       within(row).getByRole('link', { name: 'Alterou perfil de usuário' }),
-    ).toHaveAttribute(
-      'href',
-      auditEventPath('a0d17000-0000-5000-8000-000000000009'),
-    );
+    ).toHaveAttribute('href', auditEventPath(eventId(9)));
+    expect(lastQuery()).toEqual({ page: '1', limit: '20' });
   });
 
   it('evento de sistema sai como "Sistema", sem perfil e sem IP', async () => {
+    apiStub().use(auditRoutes({ events: OWN_EVENTS }));
     renderList();
 
     const row = (
@@ -88,6 +95,7 @@ describe('lista de eventos', () => {
   });
 
   it('o administrador vê só a própria organização, sem a coluna nem o filtro de organização', async () => {
+    apiStub().use(auditRoutes({ events: OWN_EVENTS, total: 22 }));
     renderList();
 
     expect(await screen.findByText(content.subtitle(22))).toBeInTheDocument();
@@ -101,71 +109,80 @@ describe('lista de eventos', () => {
         name: new RegExp(content.organizationLabel),
       }),
     ).not.toBeInTheDocument();
-    expect(screen.queryByText('Lúcia Andrade Rocha')).not.toBeInTheDocument();
   });
 
   it('pagina pelo endereço', async () => {
+    apiStub().use(auditRoutes({ events: OWN_EVENTS, total: 22 }));
     const router = renderList();
     await screen.findByText(content.range(1, 20, 22));
 
     fireEvent.click(screen.getByRole('button', { name: 'Ir para a página 2' }));
 
-    expect(
-      await screen.findByText(content.range(21, 22, 22)),
-    ).toBeInTheDocument();
+    await waitFor(() => expect(lastQuery().page).toBe('2'));
     expect(router.state.location.search).toBe('?pagina=2');
   });
 });
 
 describe('filtros', () => {
-  it('a gravidade vai para o endereço, volta à primeira página e filtra', async () => {
+  it('a gravidade vai para o endereço e para a API, e volta à primeira página', async () => {
+    apiStub().use(auditRoutes({ events: OWN_EVENTS, total: 22 }));
     const router = renderList({ path: `${PATHS.AUDIT}?pagina=2` });
-    await screen.findByText(content.range(21, 22, 22));
+    await waitFor(() => expect(lastQuery().page).toBe('2'));
 
     choose(content.severityLabel, auditSeverityLabels.warning);
 
-    await screen.findByText(content.range(1, 12, 12));
+    await waitFor(() =>
+      expect(lastQuery()).toEqual({
+        severity: 'warning',
+        page: '1',
+        limit: '20',
+      }),
+    );
     expect(router.state.location.search).toBe('?gravidade=warning');
-    for (const row of screen.getAllByRole('row').slice(1)) {
-      expect(row).toHaveTextContent(auditSeverityLabels.warning);
-    }
   });
 
-  it('busca pelo nome de quem fez ou pela ação, e filtra a ação pelo catálogo', async () => {
+  it('busca pelo nome de quem fez ou pela ação, e filtra a ação pelo catálogo da API', async () => {
+    apiStub().use(auditRoutes({ events: OWN_EVENTS }));
     const router = renderList();
-    await screen.findByText(content.range(1, 20, 22));
+    await screen.findByRole('link', { name: 'Alterou perfil de usuário' });
 
     fireEvent.change(screen.getByLabelText(content.searchLabel), {
       target: { value: 'rosângela' },
     });
-    await screen.findByText(content.range(1, 3, 3));
+    await waitFor(() => expect(lastQuery().search).toBe('rosângela'));
 
     choose(content.actionLabel, 'Entrou no sistema');
     await waitFor(() =>
-      expect(screen.getByText(content.subtitle(0))).toBeInTheDocument(),
+      expect(lastQuery()).toMatchObject({
+        search: 'rosângela',
+        action: 'auth.login_succeeded',
+      }),
     );
     expect(router.state.location.search).toBe(
       '?busca=ros%C3%A2ngela&acao=auth.login_succeeded',
     );
   });
 
-  it('a origem "Sistema" traz só os eventos sem responsável', async () => {
+  it('a origem "Sistema" pede só os eventos sem responsável', async () => {
+    apiStub().use(auditRoutes({ events: OWN_EVENTS }));
     renderList();
-    await screen.findByText(content.range(1, 20, 22));
+    await screen.findByRole('link', { name: 'Alterou perfil de usuário' });
 
     choose(content.actorTypeLabel, 'Sistema');
 
-    await screen.findByText(content.range(1, 1, 1));
-    expect(rowOf('Gerou alerta')).toBeInTheDocument();
+    await waitFor(() => expect(lastQuery().actorType).toBe('system'));
   });
 
   it('filtro sem resultado mostra a mensagem da API', async () => {
+    apiStub().use(auditRoutes({ events: [] }));
     renderList({ path: `${PATHS.AUDIT}?busca=inexistente` });
 
     expect(await screen.findByText(EMPTY_MESSAGE)).toBeInTheDocument();
+    expect(lastQuery().search).toBe('inexistente');
   });
 
   it('período inválido aponta o campo e não consulta', async () => {
+    apiStub().use(auditRoutes());
     renderList({ path: `${PATHS.AUDIT}?de=2026-11-10&ate=2026-11-01` });
 
     expect(
@@ -175,30 +192,40 @@ describe('filtros', () => {
     expect(
       screen.queryByRole('button', { name: content.exportCsv }),
     ).not.toBeInTheDocument();
+    expect(apiStub().last(LIST)).toBeUndefined();
   });
 
-  it('o período vai para o endereço', async () => {
+  it('o período vai para o endereço e para a API', async () => {
+    apiStub().use(auditRoutes({ events: OWN_EVENTS }));
     const router = renderList();
-    await screen.findByText(content.range(1, 20, 22));
+    await screen.findByRole('link', { name: 'Alterou perfil de usuário' });
 
     fireEvent.change(screen.getByLabelText(periodFieldsContent.from), {
       target: { value: '2026-11-12' },
     });
 
-    await screen.findByText(content.range(1, 10, 10));
+    await waitFor(() => expect(lastQuery().from).toBe('2026-11-12'));
     expect(router.state.location.search).toBe('?de=2026-11-12');
   });
 });
 
 describe('exportação', () => {
-  it('exporta o CSV com os filtros da lista e o nome da API', async () => {
+  it('exporta o CSV com os filtros da lista e o nome que a API dá ao arquivo', async () => {
+    apiStub().use({
+      ...auditRoutes({ events: OWN_EVENTS }),
+      'GET /audit-events/export': () =>
+        apiFile('Data/hora;Organização;Usuário\r\n', {
+          fileName: 'auditoria-2026-11-01-a-2026-11-13.csv',
+          type: 'text/csv; charset=utf-8',
+        }),
+    });
     URL.createObjectURL = vi.fn(() => 'blob:auditoria');
     URL.revokeObjectURL = vi.fn();
     const click = vi
       .spyOn(HTMLAnchorElement.prototype, 'click')
       .mockImplementation(() => {});
     renderList({ path: `${PATHS.AUDIT}?gravidade=warning&de=2026-11-01` });
-    await screen.findByText(content.range(1, 10, 10));
+    await screen.findByRole('link', { name: 'Alterou perfil de usuário' });
 
     fireEvent.click(screen.getByRole('button', { name: content.exportCsv }));
 
@@ -206,15 +233,37 @@ describe('exportação', () => {
     expect(click.mock.contexts[0].download).toBe(
       'auditoria-2026-11-01-a-2026-11-13.csv',
     );
-    const csv = await URL.createObjectURL.mock.calls[0][0].text();
-    // Cabeçalho mais os 10 eventos da lista filtrada.
-    expect(csv.trim().split('\r\n')).toHaveLength(11);
+    expect(apiStub().last('GET /audit-events/export').query).toEqual({
+      severity: 'warning',
+      from: '2026-11-01',
+    });
     click.mockRestore();
+  });
+
+  it('no limite da exportação, mostra a mensagem da API', async () => {
+    const message =
+      'Há eventos demais para exportar de uma vez. Estreite o período ou os filtros.';
+    apiStub().use({
+      ...auditRoutes({ events: OWN_EVENTS }),
+      'GET /audit-events/export': () =>
+        apiFile('', { fileName: 'auditoria.csv', type: 'text/csv' }),
+    });
+    apiStub().fail(
+      'GET /audit-events/export',
+      apiFailure(422, 'AUDIT_EXPORT_TOO_MANY_EVENTS', message),
+    );
+    renderList();
+    await screen.findByRole('link', { name: 'Alterou perfil de usuário' });
+
+    fireEvent.click(screen.getByRole('button', { name: content.exportCsv }));
+
+    expect(await screen.findByText(message)).toBeInTheDocument();
   });
 });
 
 describe('administrador da plataforma', () => {
-  it('vê todas as organizações, com a coluna, o filtro e os nomes de outra organização mascarados', async () => {
+  it('vê a coluna e o filtro de organização e os nomes de outra organização como a API os mascara', async () => {
+    apiStub().use(auditRoutes({ total: 27 }));
     const router = renderList({ profile: 'platform_admin' });
 
     expect(
@@ -227,15 +276,16 @@ describe('administrador da plataforma', () => {
       0,
     );
 
-    choose(content.organizationLabel, 'Clínica Bem Viver');
+    choose(content.organizationLabel, BEM_VIVER.name);
 
-    await screen.findByText(content.range(1, 5, 5));
-    expect(router.state.location.search).toBe(`?organizacao=${BEM_VIVER_ID}`);
+    await waitFor(() => expect(lastQuery().organizationId).toBe(BEM_VIVER.id));
+    expect(router.state.location.search).toBe(`?organizacao=${BEM_VIVER.id}`);
   });
 });
 
 describe('celular', () => {
   it('troca a tabela por cartões, com a ação levando ao evento', async () => {
+    apiStub().use(auditRoutes({ events: OWN_EVENTS }));
     renderList({ width: 375 });
 
     const link = await screen.findByRole('link', {

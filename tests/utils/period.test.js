@@ -1,11 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import {
-  periodDays,
-  previousPeriod,
-  resolvePeriod,
-  shortcutPeriod,
-} from '../../src/utils/period.js';
+import { resolvePeriod, shortcutPeriod } from '../../src/utils/period.js';
 
 const TODAY = '2026-11-12';
 
@@ -62,30 +57,6 @@ describe('resolvePeriod', () => {
     expect(
       resolvePeriod({ from: '2025-11-11', to: TODAY }, TODAY).errors,
     ).toEqual([{ field: 'to', code: 'PERIOD_TOO_LONG' }]);
-  });
-});
-
-describe('previousPeriod', () => {
-  it('devolve os mesmos dias imediatamente antes do início', () => {
-    expect(previousPeriod({ from: '2026-10-01', to: '2026-10-31' })).toEqual({
-      from: '2026-08-31',
-      to: '2026-09-30',
-    });
-    expect(previousPeriod({ from: TODAY, to: TODAY })).toEqual({
-      from: '2026-11-11',
-      to: '2026-11-11',
-    });
-  });
-});
-
-describe('periodDays', () => {
-  it('lista cada dia do período, inclusive na virada do mês', () => {
-    expect(periodDays({ from: '2026-10-30', to: '2026-11-02' })).toEqual([
-      '2026-10-30',
-      '2026-10-31',
-      '2026-11-01',
-      '2026-11-02',
-    ]);
   });
 });
 
