@@ -21,6 +21,15 @@ export function apiFailure(status, code, message, fields = null) {
   });
 }
 
+/**
+ * Arquivo, como os PDFs e o CSV da API: o nome vai no `Content-Disposition`,
+ * que o `apiDownload` lê. O conteúdo é texto, porque o `Blob` do jsdom não
+ * passa pelo `Response` do Node.
+ */
+export function apiFile(content, { fileName, type }) {
+  return { stubFile: true, content, fileName, type };
+}
+
 /** Página no formato das listagens da API. */
 export function apiPage(items, { page = 1, limit = 20, total, message } = {}) {
   const count = total ?? items.length;
@@ -63,6 +72,15 @@ function match(pattern, method, path) {
 }
 
 function toResponse(result) {
+  if (result?.stubFile) {
+    return new Response(result.content, {
+      status: 200,
+      headers: {
+        'Content-Type': result.type,
+        'Content-Disposition': `attachment; filename="${result.fileName}"`,
+      },
+    });
+  }
   const { status, body } = result?.stubReply
     ? result
     : { status: 200, body: result };
@@ -94,9 +112,14 @@ export function stubApi(handlers = {}) {
     const url = new URL(input);
     const method = init.method ?? 'GET';
     const path = url.pathname.replace(API_PREFIX, '');
+    // A rota literal vence a de parâmetro (`/audit-events/export` antes de
+    // `/audit-events/:eventId`), como no roteamento da API.
     const found = Object.keys(routes)
       .map((key) => ({ key, params: match(key, method, path) }))
-      .find((candidate) => candidate.params);
+      .filter((candidate) => candidate.params)
+      .sort(
+        (a, b) => Object.keys(a.params).length - Object.keys(b.params).length,
+      )[0];
     const key = found?.key ?? `${method} ${path}`;
     const authorization = init.headers?.Authorization;
     const request = {
