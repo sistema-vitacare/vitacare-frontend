@@ -2,7 +2,6 @@
 import { describe, expect, it } from 'vitest';
 import { forms } from '../../src/data/mocks/forms.js';
 import {
-  checkFieldKeys,
   checkFormFields,
   enabledFieldCount,
   fieldContractErrors,
@@ -111,36 +110,6 @@ describe('checkFormFields', () => {
       { field: 'fields.1.name', code: 'DUPLICATE' },
       { field: 'fields.1.fieldKey', code: 'DUPLICATE' },
       { field: 'fields.2.options', code: 'DUPLICATE' },
-    ]);
-  });
-});
-
-describe('checkFieldKeys', () => {
-  it('acusa chave desconhecida e chave conhecida com outro tipo', () => {
-    const known = new Map([['aaaaaaaa-0000-4000-8000-000000000001', 'number']]);
-    const fields = [
-      {
-        ...base,
-        name: 'A',
-        fieldType: 'number',
-        decimalPlaces: 0,
-        fieldKey: 'aaaaaaaa-0000-4000-8000-000000000001',
-      },
-      {
-        ...base,
-        name: 'B',
-        fieldType: 'boolean',
-        fieldKey: 'aaaaaaaa-0000-4000-8000-000000000002',
-      },
-      { ...base, name: 'C', fieldType: 'boolean' },
-    ];
-    const typeChanged = [{ ...fields[0], fieldType: 'scale' }];
-
-    expect(checkFieldKeys(fields, known)).toEqual([
-      { field: 'fields.1.fieldKey', code: 'UNKNOWN' },
-    ]);
-    expect(checkFieldKeys(typeChanged, known)).toEqual([
-      { field: 'fields.0.fieldType', code: 'TYPE_LOCKED' },
     ]);
   });
 });

@@ -1,21 +1,18 @@
-// Estado simulado dos registros de acompanhamento, compartilhado pelos
-// serviços de registros, anexos, alertas e pacientes. Guarda o que a API
-// guardaria no banco (registro novo e anulação) por cima dos registros
-// simulados. Os alertas de cada registro ficam no estado de alertas.
+// Registros simulados que os alertas, o painel e os relatórios ainda leem,
+// até os Blocos 12 e 13. As telas de registros leem a API desde o Bloco 11;
+// aqui fica só a anulação, que esses serviços e os testes deles aplicam.
 import { followUpsAsOf } from '../data/mocks/followUps.js';
 import { registerMockState } from './mockApi.js';
 
-let createdFollowUps = [];
 let annulments = new Map();
 
 registerMockState(() => {
-  createdFollowUps = [];
   annulments = new Map();
 });
 
-/** Registros simulados e os da sessão, com as anulações aplicadas. */
+/** Registros simulados, com as anulações aplicadas. */
 export function allFollowUps(now = new Date()) {
-  return [...followUpsAsOf(now), ...createdFollowUps].map((followUp) =>
+  return followUpsAsOf(now).map((followUp) =>
     annulments.has(followUp.id)
       ? {
           ...followUp,
@@ -30,10 +27,6 @@ export function findFollowUp(followUpId, now = new Date()) {
   return (
     allFollowUps(now).find((followUp) => followUp.id === followUpId) ?? null
   );
-}
-
-export function addFollowUp(followUp) {
-  createdFollowUps = [...createdFollowUps, followUp];
 }
 
 /** A anulação é única e irreversível; quem chama confere se já houve. */

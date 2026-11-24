@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   apiDelete,
+  apiDownload,
   apiGet,
   apiPost,
   apiUpload,
@@ -106,6 +107,23 @@ describe('stub da API dos testes', () => {
     expect(api.last('POST /follow-ups/:followUpId/attachments').body).toEqual(
       expect.any(FormData),
     );
+  });
+
+  it('entrega como está o arquivo que a rota devolve pronto', async () => {
+    api.use({
+      'GET /follow-ups/:followUpId/attachments/:attachmentId/content': () =>
+        new Response('%PDF', {
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': 'attachment; filename="exame.pdf"',
+          },
+        }),
+    });
+
+    const { data } = await apiDownload('/follow-ups/f1/attachments/a1/content');
+
+    expect(data.fileName).toBe('exame.pdf');
+    expect(await data.blob.text()).toBe('%PDF');
   });
 
   it('monta a página no formato da listagem da API', () => {

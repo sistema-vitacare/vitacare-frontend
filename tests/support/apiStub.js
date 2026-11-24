@@ -63,6 +63,10 @@ function match(pattern, method, path) {
 }
 
 function toResponse(result) {
+  // Arquivo (download): a rota devolve o `Response` com os cabeçalhos dele.
+  if (result instanceof Response) {
+    return result;
+  }
   const { status, body } = result?.stubReply
     ? result
     : { status: 200, body: result };

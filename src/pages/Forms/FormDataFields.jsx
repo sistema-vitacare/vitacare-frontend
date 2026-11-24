@@ -11,7 +11,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { useId } from 'react';
+import { useCallback, useId, useState } from 'react';
 import { AUDIENCES, FREQUENCY_UNITS } from '../../constants/formFields.js';
 import {
   audienceLabels,
@@ -22,13 +22,50 @@ import {
   formFieldErrors,
   formPageContent as content,
 } from '../../data/formPage.js';
+import {
+  PATIENTS_LIMIT,
+  usePatientSearch,
+} from '../../hooks/usePatientSearch.js';
 import { useResource } from '../../hooks/useResource.js';
-import { listPatients } from '../../services/patientService.js';
+import { getPatient, listPatients } from '../../services/patientService.js';
 
-// Os pacientes do público vêm da lista de ativos ao alcance da sessão.
-const PATIENTS_LIMIT = 100;
+// Os pacientes do público vêm da lista de ativos ao alcance da sessão; quem
+// está no público e fora dela (inativo ou além da primeira página) vem da
+// consulta de cada um, para não aparecer pelo id nem sair do público.
 const loadPatients = () =>
   listPatients({ status: 'active', limit: PATIENTS_LIMIT });
+const noPatients = () => Promise.resolve({ data: [], meta: {} });
+
+function usePatientNames(patientIds) {
+  const list = useResource(loadPatients);
+  const patients = list.data ?? [];
+  const ready = ['success', 'empty'].includes(list.status);
+  const missingKey = ready
+    ? patientIds
+        .filter((id) => !patients.some((patient) => patient.id === id))
+        .join(',')
+    : '';
+  const loadMissing = useCallback(
+    () =>
+      missingKey
+        ? Promise.all(missingKey.split(',').map((id) => getPatient(id))).then(
+            (answers) => ({ data: answers.map(({ data }) => data), meta: {} }),
+          )
+        : noPatients(),
+    [missingKey],
+  );
+  const others = useResource(loadMissing);
+  return { patients, known: [...patients, ...(others.data ?? [])] };
+}
+
+function patientIn(pool, patientId) {
+  return (
+    pool.find((patient) => patient.id === patientId) ?? {
+      id: patientId,
+      name: patientId,
+    }
+  );
+}
 
 function errorText(property, code) {
   if (!code) {
@@ -37,19 +74,9 @@ function errorText(property, code) {
   return formFieldErrors[property]?.[code] ?? formFieldErrors.fallback;
 }
 
-function usePatientNames() {
-  const resource = useResource(loadPatients);
-  const patients = resource.data ?? [];
-  return {
-    patients,
-    nameOf: (patientId) =>
-      patients.find((patient) => patient.id === patientId)?.name ?? patientId,
-  };
-}
-
 /** Dados do formulário em leitura: o cuidador e o formulário desativado. */
 export function FormDataSummary({ form }) {
-  const { nameOf } = usePatientNames();
+  const { known } = usePatientNames(form.patientIds);
   const rows = [
     [content.data.description, form.description || content.data.emptyValue],
     [content.data.trackingType, form.trackingType || content.data.emptyValue],
@@ -57,7 +84,7 @@ export function FormDataSummary({ form }) {
     [
       content.data.audience,
       form.audience === 'patients'
-        ? form.patientIds.map(nameOf).join(', ')
+        ? form.patientIds.map((id) => patientIn(known, id).name).join(', ')
         : audienceLabels.organization,
     ],
   ];
@@ -87,7 +114,19 @@ export function FormDataSummary({ form }) {
  */
 export default function FormDataFields({ values, errors, onChange }) {
   const audienceId = useId();
-  const { patients } = usePatientNames();
+  const { patients, known } = usePatientNames(values.patientIds);
+  const { found, input, setInput, loading } = usePatientSearch(patients);
+  // Quem foi escolhido pela busca guarda o nome mesmo depois que ela muda.
+  const [picked, setPicked] = useState([]);
+  const selected = values.patientIds.map((id) =>
+    patientIn([...known, ...found, ...picked], id),
+  );
+  const options = [
+    ...found,
+    ...selected.filter(
+      (patient) => !found.some((option) => option.id === patient.id),
+    ),
+  ];
   // O erro da regra vence a orientação do campo.
   const field = (property, { helperText, ...props } = {}) => ({
     label: content.data[property],
@@ -178,13 +217,21 @@ export default function FormDataFields({ values, errors, onChange }) {
       {values.audience === 'patients' ? (
         <Autocomplete
           multiple
-          options={patients}
-          value={patients.filter((patient) =>
-            values.patientIds.includes(patient.id),
-          )}
-          onChange={(_, selected) =>
-            onChange({ patientIds: selected.map((patient) => patient.id) })
-          }
+          options={options}
+          value={selected}
+          onChange={(_, chosen) => {
+            setPicked(chosen);
+            onChange({ patientIds: chosen.map((patient) => patient.id) });
+          }}
+          // O valor é refeito a cada render, e o MUI apaga o texto por isso
+          // (`reset`); o texto só muda pela digitação, pela escolha e ao sair.
+          inputValue={input}
+          onInputChange={(_, text, reason) => {
+            if (reason !== 'reset') {
+              setInput(text);
+            }
+          }}
+          loading={loading}
           getOptionLabel={(patient) => patient.name}
           isOptionEqualToValue={(option, value) => option.id === value.id}
           noOptionsText={content.data.noPatients}

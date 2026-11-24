@@ -43,6 +43,7 @@ export const followUpDetailContent = {
     rules: 'JPEG, PNG, WEBP ou PDF de até 10 MB; no máximo 5 por registro.',
     add: 'Anexar arquivo',
     remove: (name) => `Remover o anexo ${name}`,
+    download: (name) => `Baixar o anexo ${name}`,
     removeDialog: {
       title: 'Remover o anexo?',
       text: (name) => `O arquivo ${name} é apagado e não pode ser recuperado.`,
@@ -66,6 +67,14 @@ export const followUpDetailContent = {
       ATTACHMENT_LIMIT_REACHED: 'O registro já tem 5 anexos.',
       ATTACHMENT_FOLLOW_UP_ANNULLED: 'Registro anulado não recebe anexo.',
       ATTACHMENT_PATIENT_INACTIVE: 'Paciente inativo não recebe anexo.',
+      ATTACHMENT_TOO_LARGE: 'O arquivo passa de 10 MB.',
+      ATTACHMENT_EMPTY: 'O arquivo está vazio.',
+      ATTACHMENT_NOT_AUTHOR:
+        'Só quem enviou o registro anexa arquivos a ele e remove os próprios anexos.',
+      ATTACHMENT_NOT_FOUND:
+        'O anexo não foi encontrado. Ele pode ter sido removido.',
+      ATTACHMENT_CONTENT_MISSING:
+        'O arquivo deste anexo não está disponível. Avise o administrador.',
       unexpected: 'Não foi possível concluir. Tente novamente.',
     },
   },

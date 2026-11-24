@@ -1,14 +1,17 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { PATHS, patientPath } from '../../../src/constants/routes.js';
+import {
+  PATHS,
+  patientPath,
+  recordPath,
+} from '../../../src/constants/routes.js';
 import { visitRecordContent as content } from '../../../src/data/visitRecord.js';
 import VisitPage from '../../../src/pages/FollowUps/VisitPage.jsx';
-import { listFollowUps } from '../../../src/services/followUpService.js';
 import { resetMockState } from '../../../src/services/mockApi.js';
-import { changePatient } from '../../../src/services/patientStore.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
-import { apiStub } from '../../support/apiStub.js';
+import { apiFailure, apiPage, apiStub, reply } from '../../support/apiStub.js';
+import { apiForm, formRoutes } from '../../support/fixtures/forms.js';
 import {
   activePatients,
   apiPatient,
@@ -17,6 +20,18 @@ import {
 
 const DIRCE = '0b639b83-76d0-570a-9017-7b6263d892cf';
 const CLEUSA = '6d0a941f-2690-5190-928c-6b8f43771fe2';
+const VITAL_SIGNS = '8c0342e9-d9e9-58c2-a229-1c32168a8bf2';
+const DAILY = 'd9d5ba57-125a-506d-a026-be0c9dc2dad6';
+const HOME_VISIT = '3c3086ad-9f4d-5f00-9bf4-7b1f33272a20';
+const NEW_RECORD = 'f0120000-0000-5000-8000-000000000001';
+const CREATE = 'POST /follow-ups';
+
+// Formulários que a API diria valer para cada paciente; o stub não aplica
+// a regra do público, só devolve a lista do teste.
+const FORMS_FOR = {
+  [CLEUSA]: [VITAL_SIGNS],
+  [DIRCE]: [HOME_VISIT, DAILY],
+};
 
 function renderVisit(patientId, { width = 375 } = {}) {
   return renderPage(
@@ -45,9 +60,15 @@ afterEach(() => {
   resetViewport();
 });
 
-// As telas ainda simuladas escolhem o paciente pela API (Bloco 10).
 beforeEach(() => {
-  apiStub().use(patientRoutes());
+  apiStub().use({
+    ...patientRoutes(),
+    ...formRoutes(),
+    'GET /forms': ({ query }) =>
+      apiPage((FORMS_FOR[query.patientId] ?? []).map((id) => apiForm(id))),
+    [CREATE]: ({ body }) =>
+      reply(201, { data: { id: NEW_RECORD, ...body }, meta: {} }),
+  });
 });
 
 describe('VisitPage', () => {
@@ -155,15 +176,62 @@ describe('VisitPage', () => {
     fireEvent.click(screen.getByRole('button', { name: content.save }));
 
     expect(await screen.findByText('Detalhe do registro')).toBeInTheDocument();
-    expect(router.state.location.pathname).toMatch(/^\/registros\/f0120000-/);
+    expect(router.state.location.pathname).toBe(recordPath(NEW_RECORD));
     expect(router.state.location.state).toEqual({ created: true });
-    const { data } = await listFollowUps({ patientId: DIRCE });
+    const { currentVersion } = apiForm(DAILY);
+    const nameOf = (fieldId) =>
+      currentVersion.fields.find((field) => field.id === fieldId).name;
+    const sent = apiStub().last(CREATE).body;
+    expect(sent).toMatchObject({
+      patientId: DIRCE,
+      formId: DAILY,
+      formVersionId: currentVersion.id,
+      notes: null,
+    });
+    // O campo vazio vai como `null`, que a API não conta como preenchido.
     expect(
-      data[0].answers.map((answer) => [answer.name, answer.value]),
+      sent.answers.map((answer) => [nameOf(answer.fieldId), answer.value]),
     ).toEqual([
+      ['Glicemia capilar', null],
       ['Dor', 0],
       ['Alimentou-se bem', false],
     ]);
+  });
+
+  it('pede para abrir de novo quando a API diz que o formulário mudou', async () => {
+    apiStub().use({
+      [CREATE]: () =>
+        apiFailure(
+          409,
+          'FOLLOW_UP_FORM_VERSION_OUTDATED',
+          'O formulário mudou. Abra de novo antes de enviar.',
+        ),
+    });
+    renderVisit(CLEUSA);
+    fireEvent.change(
+      await screen.findByRole('textbox', { name: /^Pressão sistólica/ }),
+      { target: { value: '130' } },
+    );
+    fireEvent.change(input('Pressão diastólica'), { target: { value: '80' } });
+
+    fireEvent.click(screen.getByRole('button', { name: content.save }));
+
+    expect(
+      await screen.findByText(content.errors.outdated),
+    ).toBeInTheDocument();
+    const forms = apiStub().requests.filter(
+      (request) => request.key === 'GET /forms/:formId',
+    ).length;
+    fireEvent.click(
+      screen.getByRole('button', { name: content.errors.reload }),
+    );
+    await waitFor(() =>
+      expect(
+        apiStub().requests.filter(
+          (request) => request.key === 'GET /forms/:formId',
+        ),
+      ).toHaveLength(forms + 1),
+    );
   });
 
   it('cancela sem gravar e volta ao paciente', async () => {
@@ -177,13 +245,10 @@ describe('VisitPage', () => {
 
     expect(await screen.findByText('Detalhe do paciente')).toBeInTheDocument();
     expect(router.state.location.pathname).toBe(patientPath(CLEUSA));
-    const { meta } = await listFollowUps({ patientId: CLEUSA });
-    expect(meta.pagination.total).toBe(0);
+    expect(apiStub().last(CREATE)).toBeUndefined();
   });
 
   it('diz que paciente inativo não recebe registro', async () => {
-    // Inativo para a API e para os registros simulados.
-    changePatient(CLEUSA, { status: 'inactive' });
     apiStub().use(
       patientRoutes(activePatients(), [
         apiPatient(CLEUSA, { status: 'inactive' }),

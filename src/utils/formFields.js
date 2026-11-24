@@ -216,26 +216,6 @@ export function checkFormFields(fields) {
   return errors;
 }
 
-/**
- * A chave enviada tem de existir em `known` (versões publicadas e rascunho
- * vivo do mesmo formulário) e manter o tipo: mudar o tipo é criar campo
- * novo, sem chave.
- */
-export function checkFieldKeys(fields, known) {
-  return fields.flatMap((field, index) => {
-    if (!field.fieldKey) {
-      return [];
-    }
-    const knownType = known.get(field.fieldKey);
-    if (knownType === undefined) {
-      return [{ field: `fields.${index}.fieldKey`, code: 'UNKNOWN' }];
-    }
-    return knownType === field.fieldType
-      ? []
-      : [{ field: `fields.${index}.fieldType`, code: 'TYPE_LOCKED' }];
-  });
-}
-
 function frequencyErrors(frequency) {
   if (!isPresent(frequency)) {
     return [];
