@@ -25,6 +25,11 @@ export default function ResourceState({
   if (resource.status === 'loading') {
     return <LoadingBar />;
   }
+  // O 422 é um limite ou um filtro inválido: a mensagem da API diz o que
+  // mudar, e tentar de novo falharia igual.
+  if (resource.status === 'error' && resource.error?.status === 422) {
+    return <Alert severity="error">{resource.error.message}</Alert>;
+  }
   if (resource.status === 'error') {
     return (
       <Alert
