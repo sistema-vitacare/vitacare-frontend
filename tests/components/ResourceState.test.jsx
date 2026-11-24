@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import ResourceState from '../../src/components/ResourceState.jsx';
+import { ApiError } from '../../src/services/apiClient.js';
 import { resourceStateContent } from '../../src/data/patientFields.js';
 
 function renderState(resource) {
@@ -49,5 +50,25 @@ describe('ResourceState', () => {
       screen.getByRole('button', { name: resourceStateContent.retry }),
     );
     expect(retry).toHaveBeenCalledTimes(1);
+  });
+
+  it('no 422 mostra a mensagem da API, sem nova tentativa', () => {
+    // Limite ou filtro inválido: tentar de novo falharia igual.
+    const message =
+      'O período tem registros demais para um relatório. Escolha um período menor.';
+    const error = new ApiError({
+      status: 422,
+      code: 'REPORT_TOO_MANY_RECORDS',
+      message,
+    });
+    renderState({ status: 'error', error, retry: vi.fn() });
+
+    expect(screen.getByText(message)).toBeInTheDocument();
+    expect(
+      screen.queryByText(resourceStateContent.error),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: resourceStateContent.retry }),
+    ).not.toBeInTheDocument();
   });
 });

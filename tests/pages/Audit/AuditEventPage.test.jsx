@@ -13,11 +13,16 @@ import {
 import AuditEventPage from '../../../src/pages/Audit/AuditEventPage.jsx';
 import { resetMockState } from '../../../src/services/mockApi.js';
 import { formatDateTime } from '../../../src/utils/format.js';
+import { apiStub } from '../../support/apiStub.js';
+import {
+  AUDIT_EVENTS,
+  PATRICIA,
+  auditRoutes,
+  eventId,
+} from '../../support/fixtures/audit.js';
 import { renderPage } from '../../support/renderPage.jsx';
 
 const NOW = new Date('2026-11-13T15:00:00.000Z');
-const eventId = (sequence) =>
-  `a0d17000-0000-5000-8000-${String(sequence).padStart(12, '0')}`;
 const PROFILE_CHANGED = eventId(9);
 const MEDICATION_UPDATED = eventId(5);
 const FORM_PUBLISHED = eventId(8);
@@ -25,9 +30,18 @@ const ALERT_GENERATED = eventId(3);
 const FOREIGN_USER_CREATED = eventId(23);
 const ORGANIZATION_UPDATED = eventId(16);
 const IPE = '6ac48ac1-6fb6-5621-b4f5-dc00e6b1df3d';
-const PATRICIA = '2fb0cec5-0e79-5ae3-9dd8-bea87be4292f';
+const FOREIGN = AUDIT_EVENTS.find((item) => item.id === FOREIGN_USER_CREATED);
 
+// Para o administrador, a API responde 404 ao evento de outra organização.
 function renderEvent(id, { profile = 'admin' } = {}) {
+  apiStub().use(
+    auditRoutes({
+      known:
+        profile === 'admin'
+          ? AUDIT_EVENTS.filter((item) => item !== FOREIGN)
+          : AUDIT_EVENTS,
+    }),
+  );
   return renderPage(
     [
       { path: PATHS.AUDIT, element: <p>Lista da auditoria</p> },

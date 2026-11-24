@@ -1,12 +1,4 @@
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  Link,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Card, Link, Stack, Typography } from '@mui/material';
 import { BarChart } from '@mui/x-charts/BarChart';
 import { useCallback } from 'react';
 import { Link as RouterLink } from 'react-router';
@@ -15,9 +7,7 @@ import ResourceState from '../../components/ResourceState.jsx';
 import SectionCard from '../../components/SectionCard.jsx';
 import SeverityChip from '../../components/SeverityChip.jsx';
 import { DASHBOARD_INDICATORS } from '../../constants/dashboard.js';
-import { PERMISSIONS as P } from '../../constants/permissions.js';
 import {
-  PATHS,
   alertPath,
   dashboardIndicatorPath,
   recordPath,
@@ -26,12 +16,13 @@ import { alertOperatorLabels } from '../../data/alertPages.js';
 import { dashboardContent as content } from '../../data/dashboardPages.js';
 import { useDashboardPeriod } from '../../hooks/useDashboardPeriod.js';
 import { useResource } from '../../hooks/useResource.js';
-import { useSession } from '../../hooks/useSession.js';
-import { getDashboard } from '../../services/dashboardService.js';
+import {
+  DASHBOARD_ERROR_CODES,
+  getDashboard,
+} from '../../services/dashboardService.js';
 import { formatDate, formatDateTime } from '../../utils/format.js';
 import PeriodShortcuts from './PeriodShortcuts.jsx';
-
-const PLAN_UNAVAILABLE = 'DASHBOARD_PLAN_FEATURE_UNAVAILABLE';
+import PlanUnavailable from './PlanUnavailable.jsx';
 
 function Indicators({ data, shortcut }) {
   const values = content.indicatorValue(data);
@@ -219,31 +210,14 @@ function LatestFollowUps({ followUps }) {
   );
 }
 
-function PlanUnavailable({ message }) {
-  const { can } = useSession();
-  return (
-    <Alert
-      severity="info"
-      action={
-        can(P.ORGANIZATION_READ) ? (
-          <Button component={RouterLink} to={PATHS.SETTINGS} color="inherit">
-            {content.plan.action}
-          </Button>
-        ) : null
-      }
-    >
-      {message}
-    </Alert>
-  );
-}
-
 /** Painel operacional da organização (RF015, UC05, Figura 33). */
 export default function DashboardPage() {
   const { shortcut, period, setShortcut } = useDashboardPeriod();
   const load = useCallback(() => getDashboard(period), [period]);
   const resource = useResource(load);
   const planUnavailable =
-    resource.status === 'error' && resource.error.code === PLAN_UNAVAILABLE;
+    resource.status === 'error' &&
+    resource.error.code === DASHBOARD_ERROR_CODES.PLAN_UNAVAILABLE;
   return (
     <>
       <PageHeader

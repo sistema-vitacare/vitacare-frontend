@@ -45,6 +45,7 @@ import { theme } from '../src/styles/theme.js';
 import { preloadPages } from './support/preloadPages.js';
 import { resetViewport, setViewportWidth } from './support/viewport.js';
 import { apiStub } from './support/apiStub.js';
+import { auditRoutes } from './support/fixtures/audit.js';
 import { credentialsFor } from './support/fixtures/sessions.js';
 import { apiPatient, patientRoutes } from './support/fixtures/patients.js';
 
@@ -496,6 +497,7 @@ describe('rotas', () => {
   });
 
   it('liga a auditoria ao evento e o evento ao item', async () => {
+    apiStub().use(auditRoutes());
     const router = renderApp(PATHS.LOGIN);
     await signInAs('admin');
     await heading(navLabels.dashboard);

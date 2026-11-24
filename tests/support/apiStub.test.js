@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   apiDelete,
+  apiDownload,
   apiGet,
   apiPost,
   apiUpload,
   configureApiSession,
 } from '../../src/services/apiClient.js';
-import { apiFailure, apiPage, reply, stubApi } from './apiStub.js';
+import { apiFailure, apiFile, apiPage, reply, stubApi } from './apiStub.js';
 
 let api;
 
@@ -106,6 +107,34 @@ describe('stub da API dos testes', () => {
     expect(api.last('POST /follow-ups/:followUpId/attachments').body).toEqual(
       expect.any(FormData),
     );
+  });
+
+  it('responde um arquivo com o nome no Content-Disposition, como os PDFs e o CSV da API', async () => {
+    api.use({
+      'GET /audit-events/export': () =>
+        apiFile('Data/hora;Ação\n', {
+          fileName: 'auditoria-2026-10-01-a-2026-10-31.csv',
+          type: 'text/csv; charset=utf-8',
+        }),
+    });
+
+    const { data } = await apiDownload('/audit-events/export');
+
+    expect(data.fileName).toBe('auditoria-2026-10-01-a-2026-10-31.csv');
+    expect(data.blob.type).toMatch(/^text\/csv/);
+    expect(await data.blob.text()).toBe('Data/hora;Ação\n');
+  });
+
+  it('responde pela rota literal antes da rota com parâmetro, como a API', async () => {
+    api.use({
+      'GET /patients/export': () => ({ data: 'literal', meta: {} }),
+    });
+
+    const literal = await apiGet('/patients/export');
+    const withParam = await apiGet('/patients/p2');
+
+    expect(literal.data).toBe('literal');
+    expect(withParam.data.id).toBe('p2');
   });
 
   it('monta a página no formato da listagem da API', () => {

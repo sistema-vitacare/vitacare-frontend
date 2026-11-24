@@ -46,23 +46,6 @@ export function resolvePeriod({ from, to } = {}, today) {
   return { period: { from: start, to: end }, errors };
 }
 
-/** Os mesmos dias imediatamente antes do início, para a variação. */
-export function previousPeriod({ from, to }) {
-  const length = toDay(to) - toDay(from) + 1;
-  return {
-    from: fromDay(toDay(from) - length),
-    to: fromDay(toDay(from) - 1),
-  };
-}
-
-export function periodDays({ from, to }) {
-  const days = [];
-  for (let day = toDay(from); day <= toDay(to); day += 1) {
-    days.push(fromDay(day));
-  }
-  return days;
-}
-
 // Dias de cada atalho do painel; "Hoje" é o "Registros hoje" da Figura 33.
 const SHORTCUT_DAYS = { today: 1, 7: 7, 30: 30, 90: 90 };
 
