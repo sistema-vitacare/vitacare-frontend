@@ -6,7 +6,7 @@ A aplicação é um PWA responsivo, construído com React e Material UI, que con
 
 ## Situação atual
 
-Todas as telas estão prontas, e a integração com a API do backend está em andamento. O acesso (login, sessão, termo de uso, aceite do convite, primeiro acesso, recuperação e troca de senha) os pacientes (lista, cadastro, edição, situação, detalhe, evolução e equipe de cuidado) e a gestão (painel, relatórios e auditoria) usam a API; as demais áreas ainda leem dados simulados, servidos pela camada de serviços no formato de resposta da API. A integração de cada área troca o corpo dos serviços dela pelas chamadas à API, sem alterar as telas.
+Todas as telas estão prontas, e a integração com a API do backend está em andamento. O acesso (login, sessão, termo de uso, aceite do convite, primeiro acesso, recuperação e troca de senha), os pacientes (lista, cadastro, edição, situação, detalhe, evolução e equipe de cuidado), os formulários, os registros de acompanhamento e os anexos, com o download, e a gestão (painel, relatórios e auditoria) usam a API; as demais áreas ainda leem dados simulados, servidos pela camada de serviços no formato de resposta da API. A integração de cada área troca o corpo dos serviços dela pelas chamadas à API, sem alterar as telas.
 
 ## Como rodar
 
@@ -64,12 +64,12 @@ Em produção, o frontend roda na VPS como um container nginx na porta 1040, pub
 | `src/pages/Terms/` | Termo de uso e privacidade vigente, com o aceite que libera a sessão. |
 | `src/pages/InvitationAccept/` | Aceite do convite pelo link do e-mail, com a senha criada pelo convidado. |
 | `src/pages/Status/` | Páginas de não encontrada, acesso negado, erro inesperado e tela em construção. |
-| `src/hooks/` | Hooks que ligam as telas aos serviços: o `useResource`, para leitura, o `useSubmit`, para envio, e os filtros do painel e dos relatórios guardados no endereço. |
+| `src/hooks/` | Hooks que ligam as telas aos serviços: o `useResource`, para leitura, o `useSubmit`, para envio, a busca de pacientes das escolhas de paciente e os filtros do painel e dos relatórios guardados no endereço. |
 | `src/services/` | Único ponto de acesso a dados: o cliente HTTP da API e os serviços de cada área; os das áreas ainda não integradas respondem com os dados simulados. |
 | `src/styles/` | Tema do Material UI: cores, tipografia, raios, sombras e movimento. |
 | `src/utils/` | Funções puras: validações (CPF, campos de acesso, cadastro de paciente, usuário e organização, inclusive a nova com o primeiro administrador), regras dos campos de formulário, das respostas de registro, dos anexos, dos medicamentos e das regras de alerta, a agenda dos medicamentos, as mensagens dos alertas, a regra de período da API, as ações de cada usuário, o aviso de vencimento do plano, as regras do termo do plano (limites, data de fim e motivo), a senha provisória, o endereço do item de um evento de auditoria, a entrega de arquivo baixado, a recarga da página depois de um deploy, a origem da API lida do `/config.js`, a leitura do texto do termo de uso, máscaras, números digitados com vírgula, formatação de datas e doses e os indicadores de evolução. |
 | `tests/` | Testes automatizados, espelhando as pastas de `src/`. |
-| `tests/support/` | Apoio dos testes: stub da API, sessões dos usuários de demonstração no formato do login da API, pacientes dos dados simulados e eventos de auditoria no formato da API, verificações de projeto, cálculo de contraste, largura de tela simulada, renderização de telas com a sessão do perfil e carga das telas sob demanda antes dos testes do roteador. |
+| `tests/support/` | Apoio dos testes: stub da API, sessões dos usuários de demonstração no formato do login da API, pacientes, formulários, registros e anexos dos dados simulados e eventos de auditoria no formato da API, verificações de projeto, cálculo de contraste, largura de tela simulada, renderização de telas com a sessão do perfil e carga das telas sob demanda antes dos testes do roteador. |
 
 Todo arquivo solto em `src/` e toda pasta de `src/` até dois níveis precisam de uma linha nesta tabela; um teste falha quando falta alguma.
 

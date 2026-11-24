@@ -11,6 +11,7 @@ import { resetMockState } from '../../../src/services/mockApi.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
 import { apiStub } from '../../support/apiStub.js';
+import { formRoutes } from '../../support/fixtures/forms.js';
 import { patientRoutes } from '../../support/fixtures/patients.js';
 
 const VITAL_SIGNS = '8c0342e9-d9e9-58c2-a229-1c32168a8bf2';
@@ -56,9 +57,10 @@ afterEach(() => {
   resetViewport();
 });
 
-// As telas ainda simuladas escolhem o paciente pela API (Bloco 10).
+// A página do formulário lê pela API (Bloco 11); as regras de alerta ainda
+// são simuladas (FE-57), com os ids dos dados simulados que o fixture usa.
 beforeEach(() => {
-  apiStub().use(patientRoutes());
+  apiStub().use({ ...patientRoutes(), ...formRoutes() });
 });
 
 describe('AlertRulesSection', () => {

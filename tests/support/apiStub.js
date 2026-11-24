@@ -22,7 +22,7 @@ export function apiFailure(status, code, message, fields = null) {
 }
 
 /**
- * Arquivo, como os PDFs e o CSV da API: o nome vai no `Content-Disposition`,
+ * Arquivo, como os PDFs, o CSV e os anexos da API: o nome vai no `Content-Disposition`,
  * que o `apiDownload` lê. O conteúdo é texto, porque o `Blob` do jsdom não
  * passa pelo `Response` do Node.
  */

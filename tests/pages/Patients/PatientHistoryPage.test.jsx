@@ -12,7 +12,8 @@ import { periodFieldsContent } from '../../../src/data/periodFields.js';
 import PatientHistoryPage from '../../../src/pages/Patients/PatientHistoryPage.jsx';
 import { resetMockState } from '../../../src/services/mockApi.js';
 import { buildIndicators } from '../../../src/utils/evolution.js';
-import { apiFailure, apiStub } from '../../support/apiStub.js';
+import { apiFailure, apiPage, apiStub } from '../../support/apiStub.js';
+import { patientFollowUps } from '../../support/fixtures/followUps.js';
 import { apiPatient } from '../../support/fixtures/patients.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
@@ -21,6 +22,7 @@ const DIRCE = '0b639b83-76d0-570a-9017-7b6263d892cf';
 const CLEUSA = '6d0a941f-2690-5190-928c-6b8f43771fe2';
 const IOLANDA = 'b07a6b59-2a82-5a9f-be9b-c41102749e06';
 const EVOLUTION = 'GET /patients/:patientId/evolution';
+const FOLLOW_UPS = 'GET /follow-ups';
 
 const day = (n) => new Date(Date.UTC(2026, 9, 20 + n, 12)).toISOString();
 
@@ -65,14 +67,32 @@ const SERIES = [
   series('k2', 'Pressão sistólica', 'mmHg', [131, 126]),
 ];
 
+// A página que a API devolveria de `list`, pela `page` e o `limit` pedidos.
+function paged(list) {
+  return ({ query }) => {
+    const page = Number(query.page ?? 1);
+    const limit = Number(query.limit ?? 20);
+    return apiPage(list.slice((page - 1) * limit, page * limit), {
+      page,
+      limit,
+      total: list.length,
+    });
+  };
+}
+
 function renderHistory(
   patientId,
   profile = 'professional',
-  { patient = apiPatient(patientId), evolutionAnswer = evolution(SERIES) } = {},
+  {
+    patient = apiPatient(patientId),
+    evolutionAnswer = evolution(SERIES),
+    followUpsAnswer = paged(patientFollowUps(patientId)),
+  } = {},
 ) {
   apiStub().use({
     'GET /patients/:patientId': () => ({ data: patient, meta: {} }),
     [EVOLUTION]: evolutionAnswer,
+    [FOLLOW_UPS]: followUpsAnswer,
   });
   return renderPage(
     [
@@ -110,6 +130,11 @@ describe('PatientHistoryPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /página 2/ }));
 
     await waitFor(() => expect(records()).toHaveLength(8));
+    expect(apiStub().last(FOLLOW_UPS).query).toEqual({
+      patientId: DIRCE,
+      page: '2',
+      limit: '20',
+    });
   });
 
   it('lista os registros do mais recente ao mais antigo, com data, autor, formulário e valores', async () => {
@@ -154,8 +179,19 @@ describe('PatientHistoryPage', () => {
     expect(annulled).toHaveTextContent('manguito de tamanho errado');
   });
 
-  it('filtra pelo formulário e pelo período, e pede à API a evolução do período', async () => {
-    renderHistory(DIRCE);
+  it('pede à API os registros do formulário e do período, e a evolução do período', async () => {
+    const all = patientFollowUps(DIRCE);
+    const daily = all.filter(
+      (followUp) => followUp.form.name === 'Acompanhamento diário',
+    );
+    const dailyId = daily[0].form.id;
+    // O teste diz o que a API devolveria para cada filtro.
+    renderHistory(DIRCE, 'professional', {
+      followUpsAnswer: (request) =>
+        paged(request.query.from ? [] : request.query.formId ? daily : all)(
+          request,
+        ),
+    });
     await screen.findByText(recordsContent.list.count(28));
 
     await select(recordsContent.filters.form, 'Acompanhamento diário');
@@ -163,11 +199,12 @@ describe('PatientHistoryPage', () => {
     expect(
       await screen.findByText(recordsContent.list.count(14)),
     ).toBeInTheDocument();
-    expect(
-      records().every((item) =>
-        item.textContent.includes('Acompanhamento diário'),
-      ),
-    ).toBe(true);
+    expect(apiStub().last(FOLLOW_UPS).query).toEqual({
+      patientId: DIRCE,
+      formId: dailyId,
+      page: '1',
+      limit: '20',
+    });
 
     fireEvent.change(screen.getByLabelText(periodFieldsContent.from), {
       target: { value: '2000-01-01' },
@@ -179,6 +216,11 @@ describe('PatientHistoryPage', () => {
     expect(
       await screen.findByText(recordsContent.list.noResults),
     ).toBeInTheDocument();
+    expect(apiStub().last(FOLLOW_UPS).query).toMatchObject({
+      formId: dailyId,
+      from: '2000-01-01',
+      to: '2000-01-31',
+    });
     await waitFor(() =>
       expect(apiStub().last(EVOLUTION).query).toEqual({
         from: '2000-01-01',
@@ -208,11 +250,17 @@ describe('PatientHistoryPage', () => {
     });
   });
 
-  it('dá à familiar o modo leitura, sem registro anulado, com a evolução', async () => {
+  it('dá à familiar o modo leitura, com os registros e a evolução que a API devolve', async () => {
+    // A API não manda o registro anulado ao familiar.
     renderHistory(DIRCE, 'family', {
       patient: apiPatient(DIRCE, {
         viewerLink: { role: 'family', linkType: 'Filha' },
       }),
+      followUpsAnswer: paged(
+        patientFollowUps(DIRCE).filter(
+          (followUp) => followUp.status === 'valid',
+        ),
+      ),
     });
 
     expect(await screen.findByText(content.readOnly)).toBeInTheDocument();

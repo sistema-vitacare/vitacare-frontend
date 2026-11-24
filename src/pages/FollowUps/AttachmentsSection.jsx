@@ -8,6 +8,7 @@ import {
   Typography,
 } from '@mui/material';
 import {
+  DownloadSimple,
   FilePdf,
   Image as ImageIcon,
   Paperclip,
@@ -22,6 +23,7 @@ import { useResource } from '../../hooks/useResource.js';
 import { useSession } from '../../hooks/useSession.js';
 import { useSubmit } from '../../hooks/useSubmit.js';
 import {
+  downloadAttachment,
   listAttachments,
   removeAttachment,
   uploadAttachment,
@@ -33,6 +35,7 @@ import {
   formatFileSize,
 } from '../../utils/attachments.js';
 import { formatDateTime } from '../../utils/format.js';
+import { saveFile } from '../../utils/saveFile.js';
 
 const content = followUpDetailContent.attachments;
 
@@ -41,8 +44,9 @@ const errorText = (code) => content.errors[code] ?? content.errors.unexpected;
 /**
  * Anexos do registro. A cuidadora autora anexa no registro válido de
  * paciente ativo, até 5; o profissional e o administrador removem
- * qualquer anexo, e a cuidadora, os que ela enviou. O download do arquivo
- * entra com a integração.
+ * qualquer anexo, e a cuidadora, os que ela enviou. Quem lê o registro
+ * baixa o arquivo, que a API só entrega com o token: ele é salvo, e não
+ * aberto dentro do aplicativo.
  */
 export default function AttachmentsSection({ record, patientActive }) {
   const { can, session } = useSession();
@@ -95,13 +99,35 @@ export default function AttachmentsSection({ record, patientActive }) {
     attachments.retry();
   }
 
+  // Outra pessoa removeu o anexo antes: tentar de novo falharia igual, então a
+  // lista é recarregada sem ele.
+  function fail(error) {
+    setError(errorText(error.code));
+    if (error.code === 'ATTACHMENT_NOT_FOUND') {
+      attachments.retry();
+    }
+  }
+
+  async function download(attachment) {
+    const outcome = await request.submit(() =>
+      downloadAttachment(record.id, attachment.id),
+    );
+    setMessage(null);
+    if (outcome.error) {
+      fail(outcome.error);
+      return;
+    }
+    setError(null);
+    saveFile(outcome.data.blob, outcome.data.fileName ?? attachment.fileName);
+  }
+
   async function confirmRemove() {
     const outcome = await request.submit(() =>
       removeAttachment(record.id, removing.id),
     );
     setRemoveOpen(false);
     if (outcome.error) {
-      setError(errorText(outcome.error.code));
+      fail(outcome.error);
       return;
     }
     setError(null);
@@ -193,6 +219,13 @@ export default function AttachmentsSection({ record, patientActive }) {
                         )}
                       </Typography>
                     </Box>
+                    <IconButton
+                      aria-label={content.download(attachment.fileName)}
+                      onClick={() => download(attachment)}
+                      disabled={request.status === 'submitting'}
+                    >
+                      <DownloadSimple size={18} aria-hidden="true" />
+                    </IconButton>
                     {canRemove(attachment) ? (
                       <IconButton
                         aria-label={content.remove(attachment.fileName)}

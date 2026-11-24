@@ -47,6 +47,8 @@ import { resetViewport, setViewportWidth } from './support/viewport.js';
 import { apiStub } from './support/apiStub.js';
 import { auditRoutes } from './support/fixtures/audit.js';
 import { credentialsFor } from './support/fixtures/sessions.js';
+import { followUpRoutes } from './support/fixtures/followUps.js';
+import { formRoutes } from './support/fixtures/forms.js';
 import { apiPatient, patientRoutes } from './support/fixtures/patients.js';
 
 await preloadPages();
@@ -114,9 +116,10 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// As telas ainda simuladas escolhem o paciente pela API (Bloco 10).
+// As telas ainda simuladas escolhem o paciente pela API (Bloco 10); as de
+// formulários e de registros leem pela API desde o Bloco 11.
 beforeEach(() => {
-  apiStub().use(patientRoutes());
+  apiStub().use({ ...patientRoutes(), ...formRoutes(), ...followUpRoutes() });
 });
 
 describe('rotas', () => {

@@ -8,10 +8,15 @@ import { resetMockState } from '../../../src/services/mockApi.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
 import { apiStub } from '../../support/apiStub.js';
+import {
+  followUpRoutes,
+  patientFollowUps,
+} from '../../support/fixtures/followUps.js';
 import { apiPatient, patientRoutes } from '../../support/fixtures/patients.js';
 
 const DIRCE = '0b639b83-76d0-570a-9017-7b6263d892cf';
 const OSVALDO = '91fb0349-7fb0-5be9-ac72-eb28afa2b17e';
+const LIST = 'GET /follow-ups';
 
 function renderList(profile, path = PATHS.RECORDS) {
   return renderPage([{ path: PATHS.RECORDS, element: <FollowUpListPage /> }], {
@@ -25,9 +30,8 @@ afterEach(() => {
   resetViewport();
 });
 
-// As telas ainda simuladas escolhem o paciente pela API (Bloco 10).
 beforeEach(() => {
-  apiStub().use(patientRoutes());
+  apiStub().use({ ...patientRoutes(), ...followUpRoutes() });
 });
 
 describe('FollowUpListPage', () => {
@@ -45,10 +49,23 @@ describe('FollowUpListPage', () => {
     expect(
       `${router.state.location.pathname}${router.state.location.search}`,
     ).toBe(recordsPath(DIRCE));
+    // A lista pede a página; as opções dos filtros, os 100 mais recentes.
+    expect(
+      apiStub()
+        .requests.filter((request) => request.key === LIST)
+        .map((request) => request.query),
+    ).toContainEqual({ patientId: DIRCE, page: '1', limit: '20' });
   });
 
   it('entra direto na lista de quem alcança um paciente só', async () => {
-    apiStub().use(patientRoutes([apiPatient(DIRCE)]));
+    // A API não manda o registro anulado ao familiar.
+    const valid = patientFollowUps(DIRCE).filter(
+      (followUp) => followUp.status === 'valid',
+    );
+    apiStub().use({
+      ...patientRoutes([apiPatient(DIRCE)]),
+      ...followUpRoutes(valid),
+    });
     const router = renderList('family');
 
     expect(await screen.findByText(records.list.count(27))).toBeInTheDocument();
