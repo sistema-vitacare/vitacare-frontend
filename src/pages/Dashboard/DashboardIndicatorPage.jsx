@@ -35,6 +35,7 @@ import { profileLabels } from '../../data/profiles.js';
 import { useDashboardPeriod } from '../../hooks/useDashboardPeriod.js';
 import { useResource } from '../../hooks/useResource.js';
 import {
+  DASHBOARD_ERROR_CODES,
   getDashboardAlerts,
   getDashboardFollowUps,
   getDashboardPatients,
@@ -42,6 +43,7 @@ import {
 } from '../../services/dashboardService.js';
 import { formatDate } from '../../utils/format.js';
 import PeriodShortcuts from './PeriodShortcuts.jsx';
+import PlanUnavailable from './PlanUnavailable.jsx';
 
 function Summary({ items }) {
   return (
@@ -245,6 +247,9 @@ function Indicator({ id }) {
     [indicator, period],
   );
   const resource = useResource(load);
+  const planUnavailable =
+    resource.status === 'error' &&
+    resource.error.code === DASHBOARD_ERROR_CODES.PLAN_UNAVAILABLE;
   return (
     <>
       <PageHeader
@@ -272,33 +277,37 @@ function Indicator({ id }) {
           ) : null
         }
       />
-      <ResourceState resource={resource}>
-        {(data, meta) => (
-          <Stack spacing={2.5}>
-            {meta.message ? (
-              <Typography color="text.secondary">{meta.message}</Typography>
-            ) : null}
-            {indicator.render(data)}
-            <Stack direction="row" spacing={1}>
-              <Button
-                component={RouterLink}
-                to={dashboardPath(
-                  shortcut === DEFAULT_SHORTCUT ? undefined : shortcut,
-                )}
-              >
-                {content.backToDashboard}
-              </Button>
-              <Button
-                component={RouterLink}
-                to={indicator.area}
-                variant="outlined"
-              >
-                {content[id].areaLink}
-              </Button>
+      {planUnavailable ? (
+        <PlanUnavailable message={resource.error.message} />
+      ) : (
+        <ResourceState resource={resource}>
+          {(data, meta) => (
+            <Stack spacing={2.5}>
+              {meta.message ? (
+                <Typography color="text.secondary">{meta.message}</Typography>
+              ) : null}
+              {indicator.render(data)}
+              <Stack direction="row" spacing={1}>
+                <Button
+                  component={RouterLink}
+                  to={dashboardPath(
+                    shortcut === DEFAULT_SHORTCUT ? undefined : shortcut,
+                  )}
+                >
+                  {content.backToDashboard}
+                </Button>
+                <Button
+                  component={RouterLink}
+                  to={indicator.area}
+                  variant="outlined"
+                >
+                  {content[id].areaLink}
+                </Button>
+              </Stack>
             </Stack>
-          </Stack>
-        )}
-      </ResourceState>
+          )}
+        </ResourceState>
+      )}
     </>
   );
 }
