@@ -23,6 +23,7 @@ import { useResource } from '../../hooks/useResource.js';
 import { useSession } from '../../hooks/useSession.js';
 import { useSubmit } from '../../hooks/useSubmit.js';
 import {
+  LINK_ERROR_CODES,
   createPatientLink,
   listEligibleUsers,
   listPatientLinks,
@@ -38,10 +39,15 @@ const CARE_ROLES = ['caregiver', 'family'];
 const errorText = (error) =>
   content.errors[error?.code] ?? content.errors.unexpected;
 
+// Outra aba ou outra pessoa revogou o vínculo antes: tentar de novo falha
+// igual, então a tela fecha o diálogo, recarrega a equipe e mostra a API.
+const linkGone = (error) =>
+  [LINK_ERROR_CODES.NOT_FOUND, LINK_ERROR_CODES.REVOKED].includes(error?.code);
+
 // Texto opcional vazio vai como null: a API recusa "".
 const textOrNull = (value) => value.trim() || null;
 
-function LinkDialog({ patient, link, onClose, onSaved }) {
+function LinkDialog({ patient, link, onClose, onSaved, onGone }) {
   const titleId = useId();
   const editing = Boolean(link);
   const [values, setValues] = useState({
@@ -99,6 +105,8 @@ function LinkDialog({ patient, link, onClose, onSaved }) {
     );
     if (!outcome.error) {
       onSaved();
+    } else if (linkGone(outcome.error)) {
+      onGone(outcome.error);
     }
   }
 
@@ -272,6 +280,7 @@ function CareTeamCard({ patient }) {
   const titleId = useId();
   const [dialog, setDialog] = useState(null);
   const [revoking, setRevoking] = useState(null);
+  const [notice, setNotice] = useState(null);
   const load = useCallback(
     () => listPatientLinks({ patientId: patient.id, limit: 100 }),
     [patient.id],
@@ -281,11 +290,19 @@ function CareTeamCard({ patient }) {
   const inactive = patient.status === 'inactive';
   const reload = links.retry;
 
+  function showGone(error) {
+    setNotice(error.message);
+    reload();
+  }
+
   async function confirmRevoke() {
     const outcome = await revoke.submit(revoking.id);
     if (!outcome.error) {
       setRevoking(null);
       reload();
+    } else if (linkGone(outcome.error)) {
+      setRevoking(null);
+      showGone(outcome.error);
     }
   }
 
@@ -311,11 +328,19 @@ function CareTeamCard({ patient }) {
         <Button
           variant="outlined"
           disabled={inactive}
-          onClick={() => setDialog({ link: null })}
+          onClick={() => {
+            setNotice(null);
+            setDialog({ link: null });
+          }}
         >
           {content.add}
         </Button>
       </Stack>
+      {notice ? (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          {notice}
+        </Alert>
+      ) : null}
       <ResourceState resource={links} emptyText={content.empty}>
         {(items) => (
           <Box
@@ -327,8 +352,14 @@ function CareTeamCard({ patient }) {
               <Member
                 key={link.id}
                 link={link}
-                onEdit={(item) => setDialog({ link: item })}
-                onRevoke={setRevoking}
+                onEdit={(item) => {
+                  setNotice(null);
+                  setDialog({ link: item });
+                }}
+                onRevoke={(item) => {
+                  setNotice(null);
+                  setRevoking(item);
+                }}
               />
             ))}
           </Box>
@@ -344,6 +375,10 @@ function CareTeamCard({ patient }) {
             setDialog(null);
             reload();
           }}
+          onGone={(error) => {
+            setDialog(null);
+            showGone(error);
+          }}
         />
       ) : null}
       <ConfirmDialog
@@ -353,7 +388,13 @@ function CareTeamCard({ patient }) {
         confirmLabel={content.revokeDialog.confirm}
         tone="error"
         pending={revoke.status === 'submitting'}
-        error={revoke.status === 'error' ? content.revokeDialog.error : null}
+        error={
+          // O erro de vínculo que já não vale fechou o diálogo; não volta
+          // na próxima revogação.
+          revoke.status === 'error' && !linkGone(revoke.error)
+            ? content.revokeDialog.error
+            : null
+        }
         onConfirm={confirmRevoke}
         onClose={() => setRevoking(null)}
       />

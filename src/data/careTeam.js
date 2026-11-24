@@ -34,7 +34,6 @@ export const careTeamContent = {
     PATIENT_LINK_INVALID_USER:
       'Escolha um cuidador ou familiar ativo da organização.',
     PATIENT_INACTIVE: 'O paciente está inativo e não aceita esta alteração.',
-    PATIENT_LINK_REVOKED: 'Este vínculo já foi revogado.',
     unexpected: 'Não foi possível salvar agora. Tente de novo.',
   },
   revokeDialog: {

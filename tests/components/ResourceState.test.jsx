@@ -31,6 +31,15 @@ describe('ResourceState', () => {
     expect(screen.getByText('Nenhum paciente.')).toBeInTheDocument();
   });
 
+  it('mostra a mensagem da API no lugar do texto da tela', () => {
+    const message =
+      'Você ainda não tem paciente vinculado. Peça ao profissional responsável para liberar o seu acesso.';
+    renderState({ status: 'empty', data: [], meta: { message } });
+
+    expect(screen.getByText(message)).toBeInTheDocument();
+    expect(screen.queryByText('Nenhum paciente.')).not.toBeInTheDocument();
+  });
+
   it('mostra o erro com o botão de nova tentativa', () => {
     const retry = vi.fn();
     renderState({ status: 'error', error: new Error('falhou'), retry });

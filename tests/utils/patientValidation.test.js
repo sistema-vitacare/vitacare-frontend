@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { FIELD_ERRORS as E } from '../../src/utils/authValidation.js';
 import {
   PATIENT_ERRORS as PE,
+  changedPatientFields,
   emptyPatientValues,
   patientToValues,
   toPatientPayload,
@@ -178,5 +179,57 @@ describe('patientToValues', () => {
       responsibleUserId: 'resp-1',
       secondaryConditions: ['Diabetes mellitus tipo 2'],
     });
+  });
+});
+
+describe('changedPatientFields', () => {
+  const patient = {
+    name: 'Dirce',
+    birthDate: '1941-05-17',
+    sex: 'female',
+    cpf: '52998224725',
+    phone: '16997873407',
+    email: 'dirce@exemplo.test',
+    address: {
+      zipCode: '14091256',
+      street: 'Rua São Sebastião',
+      number: '2013',
+      complement: null,
+      district: 'Jardim Irajá',
+      city: 'Ribeirão Preto',
+      state: 'SP',
+    },
+    mainCondition: 'Hipertensão arterial',
+    secondaryConditions: ['Diabetes mellitus tipo 2'],
+    healthPlan: null,
+    notes: null,
+    responsible: { id: 'resp-1', name: 'Rafael', status: 'active' },
+  };
+  const loaded = patientToValues(patient);
+
+  it('leva só o telefone quando só ele muda, sem o responsável', () => {
+    expect(
+      changedPatientFields(patient, { ...loaded, phone: '(16) 3333-4444' }),
+    ).toEqual({ phone: '(16) 3333-4444' });
+  });
+
+  it('leva só a parte alterada do endereço', () => {
+    expect(changedPatientFields(patient, { ...loaded, number: '20' })).toEqual({
+      address: { number: '20' },
+    });
+  });
+
+  it('leva a troca de responsável e o campo esvaziado como null', () => {
+    expect(
+      changedPatientFields(patient, {
+        ...loaded,
+        mainCondition: '',
+        responsibleUserId: 'resp-2',
+      }),
+    ).toEqual({ mainCondition: null, responsibleUserId: 'resp-2' });
+  });
+
+  it('não leva nada quando nada mudou, mesmo com as máscaras da tela', () => {
+    expect(changedPatientFields(patient, loaded)).toEqual({});
   });
 });

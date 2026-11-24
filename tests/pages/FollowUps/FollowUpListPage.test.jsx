@@ -1,5 +1,5 @@
 import { fireEvent, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PATHS, recordsPath } from '../../../src/constants/routes.js';
 import { followUpListContent as content } from '../../../src/data/followUpPages.js';
 import { followUpRecordsContent as records } from '../../../src/data/followUpRecords.js';
@@ -7,6 +7,8 @@ import FollowUpListPage from '../../../src/pages/FollowUps/FollowUpListPage.jsx'
 import { resetMockState } from '../../../src/services/mockApi.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
+import { apiStub } from '../../support/apiStub.js';
+import { apiPatient, patientRoutes } from '../../support/fixtures/patients.js';
 
 const DIRCE = '0b639b83-76d0-570a-9017-7b6263d892cf';
 const OSVALDO = '91fb0349-7fb0-5be9-ac72-eb28afa2b17e';
@@ -21,6 +23,11 @@ function renderList(profile, path = PATHS.RECORDS) {
 afterEach(() => {
   resetMockState();
   resetViewport();
+});
+
+// As telas ainda simuladas escolhem o paciente pela API (Bloco 10).
+beforeEach(() => {
+  apiStub().use(patientRoutes());
 });
 
 describe('FollowUpListPage', () => {
@@ -41,6 +48,7 @@ describe('FollowUpListPage', () => {
   });
 
   it('entra direto na lista de quem alcança um paciente só', async () => {
+    apiStub().use(patientRoutes([apiPatient(DIRCE)]));
     const router = renderList('family');
 
     expect(await screen.findByText(records.list.count(27))).toBeInTheDocument();

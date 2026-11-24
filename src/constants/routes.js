@@ -226,6 +226,33 @@ export function reportsPath(patientId) {
   return withPatient(PATHS.REPORTS, patientId);
 }
 
+/** Termo só com dígitos e pontuação, como a API o lê: é busca por CPF. */
+export function isDocumentSearch(term) {
+  return /^[\d.\-\s]+$/.test(term) && /\d/.test(term);
+}
+
+/**
+ * Listagem de pacientes com a busca, como `{ to, state }` do roteador. O CPF
+ * vai pelo estado da rota, fora do endereço, para não ficar no histórico do
+ * navegador; a busca por nome fica no endereço, que o "voltar" refaz.
+ */
+export function patientSearch(term, { status } = {}) {
+  const search = term.trim();
+  const document = isDocumentSearch(search);
+  const params = new URLSearchParams();
+  if (search && !document) {
+    params.set('busca', search);
+  }
+  if (status === 'inactive') {
+    params.set('situacao', 'inactive');
+  }
+  const query = params.toString();
+  return {
+    to: query ? `${PATHS.PATIENTS}?${query}` : PATHS.PATIENTS,
+    state: document ? { search } : null,
+  };
+}
+
 /** Página do usuário; o id vem da API e é codificado. */
 export function userPath(userId) {
   return `${PATHS.USERS}/${encodeURIComponent(userId)}`;

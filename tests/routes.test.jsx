@@ -2,7 +2,7 @@ import { ThemeProvider } from '@mui/material';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SessionProvider from '../src/components/SessionProvider.jsx';
 import {
   PATHS,
@@ -46,6 +46,7 @@ import { preloadPages } from './support/preloadPages.js';
 import { resetViewport, setViewportWidth } from './support/viewport.js';
 import { apiStub } from './support/apiStub.js';
 import { credentialsFor } from './support/fixtures/sessions.js';
+import { apiPatient, patientRoutes } from './support/fixtures/patients.js';
 
 await preloadPages();
 
@@ -76,6 +77,17 @@ function heading(name) {
 // Entra pelo formulário de login, com o usuário de demonstração do perfil,
 // que o stub da API reconhece.
 async function signInAs(profile) {
+  if (profile === 'family') {
+    // A familiar de demonstração alcança só a Dirce, e a API traz nela o
+    // vínculo de quem consulta.
+    apiStub().use(
+      patientRoutes([
+        apiPatient(DIRCE, {
+          viewerLink: { role: 'family', linkType: 'Filha' },
+        }),
+      ]),
+    );
+  }
   await fillLogin(credentialsFor(profile));
 }
 
@@ -99,6 +111,11 @@ afterEach(() => {
   resetViewport();
   vi.useRealTimers();
   vi.restoreAllMocks();
+});
+
+// As telas ainda simuladas escolhem o paciente pela API (Bloco 10).
+beforeEach(() => {
+  apiStub().use(patientRoutes());
 });
 
 describe('rotas', () => {

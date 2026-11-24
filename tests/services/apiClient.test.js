@@ -5,6 +5,7 @@ import {
   apiDelete,
   apiDownload,
   apiGet,
+  apiPath,
   apiPost,
   apiPut,
   apiUpload,
@@ -318,5 +319,16 @@ describe('cliente HTTP da API', () => {
     expect(init.body.get('file').name).toBe('foto.png');
     expect(init.headers['Content-Type']).toBeUndefined();
     expect(init.headers.Authorization).toBe('Bearer token');
+  });
+
+  it('escapa os valores da rota, para um id do endereço não levar a outra rota', () => {
+    const id = '7f3a-91bd';
+
+    expect(apiPath`/patients/${id}/overview`).toBe(
+      '/patients/7f3a-91bd/overview',
+    );
+    expect(apiPath`/patients/${'../users/u1'}/deactivate`).toBe(
+      '/patients/..%2Fusers%2Fu1/deactivate',
+    );
   });
 });

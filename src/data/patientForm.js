@@ -18,6 +18,7 @@ export const patientFormContent = {
   cancel: 'Cancelar',
   save: 'Salvar paciente',
   invalidFields: 'Revise os campos destacados antes de salvar.',
+  nothingChanged: 'Nenhum dado foi alterado. Não há o que salvar.',
   duplicateCpf:
     'Já existe um paciente com este CPF na organização. Busque o cadastro existente; se ele estiver inativo, reative-o no detalhe do paciente.',
   searchActive: 'Buscar entre os ativos',

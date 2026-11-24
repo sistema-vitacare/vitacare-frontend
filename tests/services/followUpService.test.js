@@ -9,7 +9,7 @@ import {
 } from '../../src/services/followUpService.js';
 import { addFollowUp } from '../../src/services/followUpStore.js';
 import { resetMockState } from '../../src/services/mockApi.js';
-import { deactivatePatient } from '../../src/services/patientService.js';
+import { changePatient } from '../../src/services/patientStore.js';
 
 const NOW = new Date('2026-11-10T15:00:00.000Z');
 const DIRCE = '0b639b83-76d0-570a-9017-7b6263d892cf';
@@ -288,9 +288,7 @@ describe('createFollowUp', () => {
       createFollowUp(visit({ patientId: IOLANDA })),
     ).rejects.toMatchObject({ status: 404, code: 'PATIENT_NOT_FOUND' });
 
-    await startDemoSession('professional');
-    await deactivatePatient(DIRCE);
-    await startDemoSession('caregiver');
+    changePatient(DIRCE, { status: 'inactive' });
 
     await expect(createFollowUp(visit())).rejects.toMatchObject({
       status: 409,

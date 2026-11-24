@@ -16,8 +16,10 @@ import {
   formPath,
   homePath,
   indicatorFromSlug,
+  isDocumentSearch,
   medicationsPath,
   patientPath,
+  patientSearch,
   recordPath,
   recordsPath,
   reportsPath,
@@ -147,6 +149,37 @@ describe('endereços de formulários e registros', () => {
     expect(PATHS.FORM_DETAIL).toBe('/formularios/:formId');
     expect(PATHS.PATIENT_VISIT).toBe('/pacientes/:patientId/registrar');
     expect(PATHS.RECORD_DETAIL).toBe('/registros/:followUpId');
+  });
+});
+
+describe('busca de pacientes', () => {
+  it('leva a busca por nome no endereço, com a situação inativa junto', () => {
+    expect(patientSearch('dirce')).toEqual({
+      to: '/pacientes?busca=dirce',
+      state: null,
+    });
+    expect(patientSearch(' Dirce ', { status: 'inactive' })).toEqual({
+      to: '/pacientes?busca=Dirce&situacao=inactive',
+      state: null,
+    });
+  });
+
+  it('leva o CPF pelo estado da rota, fora do endereço e do histórico do navegador', () => {
+    expect(patientSearch('529.982.247-25')).toEqual({
+      to: '/pacientes',
+      state: { search: '529.982.247-25' },
+    });
+    expect(patientSearch('52998224725', { status: 'inactive' })).toEqual({
+      to: '/pacientes?situacao=inactive',
+      state: { search: '52998224725' },
+    });
+    expect(isDocumentSearch('529.982')).toBe(true);
+    expect(isDocumentSearch('Dirce 2')).toBe(false);
+    expect(isDocumentSearch(' - ')).toBe(false);
+  });
+
+  it('sem termo, leva à lista', () => {
+    expect(patientSearch('  ')).toEqual({ to: '/pacientes', state: null });
   });
 });
 

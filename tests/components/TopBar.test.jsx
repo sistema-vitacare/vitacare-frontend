@@ -48,6 +48,22 @@ describe('busca da barra superior', () => {
     expect(router.state.location.search).toBe('?busca=dirce');
   });
 
+  it('leva a busca por CPF pelo estado da rota, fora do endereço', async () => {
+    const router = renderTopBar('admin');
+    const field = await screen.findByRole('searchbox', {
+      name: topBarSearchContent.label,
+    });
+
+    fireEvent.change(field, { target: { value: '040.646.054-03' } });
+    fireEvent.submit(screen.getByRole('search'));
+
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(PATHS.PATIENTS),
+    );
+    expect(router.state.location.search).toBe('');
+    expect(router.state.location.state).toEqual({ search: '040.646.054-03' });
+  });
+
   it('não aparece para quem não lê pacientes', async () => {
     renderTopBar('platform_admin');
     await screen.findByRole('banner');

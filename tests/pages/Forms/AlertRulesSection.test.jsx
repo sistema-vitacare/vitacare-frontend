@@ -1,5 +1,5 @@
 import { fireEvent, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PATHS, formPath } from '../../../src/constants/routes.js';
 import {
   alertRuleFieldErrors as fieldErrors,
@@ -10,6 +10,8 @@ import FormPage from '../../../src/pages/Forms/FormPage.jsx';
 import { resetMockState } from '../../../src/services/mockApi.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
+import { apiStub } from '../../support/apiStub.js';
+import { patientRoutes } from '../../support/fixtures/patients.js';
 
 const VITAL_SIGNS = '8c0342e9-d9e9-58c2-a229-1c32168a8bf2';
 const DAILY = 'd9d5ba57-125a-506d-a026-be0c9dc2dad6';
@@ -52,6 +54,11 @@ function choose(label, option) {
 afterEach(() => {
   resetMockState();
   resetViewport();
+});
+
+// As telas ainda simuladas escolhem o paciente pela API (Bloco 10).
+beforeEach(() => {
+  apiStub().use(patientRoutes());
 });
 
 describe('AlertRulesSection', () => {

@@ -15,7 +15,7 @@ import { Link as RouterLink, useNavigate, useParams } from 'react-router';
 import PageHeader from '../../components/PageHeader.jsx';
 import ResourceState from '../../components/ResourceState.jsx';
 import { BRAZILIAN_STATES } from '../../constants/brazil.js';
-import { PATHS, patientPath } from '../../constants/routes.js';
+import { PATHS, patientPath, patientSearch } from '../../constants/routes.js';
 import { navLabels } from '../../data/navigation.js';
 import {
   patientFieldLabels as labels,
@@ -43,6 +43,7 @@ import {
   maskZipCode,
 } from '../../utils/masks.js';
 import {
+  changedPatientFields,
   emptyPatientValues,
   patientToValues,
   toPatientPayload,
@@ -124,6 +125,7 @@ function PatientForm({ patient }) {
   );
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState(null);
+  const [notice, setNotice] = useState(null);
   const [duplicateCpf, setDuplicateCpf] = useState(null);
   const responsibles = useResource(loadResponsibles);
   const action = useCallback(
@@ -146,6 +148,7 @@ function PatientForm({ patient }) {
     event.preventDefault();
     const form = event.currentTarget;
     setFormError(null);
+    setNotice(null);
     setDuplicateCpf(null);
     const found = validatePatient(values, todayInSaoPaulo());
     setErrors(found);
@@ -156,7 +159,14 @@ function PatientForm({ patient }) {
       return;
     }
 
-    const { data, error } = await submit(toPatientPayload(values));
+    const payload = editing
+      ? changedPatientFields(patient, values)
+      : toPatientPayload(values);
+    if (Object.keys(payload).length === 0) {
+      setNotice(content.nothingChanged);
+      return;
+    }
+    const { data, error } = await submit(payload);
     if (!error) {
       navigate(patientPath(data.id), { replace: true });
       return;
@@ -201,19 +211,17 @@ function PatientForm({ patient }) {
     <Box component="form" noValidate onSubmit={handleSubmit}>
       <Stack spacing={2.5}>
         {formError ? <Alert severity="error">{formError}</Alert> : null}
+        {notice ? <Alert severity="info">{notice}</Alert> : null}
         {duplicateCpf ? (
           <Alert severity="warning">
             {content.duplicateCpf}
             <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
-              <Link
-                component={RouterLink}
-                to={`${PATHS.PATIENTS}?${new URLSearchParams({ busca: duplicateCpf })}`}
-              >
+              <Link component={RouterLink} {...patientSearch(duplicateCpf)}>
                 {content.searchActive}
               </Link>
               <Link
                 component={RouterLink}
-                to={`${PATHS.PATIENTS}?${new URLSearchParams({ busca: duplicateCpf, situacao: 'inactive' })}`}
+                {...patientSearch(duplicateCpf, { status: 'inactive' })}
               >
                 {content.searchInactive}
               </Link>

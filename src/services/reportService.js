@@ -6,7 +6,9 @@
 // integração, as duas funções passam a chamar as rotas, e a tela salva o
 // arquivo do mesmo jeito.
 import { PERMISSIONS as P } from '../constants/permissions.js';
+import { forms } from '../data/mocks/forms.js';
 import { reportPdfLines } from '../data/mocks/reportPdf.js';
+import { buildIndicators } from '../utils/evolution.js';
 import { formatDate, TIME_ZONE, todayInSaoPaulo } from '../utils/format.js';
 import { resolvePeriod } from '../utils/period.js';
 import { placeholderPdf } from '../utils/placeholderPdf.js';
@@ -20,11 +22,93 @@ import {
   respond,
   validationError,
 } from './mockApi.js';
+import { allFollowUps } from './followUpStore.js';
 import { findOrganization } from './organizationStore.js';
-import { evolutionSeries, followUpsInPeriod } from './patientService.js';
 import { reachablePatient } from './patientStore.js';
 
 const MAX_RECORDS = 1000;
+const NUMERIC_TYPES = ['number', 'scale'];
+
+function validFollowUps(patientId, now) {
+  return allFollowUps(now).filter(
+    (followUp) =>
+      followUp.patientId === patientId && followUp.status === 'valid',
+  );
+}
+
+/** Agrupa as respostas numéricas por campo, com os pontos em ordem de visita. */
+function numericSeries(followUps) {
+  const groups = new Map();
+  const positions = new Map();
+  const ascending = [...followUps].sort((a, b) =>
+    a.visitedAt.localeCompare(b.visitedAt),
+  );
+  for (const followUp of ascending) {
+    for (const answer of followUp.answers) {
+      if (!NUMERIC_TYPES.includes(answer.fieldType)) {
+        continue;
+      }
+      const group = groups.get(answer.fieldKey) ?? { points: [] };
+      group.points.push({
+        value: answer.value,
+        visitedAt: followUp.visitedAt,
+        followUpId: followUp.id,
+      });
+      // Nome, unidade e seção vêm da versão do valor mais recente.
+      Object.assign(group, {
+        fieldKey: answer.fieldKey,
+        name: answer.name,
+        fieldType: answer.fieldType,
+        unit: answer.unit,
+        section: answer.section,
+        form: { id: followUp.form.id, name: followUp.form.name },
+      });
+      groups.set(answer.fieldKey, group);
+      positions.set(answer.fieldKey, answer.position);
+    }
+  }
+  // Ordem da API: nome do formulário, posição do campo e `fieldKey`.
+  return [...groups.values()].sort(
+    (a, b) =>
+      a.form.name.localeCompare(b.form.name, 'pt-BR') ||
+      positions.get(a.fieldKey) - positions.get(b.fieldKey) ||
+      a.fieldKey.localeCompare(b.fieldKey),
+  );
+}
+
+// Faixa de escala vem da definição do campo nas versões publicadas; com a
+// mesma chave em várias versões, vale a mais nova.
+const fieldDefinitions = new Map(
+  forms.flatMap((form) =>
+    form.versions.flatMap((version) =>
+      version.fields.map((field) => [field.fieldKey, field]),
+    ),
+  ),
+);
+
+/** Registros válidos do paciente com visita no período, em dias de Brasília. */
+export function followUpsInPeriod(patientId, { from, to }, now = new Date()) {
+  return validFollowUps(patientId, now).filter((followUp) => {
+    const day = todayInSaoPaulo(new Date(followUp.visitedAt));
+    return day >= from && day <= to;
+  });
+}
+
+/**
+ * Séries numéricas com os indicadores, as mesmas de GET
+ * /patients/{id}/evolution, que a API calcula pelas mesmas funções.
+ */
+export function evolutionSeries(followUps) {
+  return numericSeries(followUps).map((item) => {
+    const definition = fieldDefinitions.get(item.fieldKey);
+    return {
+      ...item,
+      scaleMin: definition?.scaleMin ?? null,
+      scaleMax: definition?.scaleMax ?? null,
+      indicators: buildIndicators(item.points),
+    };
+  });
+}
 
 /** Conferências na ordem da API: sessão, permissão, período e paciente. */
 function access(patientId, query, now) {

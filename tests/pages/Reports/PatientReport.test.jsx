@@ -13,6 +13,8 @@ import { getPatientReport } from '../../../src/services/reportService.js';
 import { formatDate, todayInSaoPaulo } from '../../../src/utils/format.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
+import { apiStub } from '../../support/apiStub.js';
+import { patientRoutes } from '../../support/fixtures/patients.js';
 
 const DIRCE = '0b639b83-76d0-570a-9017-7b6263d892cf';
 const NOW = new Date('2026-11-13T15:00:00.000Z');
@@ -52,6 +54,11 @@ afterEach(() => {
   vi.restoreAllMocks();
   delete URL.createObjectURL;
   delete URL.revokeObjectURL;
+});
+
+// As telas ainda simuladas escolhem o paciente pela API (Bloco 10).
+beforeEach(() => {
+  apiStub().use(patientRoutes());
 });
 
 describe('PatientReport', () => {

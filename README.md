@@ -6,7 +6,7 @@ A aplicação é um PWA responsivo, construído com React e Material UI, que con
 
 ## Situação atual
 
-Todas as telas estão prontas, e a integração com a API do backend está em andamento. O acesso (login, sessão, termo de uso, aceite do convite, primeiro acesso, recuperação e troca de senha) usa a API; as demais áreas ainda leem dados simulados, servidos pela camada de serviços no formato de resposta da API. A integração de cada área troca o corpo dos serviços dela pelas chamadas à API, sem alterar as telas.
+Todas as telas estão prontas, e a integração com a API do backend está em andamento. O acesso (login, sessão, termo de uso, aceite do convite, primeiro acesso, recuperação e troca de senha) e os pacientes (lista, cadastro, edição, situação, detalhe, evolução e equipe de cuidado) usam a API; as demais áreas ainda leem dados simulados, servidos pela camada de serviços no formato de resposta da API. A integração de cada área troca o corpo dos serviços dela pelas chamadas à API, sem alterar as telas.
 
 ## Como rodar
 
@@ -69,7 +69,7 @@ Em produção, o frontend roda na VPS como um container nginx na porta 1040, pub
 | `src/styles/` | Tema do Material UI: cores, tipografia, raios, sombras e movimento. |
 | `src/utils/` | Funções puras: validações (CPF, campos de acesso, cadastro de paciente, usuário e organização, inclusive a nova com o primeiro administrador), regras dos campos de formulário, das respostas de registro, dos anexos, dos medicamentos e das regras de alerta, a agenda dos medicamentos, as mensagens dos alertas, a regra de período da API, as contas do painel e dos relatórios gerenciais, as ações de cada usuário, o aviso de vencimento do plano, as regras do termo do plano (limites, data de fim e motivo), a senha provisória, o CSV da auditoria e o endereço do item de um evento, a entrega de arquivo baixado, a recarga da página depois de um deploy, a origem da API lida do `/config.js`, a leitura do texto do termo de uso, o PDF fixo do relatório simulado, máscaras, números digitados com vírgula, formatação de datas e doses e os indicadores de evolução. |
 | `tests/` | Testes automatizados, espelhando as pastas de `src/`. |
-| `tests/support/` | Apoio dos testes: stub da API, sessões dos usuários de demonstração no formato do login da API, verificações de projeto, cálculo de contraste, largura de tela simulada, renderização de telas com a sessão do perfil e carga das telas sob demanda antes dos testes do roteador. |
+| `tests/support/` | Apoio dos testes: stub da API, sessões dos usuários de demonstração no formato do login da API, pacientes dos dados simulados no formato da API, verificações de projeto, cálculo de contraste, largura de tela simulada, renderização de telas com a sessão do perfil e carga das telas sob demanda antes dos testes do roteador. |
 
 Todo arquivo solto em `src/` e toda pasta de `src/` até dois níveis precisam de uma linha nesta tabela; um teste falha quando falta alguma.
 

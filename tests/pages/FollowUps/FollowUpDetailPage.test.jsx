@@ -1,11 +1,13 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PATHS, recordPath } from '../../../src/constants/routes.js';
 import { followUpDetailContent as content } from '../../../src/data/followUpPages.js';
 import FollowUpDetailPage from '../../../src/pages/FollowUps/FollowUpDetailPage.jsx';
 import { resetMockState } from '../../../src/services/mockApi.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
+import { apiStub } from '../../support/apiStub.js';
+import { patientRoutes } from '../../support/fixtures/patients.js';
 
 const LAST_VITAL_SIGNS = 'f0110000-0000-5000-8000-000100000013';
 const ANNULLED = 'f0110000-0000-5000-8000-000100000008';
@@ -31,6 +33,11 @@ function attachmentsCard() {
 afterEach(() => {
   resetMockState();
   resetViewport();
+});
+
+// As telas ainda simuladas escolhem o paciente pela API (Bloco 10).
+beforeEach(() => {
+  apiStub().use(patientRoutes());
 });
 
 describe('FollowUpDetailPage', () => {
