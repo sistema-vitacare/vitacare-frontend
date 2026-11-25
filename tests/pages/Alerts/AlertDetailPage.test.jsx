@@ -1,5 +1,5 @@
 import { fireEvent, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   PATHS,
   alertPath,
@@ -13,19 +13,40 @@ import {
   resolveAlertContent as resolve,
 } from '../../../src/data/alertPages.js';
 import AlertDetailPage from '../../../src/pages/Alerts/AlertDetailPage.jsx';
-import {
-  listPatientAlerts,
-  resolveAlert,
-} from '../../../src/services/alertService.js';
-import { startDemoSession } from '../../../src/services/authService.js';
-import { annulFollowUp } from '../../../src/services/followUpStore.js';
 import { resetMockState } from '../../../src/services/mockApi.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
+import { apiFailure, apiStub } from '../../support/apiStub.js';
+import {
+  ABSENCE,
+  DIRCE,
+  FOLLOW_UP,
+  OSVALDO,
+  READING,
+  REMINDER,
+  alertRoutes,
+  allAlerts,
+} from '../../support/fixtures/alerts.js';
 
-const DIRCE = '0b639b83-76d0-570a-9017-7b6263d892cf';
-const OSVALDO = '91fb0349-7fb0-5be9-ac72-eb28afa2b17e';
-const ABSENCE = 'a1e70000-0000-5000-8009-000000000001';
+const RESOLVE = 'POST /alerts/:alertId/resolve';
+
+// O que a API devolve no detalhe; o teste que resolve muda esta lista, como a
+// API faria, e a tela a pede de novo.
+let alerts;
+
+function change(alertId, changes) {
+  const index = alerts.findIndex(({ id }) => id === alertId);
+  alerts[index] = { ...alerts[index], ...changes };
+  return { data: alerts[index], meta: {} };
+}
+
+const resolution = (name) => ({
+  status: 'resolved',
+  resolution: {
+    resolvedAt: '2026-11-25T13:00:00.000Z',
+    resolvedBy: { id: `u-${name}`, name },
+  },
+});
 
 function renderDetail(profile, alertId) {
   return renderPage(
@@ -34,14 +55,19 @@ function renderDetail(profile, alertId) {
   );
 }
 
-async function firstAlert(patientId, query) {
-  await startDemoSession('professional');
-  const { data } = await listPatientAlerts({ patientId, ...query });
-  return data[0];
-}
-
 function section(title) {
   return screen.getByRole('heading', { name: title }).closest('.MuiCard-root');
+}
+
+async function confirmResolve(title) {
+  fireEvent.click(
+    await screen.findByRole('button', { name: resolve.resolveOf(title) }),
+  );
+  fireEvent.click(
+    within(await screen.findByRole('dialog')).getByRole('button', {
+      name: resolve.dialog.confirm,
+    }),
+  );
 }
 
 afterEach(() => {
@@ -49,43 +75,40 @@ afterEach(() => {
   resetViewport();
 });
 
+beforeEach(() => {
+  alerts = allAlerts();
+  apiStub().use(alertRoutes(alerts));
+});
+
 describe('AlertDetailPage', () => {
-  it('mostra o alerta de valor registrado com campo, valor, condição, regra e registro de origem', async () => {
-    const alert = await firstAlert(OSVALDO, {
-      status: 'open',
-      severity: 'warning',
-    });
-    renderDetail('professional', alert.id);
+  it('mostra o alerta de valor registrado com campo, valor, condição, regra, registro de origem e quem registrou', async () => {
+    renderDetail('professional', READING);
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: alert.title }),
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'Pressão sistólica acima de 160',
+      }),
     ).toBeVisible();
     const reading = section(content.reading.title);
-    expect(within(reading).getByText('Glicemia capilar')).toBeVisible();
-    expect(within(reading).getByText(/^\d+ mg\/dL$/)).toBeVisible();
-    expect(within(reading).getByText('maior que 180 mg/dL')).toBeVisible();
+    expect(within(reading).getByText('Pressão sistólica')).toBeVisible();
+    expect(within(reading).getByText('182 mmHg')).toBeVisible();
+    expect(within(reading).getByText('maior que 160 mmHg')).toBeVisible();
     expect(
       within(reading).getByRole('link', { name: /^Visita de / }),
-    ).toHaveAttribute('href', recordPath(alert.followUp.id));
+    ).toHaveAttribute('href', recordPath(FOLLOW_UP));
+    expect(within(reading).getByText('Carla Mendes')).toBeVisible();
     expect(screen.getByRole('link', { name: 'Alertas' })).toHaveAttribute(
       'href',
-      alertsPath(OSVALDO),
+      alertsPath(DIRCE.id),
     );
   });
 
   it('marca o registro de origem anulado depois do alerta', async () => {
-    // Um alerta dos dados simulados cujo registro de origem é anulado depois;
-    // a anulação vai pelo estado simulado, porque o serviço passa a ser da API.
-    await startDemoSession('caregiver');
-    const { data } = await listPatientAlerts({ patientId: DIRCE });
-    const alert = data.find((item) => item.followUp?.status === 'valid');
-    annulFollowUp(alert.followUp.id, {
-      reason: 'Valor digitado errado.',
-      annulledAt: new Date().toISOString(),
-      annulledBy: { id: 'x', name: 'X' },
+    change(READING, {
+      followUp: { ...alerts[0].followUp, status: 'annulled' },
     });
-
-    renderDetail('professional', alert.id);
+    renderDetail('professional', READING);
 
     expect(await screen.findByText(content.reading.annulled)).toBeVisible();
   });
@@ -105,72 +128,68 @@ describe('AlertDetailPage', () => {
   });
 
   it('mostra o lembrete com o medicamento e o horário programado', async () => {
-    const alert = await firstAlert(OSVALDO, { severity: 'info' });
-    renderDetail('caregiver', alert.id);
+    renderDetail('caregiver', REMINDER);
 
     const reminder = await screen
       .findByRole('heading', { name: content.reminder.title })
       .then((heading) => heading.closest('.MuiCard-root'));
-    expect(
-      within(reminder).getByText(alert.medicationReminder.medication.name),
-    ).toBeVisible();
+    expect(within(reminder).getByText('Metformina 850 mg')).toBeVisible();
     expect(
       within(reminder).getByRole('link', {
         name: content.reminder.openMedications,
       }),
-    ).toHaveAttribute('href', medicationsPath(OSVALDO));
+    ).toHaveAttribute('href', medicationsPath(OSVALDO.id));
   });
 
   it('resolve pelo detalhe, com confirmação, e mostra quem resolveu', async () => {
-    const alert = await firstAlert(DIRCE, { status: 'open' });
-    renderDetail('caregiver', alert.id);
+    apiStub().use({
+      [RESOLVE]: ({ params }) =>
+        change(params.alertId, resolution('Carla Mendes')),
+    });
+    renderDetail('caregiver', READING);
 
-    fireEvent.click(
-      await screen.findByRole('button', {
-        name: resolve.resolveOf(alert.title),
-      }),
-    );
-    fireEvent.click(
-      within(await screen.findByRole('dialog')).getByRole('button', {
-        name: resolve.dialog.confirm,
-      }),
-    );
+    await confirmResolve('Pressão sistólica acima de 160');
 
     expect(
-      await screen.findByText(/^Resolvido por Rosângela Prado em /),
+      await screen.findByText(/^Resolvido por Carla Mendes em /),
     ).toBeVisible();
+    expect(apiStub().last(RESOLVE).params.alertId).toBe(READING);
     expect(
-      screen.queryByRole('button', { name: resolve.resolveOf(alert.title) }),
+      screen.queryByRole('button', {
+        name: resolve.resolveOf('Pressão sistólica acima de 160'),
+      }),
     ).toBeNull();
   });
 
-  it('avisa quando outra pessoa resolveu antes', async () => {
-    const alert = await firstAlert(DIRCE, { status: 'open' });
-    renderDetail('caregiver', alert.id);
-    const button = await screen.findByRole('button', {
-      name: resolve.resolveOf(alert.title),
+  it('avisa quando outra pessoa resolveu antes e mostra a resolução dela', async () => {
+    apiStub().use({
+      [RESOLVE]: () => {
+        change(READING, resolution('Rafael Moura Brandão'));
+        return apiFailure(
+          409,
+          'ALERT_ALREADY_RESOLVED',
+          'O alerta já foi resolvido.',
+        );
+      },
     });
+    renderDetail('caregiver', READING);
 
-    await resolveAlert(alert.id);
-    fireEvent.click(button);
-    fireEvent.click(
-      within(await screen.findByRole('dialog')).getByRole('button', {
-        name: resolve.dialog.confirm,
-      }),
-    );
+    await confirmResolve('Pressão sistólica acima de 160');
 
     expect(await screen.findByText(list.alreadyResolved)).toBeVisible();
     expect(
-      await screen.findByText(/^Resolvido por Rosângela Prado em /),
+      await screen.findByText(/^Resolvido por Rafael Moura Brandão em /),
     ).toBeVisible();
   });
 
   it('não mostra Resolver à familiar', async () => {
-    const alert = await firstAlert(DIRCE, { status: 'open' });
-    renderDetail('family', alert.id);
+    renderDetail('family', READING);
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: alert.title }),
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'Pressão sistólica acima de 160',
+      }),
     ).toBeVisible();
     expect(screen.queryByRole('button', { name: /^Resolver/ })).toBeNull();
   });

@@ -13,6 +13,7 @@ import {
   apiStub,
   reply,
 } from '../../support/apiStub.js';
+import { apiAlert } from '../../support/fixtures/alerts.js';
 import { followUpRoutes } from '../../support/fixtures/followUps.js';
 import { patientRoutes } from '../../support/fixtures/patients.js';
 import { demoUser } from '../../support/fixtures/sessions.js';
@@ -151,13 +152,44 @@ describe('FollowUpDetailPage', () => {
     ).toBeNull();
   });
 
-  it('mostra os alertas que o registro gerou', async () => {
+  it('mostra os alertas de valor registrado que o registro gerou', async () => {
+    const { patientId } = followUpRoutes()[DETAIL]({
+      params: { followUpId: HIGH_GLUCOSE },
+    }).data;
+    const reading = (id, followUpId, title) =>
+      apiAlert(
+        id,
+        { id: patientId, name: 'Paciente', mainCondition: null },
+        {
+          title,
+          followUp: {
+            id: followUpId,
+            visitedAt: '2026-11-25T11:00:00.000Z',
+            status: 'valid',
+            author: { id: 'u1', name: 'Carla Mendes' },
+          },
+        },
+      );
+    apiStub().use({
+      'GET /alerts': () =>
+        apiPage([
+          reading('a1', HIGH_GLUCOSE, 'Glicemia acima de 180'),
+          reading('a2', HIGH_GLUCOSE, 'Glicemia acima de 250'),
+          reading('a3', LAST_VITAL_SIGNS, 'Alerta de outro registro'),
+        ]),
+    });
     renderDetail(HIGH_GLUCOSE, 'caregiver');
 
     expect(
       await screen.findByText('Glicemia acima de 180'),
     ).toBeInTheDocument();
     expect(screen.getByText('Glicemia acima de 250')).toBeInTheDocument();
+    expect(screen.queryByText('Alerta de outro registro')).toBeNull();
+    expect(apiStub().last('GET /alerts').query).toEqual({
+      patientId,
+      source: 'reading',
+      limit: '100',
+    });
   });
 
   it('anula com motivo obrigatório e passa a mostrar o registro anulado', async () => {

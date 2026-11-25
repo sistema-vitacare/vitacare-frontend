@@ -18,7 +18,7 @@ import ResourceState from './ResourceState.jsx';
 const loadPatients = () => listPatients({ limit: PATIENTS_LIMIT });
 const noPatient = () => Promise.resolve({ data: null, meta: {} });
 
-function Picker({ patients, content, children }) {
+function Picker({ patients, content, optional, children }) {
   const [params, setParams] = useSearchParams();
   const patientId = params.get(PATIENT_PARAM) ?? '';
   const { found, setInput, loading } = usePatientSearch(patients);
@@ -41,8 +41,20 @@ function Picker({ patients, content, children }) {
       ? [...found, selected]
       : found;
 
-  // Quem alcança um paciente só já entra na lista dele.
-  const single = patients.length === 1 ? patients[0].id : null;
+  // Quem alcança um paciente só já entra na lista dele; no filtro opcional,
+  // a lista de todos já é a dele.
+  const single = !optional && patients.length === 1 ? patients[0].id : null;
+  // Com o paciente do endereço ainda em consulta, o filtro opcional espera,
+  // para não pedir antes a lista de todos.
+  const waiting = Boolean(patientId) && !selected && other.status === 'loading';
+  let body = null;
+  if (selected || (optional && !waiting)) {
+    body = children(selected);
+  } else if (!optional) {
+    body = (
+      <Typography color="text.secondary">{content.choosePatient}</Typography>
+    );
+  }
   useEffect(() => {
     if (single && !patientId) {
       setParams(new URLSearchParams([[PATIENT_PARAM, single]]), {
@@ -102,26 +114,24 @@ function Picker({ patients, content, children }) {
           ) : null}
         </Stack>
       </Card>
-      {selected ? (
-        children(selected)
-      ) : (
-        <Typography color="text.secondary">{content.choosePatient}</Typography>
-      )}
+      {body}
     </Stack>
   );
 }
 
 /**
- * Escolha do paciente das telas que a API só lista por paciente (registros,
- * medicamentos e alertas). O paciente fica na query do endereço; `children`
- * recebe o paciente escolhido. Os textos vêm de cada tela, em `content`.
+ * Escolha do paciente das telas que a API lista por paciente (registros,
+ * medicamentos e relatórios). O paciente fica na query do endereço; `children`
+ * recebe o paciente escolhido. Com `optional` (alertas), o paciente é só
+ * filtro, e `children` recebe `null` sem ele. Os textos vêm de cada tela, em
+ * `content`.
  */
-export default function PatientPicker({ content, children }) {
+export default function PatientPicker({ content, optional = false, children }) {
   const patients = useResource(loadPatients);
   return (
     <ResourceState resource={patients} emptyText={content.noPatients}>
       {(items) => (
-        <Picker patients={items} content={content}>
+        <Picker patients={items} content={content} optional={optional}>
           {children}
         </Picker>
       )}

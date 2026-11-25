@@ -23,59 +23,41 @@ import {
   alertSourceLabels,
 } from '../../data/alertPages.js';
 import { severityLabels } from '../../data/patientFields.js';
+import { useNotifications } from '../../hooks/useNotifications.js';
 import { useResource } from '../../hooks/useResource.js';
 import { useSession } from '../../hooks/useSession.js';
-import { listPatientAlerts } from '../../services/alertService.js';
+import { useSubmit } from '../../hooks/useSubmit.js';
+import { getAlertSummary, listAlerts } from '../../services/alertService.js';
+import { readAllNotifications } from '../../services/notificationService.js';
 import { formatDateTime } from '../../utils/format.js';
 import ResolveAlertButton from './ResolveAlertButton.jsx';
 
 const PARAMS = { tab: 'aba', page: 'pagina' };
 const PAGE_SIZE = 20;
 
-// Abas da Figura 42: abertos, os abertos de cada severidade e os
-// resolvidos. A primeira é a padrão e não aparece no endereço.
+// Abas da Figura 42 (tabela de montagem em `alerts-listar.md`): todos os
+// abertos, os abertos de cada severidade, por prioridade, e os resolvidos. A
+// primeira é a padrão e não aparece no endereço.
+const OPEN = { status: 'open', sort: 'priority' };
 const TABS = [
-  { key: 'open', slug: 'abertos', query: { status: 'open' } },
+  { key: 'open', slug: 'abertos', query: OPEN },
   {
     key: 'critical',
     slug: 'critico',
-    query: { status: 'open', severity: 'critical' },
+    query: { ...OPEN, severity: 'critical' },
   },
   {
     key: 'warning',
     slug: 'atencao',
-    query: { status: 'open', severity: 'warning' },
+    query: { ...OPEN, severity: 'warning' },
   },
   {
     key: 'info',
     slug: 'informativo',
-    query: { status: 'open', severity: 'info' },
+    query: { ...OPEN, severity: 'info' },
   },
   { key: 'resolved', slug: 'resolvidos', query: { status: 'resolved' } },
 ];
-
-/**
- * A API não devolve contagens: cada contador é o `total` da lista dos
- * abertos daquela severidade, pedida com um item só.
- */
-function openCountsLoader(patientId) {
-  return async () => {
-    const responses = await Promise.all(
-      ALERT_SEVERITIES.map((severity) =>
-        listPatientAlerts({ patientId, severity, status: 'open', limit: 1 }),
-      ),
-    );
-    return {
-      data: Object.fromEntries(
-        ALERT_SEVERITIES.map((severity, index) => [
-          severity,
-          responses[index].meta.pagination.total,
-        ]),
-      ),
-      meta: {},
-    };
-  };
-}
 
 function Counters({ counts }) {
   return (
@@ -137,8 +119,14 @@ function AlertItem({ alert, canResolve, onResolved }) {
         <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
           {alert.message}
         </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {content.patient(alert.patient.name, alert.patient.mainCondition)}
+        </Typography>
         <Typography variant="caption" color="text.secondary" component="p">
           <span>{alertSourceLabels[alert.source]}</span> ·{' '}
+          {alert.followUp?.author
+            ? `${content.recordedBy(alert.followUp.author.name)} · `
+            : null}
           {formatDateTime(alert.generatedAt)}
         </Typography>
         {alert.resolution ? (
@@ -167,30 +155,43 @@ function AlertItem({ alert, canResolve, onResolved }) {
   );
 }
 
-function PatientAlerts({ patient }) {
+/** Alertas de todos os pacientes ao alcance ou, com `patientId`, de um só. */
+function Alerts({ patientId }) {
   const { can } = useSession();
+  const notifications = useNotifications();
   const [params, setParams] = useSearchParams();
   const tab =
     TABS.find((item) => item.slug === params.get(PARAMS.tab)) ?? TABS[0];
   const page = Math.max(1, Number(params.get(PARAMS.page)) || 1);
   const [notice, setNotice] = useState(null);
 
-  const loadCounts = useCallback(
-    () => openCountsLoader(patient.id)(),
-    [patient.id],
+  const loadSummary = useCallback(
+    () => getAlertSummary({ patientId }),
+    [patientId],
   );
-  const counts = useResource(loadCounts);
+  const summary = useResource(loadSummary);
   const loadAlerts = useCallback(
-    () =>
-      listPatientAlerts({
-        patientId: patient.id,
-        ...tab.query,
-        page,
-        limit: PAGE_SIZE,
-      }),
-    [patient.id, tab, page],
+    () => listAlerts({ patientId, ...tab.query, page, limit: PAGE_SIZE }),
+    [patientId, tab, page],
   );
   const alerts = useResource(loadAlerts);
+  const readAll = useCallback(
+    () => readAllNotifications(patientId ? { patientId } : {}),
+    [patientId],
+  );
+  const markAll = useSubmit(readAll);
+
+  async function markAllRead() {
+    const outcome = await markAll.submit();
+    setNotice(
+      outcome.error
+        ? { severity: 'error', text: content.readAllFailed }
+        : { severity: 'success', text: content.allRead(outcome.data.updated) },
+    );
+    if (!outcome.error) {
+      notifications.refresh();
+    }
+  }
 
   function change({ tab: nextTab = tab, page: nextPage = 1 }) {
     setNotice(null);
@@ -219,31 +220,39 @@ function PatientAlerts({ patient }) {
         ? { severity: 'info', text: content.alreadyResolved }
         : { severity: 'success', text: content.resolved },
     );
-    counts.retry();
+    summary.retry();
     alerts.retry();
   }
 
-  const openTotal =
-    counts.status === 'success'
-      ? ALERT_SEVERITIES.reduce(
-          (sum, severity) => sum + counts.data[severity],
-          0,
-        )
-      : null;
+  // O número ao lado de cada aba é o do resumo: `total` em Todos e o da
+  // severidade nas outras; Resolvidos não tem número.
   const tabLabel = (item) => {
     const label = content.tabs[item.key];
-    if (counts.status !== 'success' || item.key === 'resolved') {
+    if (summary.status !== 'success' || item.key === 'resolved') {
       return label;
     }
-    const count = item.key === 'open' ? openTotal : counts.data[item.key];
-    return content.tabLabel(label, count);
+    const { open } = summary.data;
+    return content.tabLabel(
+      label,
+      item.key === 'open' ? open.total : open[item.key],
+    );
   };
 
   return (
     <Stack spacing={2.5}>
-      <ResourceState resource={counts}>
-        {(data) => <Counters counts={data} />}
+      <ResourceState resource={summary}>
+        {(data) => <Counters counts={data.open} />}
       </ResourceState>
+      <Box>
+        <Button
+          variant="outlined"
+          onClick={markAllRead}
+          loading={markAll.status === 'submitting'}
+          disabled={notifications.unread === 0}
+        >
+          {content.readAll}
+        </Button>
+      </Box>
       {notice ? (
         <Alert severity={notice.severity} onClose={() => setNotice(null)}>
           {notice.text}
@@ -297,13 +306,18 @@ function PatientAlerts({ patient }) {
   );
 }
 
-/** Alertas de um paciente (menu Alertas; RF014, UC13, Figura 42). */
+/**
+ * Alertas dos pacientes ao alcance da sessão, com o paciente como filtro
+ * opcional (menu Alertas; RF014, UC13, Figura 42, BE-33).
+ */
 export default function AlertListPage() {
   return (
     <>
       <PageHeader title={content.title} subtitle={content.subtitle} />
-      <PatientPicker content={content.picker}>
-        {(patient) => <PatientAlerts key={patient.id} patient={patient} />}
+      <PatientPicker content={content.picker} optional>
+        {(patient) => (
+          <Alerts key={patient?.id ?? ''} patientId={patient?.id} />
+        )}
       </PatientPicker>
     </>
   );

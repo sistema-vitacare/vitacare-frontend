@@ -28,6 +28,7 @@ import { profileLabels } from '../data/profiles.js';
 import { useSession } from '../hooks/useSession.js';
 import { initials } from '../utils/initials.js';
 import ChangePasswordDialog from './ChangePasswordDialog.jsx';
+import NotificationBell from './NotificationBell.jsx';
 
 // Busca de pacientes: leva à listagem com o termo, que a própria listagem lê
 // (o CPF pelo estado da rota, fora do endereço). Fica escondida no celular,
@@ -133,6 +134,7 @@ export default function TopBar({ onOpenMenu, showBrand }) {
       ) : null}
       {can(P.PATIENTS_READ) ? <PatientSearch /> : null}
       <Box sx={{ flex: 1 }} />
+      {can(P.ALERTS_READ) ? <NotificationBell /> : null}
       <ButtonBase
         aria-haspopup="menu"
         aria-controls={anchor ? menuId : undefined}

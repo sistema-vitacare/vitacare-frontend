@@ -45,6 +45,7 @@ import { theme } from '../src/styles/theme.js';
 import { preloadPages } from './support/preloadPages.js';
 import { resetViewport, setViewportWidth } from './support/viewport.js';
 import { apiStub } from './support/apiStub.js';
+import { ABSENCE, alertRoutes } from './support/fixtures/alerts.js';
 import { auditRoutes } from './support/fixtures/audit.js';
 import { credentialsFor } from './support/fixtures/sessions.js';
 import { followUpRoutes } from './support/fixtures/followUps.js';
@@ -125,6 +126,7 @@ beforeEach(() => {
     ...formRoutes(),
     ...followUpRoutes(),
     ...medicationRoutes(),
+    ...alertRoutes(),
   });
 });
 
@@ -413,9 +415,7 @@ describe('rotas', () => {
     await signInAs('professional');
     await heading(navLabels.patients);
 
-    await act(() =>
-      router.navigate(alertPath('a1e70000-0000-5000-8009-000000000001')),
-    );
+    await act(() => router.navigate(alertPath(ABSENCE)));
     expect(await heading('Ausência de registro')).toBeInTheDocument();
 
     await act(() => router.navigate(alertPath('nao-existe')));
@@ -427,9 +427,7 @@ describe('rotas', () => {
     await signInAs('platform_admin');
     // A página inicial da plataforma são as organizações.
     await heading(navLabels.organizations);
-    await act(() =>
-      router.navigate(alertPath('a1e70000-0000-5000-8009-000000000001')),
-    );
+    await act(() => router.navigate(alertPath(ABSENCE)));
     expect(await heading(statusContent.accessDenied.title)).toBeInTheDocument();
   });
 

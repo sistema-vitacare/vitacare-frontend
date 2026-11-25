@@ -1,147 +1,103 @@
-// @vitest-environment node
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   getAlert,
-  listPatientAlerts,
+  getAlertSummary,
+  listAlerts,
   resolveAlert,
 } from '../../src/services/alertService.js';
-import { startDemoSession } from '../../src/services/authService.js';
+import { login } from '../../src/services/authService.js';
 import { resetMockState } from '../../src/services/mockApi.js';
+import { apiFailure, apiPage, apiStub } from '../support/apiStub.js';
+import {
+  DIRCE,
+  READING,
+  allAlerts,
+  summaryOf,
+} from '../support/fixtures/alerts.js';
+import { credentialsFor, demoUser } from '../support/fixtures/sessions.js';
 
-const NOW = new Date('2026-11-10T15:00:00.000Z');
-const DIRCE = '0b639b83-76d0-570a-9017-7b6263d892cf';
-const OSVALDO = '91fb0349-7fb0-5be9-ac72-eb28afa2b17e';
-const IOLANDA = 'b07a6b59-2a82-5a9f-be9b-c41102749e06';
+const TOKEN = `token-${demoUser('professional').id}`;
+const ALERT = allAlerts()[0];
 
-beforeEach(() => {
-  vi.useFakeTimers({ toFake: ['Date'] });
-  vi.setSystemTime(NOW);
-});
+async function signIn() {
+  await login(credentialsFor('professional'));
+}
 
 afterEach(() => {
   resetMockState();
-  vi.useRealTimers();
 });
 
-describe('listPatientAlerts', () => {
-  it('lista os alertas do paciente, do mais novo ao mais antigo, com filtro de severidade e situação', async () => {
-    await startDemoSession('professional');
+describe('alertService', () => {
+  it('lista pela API com os filtros da tela na query e o token da sessão', async () => {
+    await signIn();
+    apiStub().use({ 'GET /alerts': () => apiPage([ALERT]) });
 
-    const all = await listPatientAlerts({ patientId: OSVALDO });
-    const critical = await listPatientAlerts({
-      patientId: OSVALDO,
-      severity: 'critical',
-    });
-    const open = await listPatientAlerts({
-      patientId: OSVALDO,
+    const { data } = await listAlerts({
       status: 'open',
+      sort: 'priority',
+      patientId: undefined,
+      page: 2,
+      limit: 20,
     });
 
-    expect(all.data.length).toBeGreaterThan(1);
-    expect(all.data.every((alert) => alert.patient.id === OSVALDO)).toBe(true);
-    const times = all.data.map((alert) => alert.generatedAt);
-    expect(times).toEqual([...times].sort().reverse());
-    expect(critical.data.length).toBeGreaterThan(0);
-    expect(critical.data.every((alert) => alert.severity === 'critical')).toBe(
-      true,
-    );
-    expect(open.data.every((alert) => alert.status === 'open')).toBe(true);
-  });
-
-  it('responde 404 para paciente fora do alcance e 403 sem a permissão', async () => {
-    await startDemoSession('caregiver');
-    await expect(
-      listPatientAlerts({ patientId: IOLANDA }),
-    ).rejects.toMatchObject({ status: 404, code: 'PATIENT_NOT_FOUND' });
-
-    await startDemoSession('platform_admin');
-    await expect(listPatientAlerts({ patientId: DIRCE })).rejects.toMatchObject(
-      { status: 403 },
-    );
-  });
-});
-
-async function firstOpenAlert(patientId) {
-  const { data } = await listPatientAlerts({ patientId, status: 'open' });
-  return data[0];
-}
-
-describe('getAlert', () => {
-  it('devolve o alerta de um paciente ao alcance, de qualquer origem', async () => {
-    await startDemoSession('professional');
-    const { data: list } = await listPatientAlerts({ patientId: OSVALDO });
-
-    const { data } = await getAlert(list[0].id);
-
-    expect(data).toEqual(list[0]);
-  });
-
-  it('responde 404 para alerta inexistente ou de paciente fora do alcance, e 403 sem a permissão', async () => {
-    await startDemoSession('professional');
-    const outside = await firstOpenAlert(IOLANDA);
-
-    await startDemoSession('caregiver');
-    await expect(getAlert(outside.id)).rejects.toMatchObject({
-      status: 404,
-      code: 'ALERT_NOT_FOUND',
+    expect(data).toEqual([ALERT]);
+    expect(apiStub().last('GET /alerts')).toMatchObject({
+      query: { status: 'open', sort: 'priority', page: '2', limit: '20' },
+      token: TOKEN,
     });
-    await expect(getAlert('nao-existe')).rejects.toMatchObject({
-      status: 404,
+  });
+
+  it('pede o resumo dos abertos com o paciente do filtro', async () => {
+    await signIn();
+    apiStub().use({ 'GET /alerts/summary': () => summaryOf([ALERT]) });
+
+    const { data } = await getAlertSummary({ patientId: DIRCE.id });
+
+    expect(data.open).toEqual({ total: 1, critical: 1, warning: 0, info: 0 });
+    expect(apiStub().last('GET /alerts/summary').query).toEqual({
+      patientId: DIRCE.id,
+    });
+  });
+
+  it('consulta e resolve pelas rotas do alerta', async () => {
+    await signIn();
+    apiStub().use({
+      'GET /alerts/:alertId': () => ({ data: ALERT, meta: {} }),
+      'POST /alerts/:alertId/resolve': () => ({
+        data: { ...ALERT, status: 'resolved' },
+        meta: {},
+      }),
     });
 
-    await startDemoSession('platform_admin');
-    await expect(getAlert(outside.id)).rejects.toMatchObject({ status: 403 });
-  });
-});
+    await getAlert(READING);
+    const { data } = await resolveAlert(READING);
 
-describe('resolveAlert', () => {
-  it('resolve para todos, com quem resolveu e quando, e o alerta passa aos resolvidos', async () => {
-    await startDemoSession('caregiver');
-    const open = await firstOpenAlert(OSVALDO);
-
-    const { data } = await resolveAlert(open.id);
-
-    expect(data).toMatchObject({
-      id: open.id,
-      status: 'resolved',
-      resolution: {
-        resolvedAt: NOW.toISOString(),
-        resolvedBy: { name: 'Rosângela Prado' },
-      },
-    });
-    await startDemoSession('professional');
-    const resolved = await listPatientAlerts({
-      patientId: OSVALDO,
-      status: 'resolved',
-    });
-    expect(resolved.data.map((alert) => alert.id)).toContain(open.id);
+    expect(data.status).toBe('resolved');
+    expect(
+      ['GET /alerts/:alertId', 'POST /alerts/:alertId/resolve'].map(
+        (route) => apiStub().last(route).params.alertId,
+      ),
+    ).toEqual([READING, READING]);
   });
 
-  it('responde 409 ao alerta já resolvido, por qualquer pessoa', async () => {
-    await startDemoSession('professional');
-    const open = await firstOpenAlert(OSVALDO);
-    await resolveAlert(open.id);
+  it('devolve o erro da API com o código, como o alerta já resolvido', async () => {
+    await signIn();
+    apiStub().use({
+      'POST /alerts/:alertId/resolve': () =>
+        apiFailure(409, 'ALERT_ALREADY_RESOLVED', 'O alerta já foi resolvido.'),
+    });
 
-    await startDemoSession('caregiver');
-    await expect(resolveAlert(open.id)).rejects.toMatchObject({
+    await expect(resolveAlert(READING)).rejects.toMatchObject({
       status: 409,
       code: 'ALERT_ALREADY_RESOLVED',
     });
   });
 
-  it('não deixa o familiar resolver e responde 404 fora do alcance', async () => {
-    await startDemoSession('professional');
-    const dirce = await firstOpenAlert(DIRCE);
-    const iolanda = await firstOpenAlert(IOLANDA);
+  it('escapa o id na rota, para um id do endereço não levar a outra rota', async () => {
+    await signIn();
 
-    await startDemoSession('family');
-    await expect(resolveAlert(dirce.id)).rejects.toMatchObject({
-      status: 403,
-    });
-    await startDemoSession('caregiver');
-    await expect(resolveAlert(iolanda.id)).rejects.toMatchObject({
-      status: 404,
-      code: 'ALERT_NOT_FOUND',
-    });
+    await getAlert('../users').catch(() => null);
+
+    expect(apiStub().requests.at(-1).path).toBe('/alerts/..%2Fusers');
   });
 });

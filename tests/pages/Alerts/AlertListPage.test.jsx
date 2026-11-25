@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import NotificationsProvider from '../../../src/components/NotificationsProvider.jsx';
 import { PATHS, alertsPath } from '../../../src/constants/routes.js';
 import {
   alertListContent as content,
@@ -10,16 +11,39 @@ import { resetMockState } from '../../../src/services/mockApi.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
 import { apiStub } from '../../support/apiStub.js';
+import {
+  DIRCE,
+  OSVALDO,
+  READING,
+  alertRoutes,
+  allAlerts,
+} from '../../support/fixtures/alerts.js';
 import { apiPatient, patientRoutes } from '../../support/fixtures/patients.js';
 
-const DIRCE = '0b639b83-76d0-570a-9017-7b6263d892cf';
-const OSVALDO = '91fb0349-7fb0-5be9-ac72-eb28afa2b17e';
+const LIST = 'GET /alerts';
+const SUMMARY = 'GET /alerts/summary';
+const RESOLVE = 'POST /alerts/:alertId/resolve';
+const READ_ALL = 'POST /notifications/read-all';
+const UNREAD = 'GET /notifications/unread-count';
+
+// O que a API devolve; o teste que resolve muda esta lista, como a API faria,
+// e a tela pede lista e resumo de novo.
+let alerts;
 
 function renderList(profile, path = PATHS.ALERTS) {
-  return renderPage([{ path: PATHS.ALERTS, element: <AlertListPage /> }], {
-    profile,
-    path,
-  });
+  return renderPage(
+    [
+      {
+        path: PATHS.ALERTS,
+        element: (
+          <NotificationsProvider>
+            <AlertListPage />
+          </NotificationsProvider>
+        ),
+      },
+    ],
+    { profile, path },
+  );
 }
 
 const tab = (label, count) =>
@@ -43,66 +67,98 @@ afterEach(() => {
   resetViewport();
 });
 
-// As telas ainda simuladas escolhem o paciente pela API (Bloco 10).
 beforeEach(() => {
-  apiStub().use(patientRoutes());
+  alerts = allAlerts();
+  apiStub().use({ ...patientRoutes(), ...alertRoutes(alerts) });
 });
 
 describe('AlertListPage', () => {
-  it('pede o paciente antes de mostrar os alertas', async () => {
+  it('mostra os alertas de todos os pacientes sem pedir o paciente, com o resumo nos contadores e nas abas', async () => {
     renderList('professional');
 
-    expect(
-      await screen.findByText(content.picker.choosePatient),
-    ).toBeInTheDocument();
-  });
-
-  it('conta os abertos por severidade e lista os abertos com a origem de cada um', async () => {
-    renderList('professional', alertsPath(OSVALDO));
-
-    expect(await tab(content.tabs.open, 5)).toHaveAttribute(
+    expect(await tab(content.tabs.open, 3)).toHaveAttribute(
       'aria-selected',
       'true',
     );
-    expect(counter('Crítico')).toHaveTextContent('0');
-    expect(counter('Atenção')).toHaveTextContent('2');
-    expect(counter('Informativo')).toHaveTextContent('3');
-    expect(await tab(content.tabs.critical, 0)).toBeVisible();
-    await waitFor(() => expect(items()).toHaveLength(5));
-    // Os dois de glicemia têm a origem na legenda; os três lembretes têm a
-    // origem também no título.
-    expect(screen.getAllByText('Valor registrado')).toHaveLength(2);
-    expect(screen.getAllByText('Lembrete de medicamento')).toHaveLength(6);
-  });
-
-  it('guarda a aba no endereço e filtra pela severidade', async () => {
-    const router = renderList('professional', alertsPath(OSVALDO));
-
-    fireEvent.click(await tab(content.tabs.warning, 2));
-
-    expect(router.state.location.search).toBe(
-      `?paciente=${OSVALDO}&aba=atencao`,
-    );
-    await waitFor(() =>
-      expect(screen.getAllByText('Glicemia acima de 180')).toHaveLength(2),
-    );
+    expect(counter('Crítico')).toHaveTextContent('1');
+    expect(counter('Atenção')).toHaveTextContent('1');
+    expect(counter('Informativo')).toHaveTextContent('1');
+    await waitFor(() => expect(items()).toHaveLength(3));
+    expect(apiStub().last(SUMMARY).query).toEqual({});
+    expect(apiStub().last(LIST).query).toEqual({
+      status: 'open',
+      sort: 'priority',
+      page: '1',
+      limit: '20',
+    });
+    const reading = items()[0];
     expect(
-      screen.queryByText('Lembrete de medicamento'),
+      within(reading).getByText(
+        content.patient(DIRCE.name, DIRCE.mainCondition),
+      ),
+    ).toBeVisible();
+    expect(
+      within(reading).getByText(/Registrado por Carla Mendes/),
+    ).toBeVisible();
+    expect(
+      within(items()[1]).queryByText(/Registrado por/),
     ).not.toBeInTheDocument();
   });
 
+  it('filtra pelo paciente do endereço, no resumo e na lista', async () => {
+    renderList('professional', alertsPath(OSVALDO.id));
+
+    expect(await tab(content.tabs.open, 2)).toBeVisible();
+    await waitFor(() => expect(items()).toHaveLength(2));
+    expect(apiStub().last(SUMMARY).query).toEqual({ patientId: OSVALDO.id });
+    expect(apiStub().last(LIST).query).toMatchObject({
+      patientId: OSVALDO.id,
+    });
+  });
+
+  it('guarda a aba no endereço e pede a severidade na ordem de prioridade', async () => {
+    const router = renderList('professional');
+
+    fireEvent.click(await tab(content.tabs.warning, 1));
+
+    expect(router.state.location.search).toBe('?aba=atencao');
+    await waitFor(() =>
+      expect(apiStub().last(LIST).query).toMatchObject({
+        status: 'open',
+        severity: 'warning',
+        sort: 'priority',
+      }),
+    );
+    await waitFor(() => expect(items()).toHaveLength(1));
+    expect(
+      within(items()[0]).getByText(/^Sem registro de Sinais vitais/),
+    ).toBeVisible();
+  });
+
   it('mostra nos resolvidos quem resolveu e quando', async () => {
-    renderList('professional', `${alertsPath(OSVALDO)}&aba=resolvidos`);
+    renderList('professional', `${PATHS.ALERTS}?aba=resolvidos`);
 
     expect(
-      (await screen.findAllByText(/^Resolvido por Beatriz Okamoto em /)).length,
-    ).toBeGreaterThan(0);
+      await screen.findByText(/^Resolvido por Rafael Moura Brandão em /),
+    ).toBeVisible();
+    expect(apiStub().last(LIST).query).toEqual({
+      status: 'resolved',
+      page: '1',
+      limit: '20',
+    });
     expect(screen.queryByRole('button', { name: /^Resolver/ })).toBeNull();
   });
 
-  it('resolve com confirmação e atualiza contadores e lista', async () => {
-    renderList('caregiver', alertsPath(DIRCE));
-    expect(await tab(content.tabs.open, 4)).toBeVisible();
+  it('resolve com confirmação e pede de novo o resumo e a lista', async () => {
+    apiStub().use({
+      [RESOLVE]: ({ params }) => {
+        const index = alerts.findIndex(({ id }) => id === params.alertId);
+        alerts[index] = { ...alerts[index], status: 'resolved' };
+        return { data: alerts[index], meta: {} };
+      },
+    });
+    renderList('caregiver');
+    expect(await tab(content.tabs.open, 3)).toBeVisible();
 
     fireEvent.click(
       (await screen.findAllByRole('button', { name: /^Resolver / }))[0],
@@ -114,24 +170,45 @@ describe('AlertListPage', () => {
     );
 
     expect(await screen.findByText(content.resolved)).toBeVisible();
-    expect(await tab(content.tabs.open, 3)).toBeVisible();
-    expect(counter('Informativo')).toHaveTextContent('3');
+    expect(apiStub().last(RESOLVE).params.alertId).toBe(READING);
+    expect(await tab(content.tabs.open, 2)).toBeVisible();
+    expect(counter('Crítico')).toHaveTextContent('0');
   });
 
   it('mostra os alertas à familiar, sem o botão de resolver', async () => {
-    apiStub().use(patientRoutes([apiPatient(DIRCE)]));
+    apiStub().use(patientRoutes([apiPatient(DIRCE.id)]));
     renderList('family');
 
-    expect(await tab(content.tabs.open, 4)).toBeVisible();
-    await waitFor(() => expect(items()).toHaveLength(4));
+    expect(await tab(content.tabs.open, 3)).toBeVisible();
+    await waitFor(() => expect(items()).toHaveLength(3));
     expect(screen.queryByRole('button', { name: /^Resolver/ })).toBeNull();
   });
 
   it('mostra a aba vazia com mensagem', async () => {
-    renderList('professional', alertsPath(DIRCE));
+    renderList('professional', alertsPath(OSVALDO.id));
 
     fireEvent.click(await tab(content.tabs.critical, 0));
 
     expect(await screen.findByText(content.empty.critical)).toBeVisible();
+  });
+
+  it('marca como lidas as notificações do paciente do filtro e pede o contador do sino de novo', async () => {
+    let unread = 2;
+    apiStub().use({
+      [UNREAD]: () => ({ data: { unread }, meta: {} }),
+      [READ_ALL]: () => {
+        unread = 0;
+        return { data: { updated: 2 }, meta: {} };
+      },
+    });
+    renderList('caregiver', alertsPath(DIRCE.id));
+    const button = await screen.findByRole('button', { name: content.readAll });
+    await waitFor(() => expect(button).toBeEnabled());
+
+    fireEvent.click(button);
+
+    expect(await screen.findByText(content.allRead(2))).toBeVisible();
+    expect(apiStub().last(READ_ALL).body).toEqual({ patientId: DIRCE.id });
+    await waitFor(() => expect(button).toBeDisabled());
   });
 });

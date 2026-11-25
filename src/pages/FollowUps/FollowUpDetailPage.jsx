@@ -28,7 +28,7 @@ import { severityLabels } from '../../data/patientFields.js';
 import { useResource } from '../../hooks/useResource.js';
 import { useSession } from '../../hooks/useSession.js';
 import { useSubmit } from '../../hooks/useSubmit.js';
-import { listPatientAlerts } from '../../services/alertService.js';
+import { listAlerts } from '../../services/alertService.js';
 import { annulFollowUp, getFollowUp } from '../../services/followUpService.js';
 import { getPatient } from '../../services/patientService.js';
 import { groupBySection } from '../../utils/formEditor.js';
@@ -106,12 +106,17 @@ function Answers({ record }) {
   );
 }
 
-// Os alertas que o registro gerou saem da lista de alertas do paciente: a
-// resposta do registro não os traz, e o cuidador não lê as regras.
+// Os alertas que o registro gerou saem dos 100 alertas de valor registrado
+// mais recentes do paciente: a resposta do registro não os traz, e a API não
+// filtra os alertas por registro.
 function GeneratedAlerts({ record }) {
   const load = useCallback(
     () =>
-      listPatientAlerts({ patientId: record.patientId, limit: ALERTS_LIMIT }),
+      listAlerts({
+        patientId: record.patientId,
+        source: 'reading',
+        limit: ALERTS_LIMIT,
+      }),
     [record.patientId],
   );
   const alerts = useResource(load);
