@@ -49,6 +49,7 @@ import { auditRoutes } from './support/fixtures/audit.js';
 import { credentialsFor } from './support/fixtures/sessions.js';
 import { followUpRoutes } from './support/fixtures/followUps.js';
 import { formRoutes } from './support/fixtures/forms.js';
+import { medicationRoutes } from './support/fixtures/medications.js';
 import { apiPatient, patientRoutes } from './support/fixtures/patients.js';
 
 await preloadPages();
@@ -119,7 +120,12 @@ afterEach(() => {
 // As telas ainda simuladas escolhem o paciente pela API (Bloco 10); as de
 // formulários e de registros leem pela API desde o Bloco 11.
 beforeEach(() => {
-  apiStub().use({ ...patientRoutes(), ...formRoutes(), ...followUpRoutes() });
+  apiStub().use({
+    ...patientRoutes(),
+    ...formRoutes(),
+    ...followUpRoutes(),
+    ...medicationRoutes(),
+  });
 });
 
 describe('rotas', () => {

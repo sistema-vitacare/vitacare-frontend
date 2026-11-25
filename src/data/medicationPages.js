@@ -71,6 +71,8 @@ export const medicationListContent = {
       'O paciente está inativo. Reative-o antes de alterar medicamentos.',
     MEDICATION_ALREADY_INACTIVE: 'O medicamento já estava inativo.',
     MEDICATION_ALREADY_ACTIVE: 'O medicamento já estava ativo.',
+    MEDICATION_NOT_FOUND:
+      'O medicamento não foi encontrado ou saiu do seu acesso.',
   },
   unexpected: 'Não foi possível concluir agora. Tente de novo em instantes.',
 };
@@ -134,6 +136,8 @@ export const medicationDialogContent = {
     MEDICATION_INACTIVE:
       'O medicamento foi inativado. Reative-o antes de editar.',
     MEDICATION_NOTHING_TO_UPDATE: 'Nenhuma alteração para salvar.',
+    MEDICATION_NOT_FOUND:
+      'O medicamento não foi encontrado ou saiu do seu acesso.',
   },
 };
 
