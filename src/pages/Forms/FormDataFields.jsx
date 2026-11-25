@@ -11,7 +11,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { useCallback, useId, useState } from 'react';
+import { useId, useState } from 'react';
 import { AUDIENCES, FREQUENCY_UNITS } from '../../constants/formFields.js';
 import {
   audienceLabels,
@@ -23,40 +23,9 @@ import {
   formPageContent as content,
 } from '../../data/formPage.js';
 import {
-  PATIENTS_LIMIT,
+  usePatientNames,
   usePatientSearch,
 } from '../../hooks/usePatientSearch.js';
-import { useResource } from '../../hooks/useResource.js';
-import { getPatient, listPatients } from '../../services/patientService.js';
-
-// Os pacientes do público vêm da lista de ativos ao alcance da sessão; quem
-// está no público e fora dela (inativo ou além da primeira página) vem da
-// consulta de cada um, para não aparecer pelo id nem sair do público.
-const loadPatients = () =>
-  listPatients({ status: 'active', limit: PATIENTS_LIMIT });
-const noPatients = () => Promise.resolve({ data: [], meta: {} });
-
-function usePatientNames(patientIds) {
-  const list = useResource(loadPatients);
-  const patients = list.data ?? [];
-  const ready = ['success', 'empty'].includes(list.status);
-  const missingKey = ready
-    ? patientIds
-        .filter((id) => !patients.some((patient) => patient.id === id))
-        .join(',')
-    : '';
-  const loadMissing = useCallback(
-    () =>
-      missingKey
-        ? Promise.all(missingKey.split(',').map((id) => getPatient(id))).then(
-            (answers) => ({ data: answers.map(({ data }) => data), meta: {} }),
-          )
-        : noPatients(),
-    [missingKey],
-  );
-  const others = useResource(loadMissing);
-  return { patients, known: [...patients, ...(others.data ?? [])] };
-}
 
 function patientIn(pool, patientId) {
   return (

@@ -1,5 +1,6 @@
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Dialog,
@@ -24,13 +25,15 @@ import {
   alertRuleFieldErrors,
 } from '../../data/alertRuleSection.js';
 import { severityLabels } from '../../data/patientFields.js';
-import { useResource } from '../../hooks/useResource.js';
+import {
+  usePatientNames,
+  usePatientSearch,
+} from '../../hooks/usePatientSearch.js';
 import { useSubmit } from '../../hooks/useSubmit.js';
 import {
   createAlertRule,
   updateAlertRule,
 } from '../../services/alertRuleService.js';
-import { listPatients } from '../../services/patientService.js';
 import {
   createRuleBody,
   emptyRuleValues,
@@ -41,8 +44,9 @@ import {
 import { alertRuleErrors } from '../../utils/alertRules.js';
 import { fieldErrorsFrom } from '../../utils/fieldErrors.js';
 
-const PATIENTS_LIMIT = 100;
-const loadPatients = () => listPatients({ limit: PATIENTS_LIMIT });
+// A regra geral, como opção da escolha. Fica fora do componente porque o
+// Autocomplete apaga o texto digitado quando o valor muda de identidade.
+const EVERYONE = { id: '', name: content.everyone };
 
 function messageFor(field, code) {
   const messages = alertRuleFieldErrors[field];
@@ -77,16 +81,31 @@ export default function AlertRuleDialog({
   );
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState(null);
-  const patients = useResource(loadPatients);
+  const searchable = form.audience === 'organization';
+  const { patients, known } = usePatientNames(
+    searchable ? [] : form.patientIds,
+  );
+  const { found, setInput, loading } = usePatientSearch(patients);
+  // Quem foi escolhido pela busca guarda o nome mesmo depois que ela muda.
+  const [picked, setPicked] = useState(null);
 
   // Só os pacientes ativos a que o formulário se aplica podem ter regra
-  // própria; a API recusa os outros.
-  const patientOptions = useMemo(() => {
-    const items = patients.status === 'success' ? patients.data : [];
-    return form.audience === 'organization'
-      ? items
-      : items.filter((patient) => form.patientIds.includes(patient.id));
-  }, [patients.status, patients.data, form.audience, form.patientIds]);
+  // própria; a API recusa os outros. No público da organização, a escolha
+  // busca na API quem não coube na primeira página.
+  const candidates = (
+    searchable
+      ? found
+      : known.filter((patient) => form.patientIds.includes(patient.id))
+  ).filter((patient) => patient.status === 'active');
+  const chosen = editing
+    ? (rule.patient ?? EVERYONE)
+    : ([...candidates, picked].find(
+        (patient) => patient?.id === values.patientId,
+      ) ?? EVERYONE);
+  const patientOptions = [EVERYONE, ...candidates];
+  if (!patientOptions.some((patient) => patient.id === chosen.id)) {
+    patientOptions.push(chosen);
+  }
 
   const body = useMemo(
     () =>
@@ -189,25 +208,39 @@ export default function AlertRuleDialog({
                 ))
               )}
             </TextField>
-            <TextField
-              select
-              label={content.patient}
+            <Autocomplete
+              options={patientOptions}
+              value={chosen}
               disabled={editing}
-              helperText={content.patientHelper}
-              {...props('patientId')}
-            >
-              <MenuItem value="">{content.everyone}</MenuItem>
-              {editing && rule.patient ? (
-                <MenuItem value={rule.patient.id}>{rule.patient.name}</MenuItem>
-              ) : null}
-              {editing
-                ? null
-                : patientOptions.map((patient) => (
-                    <MenuItem key={patient.id} value={patient.id}>
-                      {patient.name}
-                    </MenuItem>
-                  ))}
-            </TextField>
+              disableClearable
+              onChange={(_, patient) => {
+                setPicked(patient);
+                change('patientId', patient.id);
+              }}
+              // Só a digitação busca; a escolha e a saída do campo limpam a
+              // busca, para o nome escolhido não virar outra consulta.
+              onInputChange={(_, text, reason) => {
+                if (searchable) {
+                  setInput(reason === 'input' ? text : '');
+                }
+              }}
+              loading={loading}
+              getOptionLabel={(patient) => patient.name}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              noOptionsText={content.noPatients}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label={content.patient}
+                  error={Boolean(errors.patientId)}
+                  helperText={
+                    errors.patientId
+                      ? messageFor('patientId', errors.patientId)
+                      : content.patientHelper
+                  }
+                />
+              )}
+            />
             <TextField
               label={content.name}
               required
