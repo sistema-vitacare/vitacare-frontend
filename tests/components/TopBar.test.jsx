@@ -190,7 +190,9 @@ describe('sino de notificações', () => {
     stubInbox(1);
     const router = renderBell('caregiver');
 
-    fireEvent.click(await screen.findByRole('button', { name: bell.open(1) }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Notificações, 1 não lida' }),
+    );
     const box = await screen.findByRole('dialog', { name: bell.title });
     expect(
       within(box).getByText(`(${bell.unread})`, { exact: false }),

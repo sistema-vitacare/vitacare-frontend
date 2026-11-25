@@ -121,8 +121,14 @@ export const resolveAlertContent = {
 };
 
 export const notificationBellContent = {
-  open: (unread) =>
-    unread > 0 ? `Notificações, ${unread} não lidas` : 'Notificações',
+  open: (unread) => {
+    if (unread === 0) {
+      return 'Notificações';
+    }
+    return unread === 1
+      ? 'Notificações, 1 não lida'
+      : `Notificações, ${unread} não lidas`;
+  },
   title: 'Notificações',
   listLabel: 'Notificações dos alertas',
   unread: 'Não lida',
