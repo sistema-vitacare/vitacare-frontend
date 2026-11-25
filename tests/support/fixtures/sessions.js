@@ -139,8 +139,9 @@ const byToken = (token) =>
 
 /**
  * Login, Sair e próprio cadastro dos usuários de demonstração, com a senha
- * `TEST_PASSWORD`. Os usuários em `termsPending` entram com o termo
- * pendente.
+ * `TEST_PASSWORD`, e o contador de notificações não lidas, zerado, que o
+ * sino pede em toda tela autenticada. Os usuários em `termsPending` entram
+ * com o termo pendente.
  */
 export function sessionHandlers({ termsPending = [] } = {}) {
   return {
@@ -177,5 +178,9 @@ export function sessionHandlers({ termsPending = [] } = {}) {
       }
       return { data: sessionBlock(user), meta: {} };
     },
+    'GET /notifications/unread-count': () => ({
+      data: { unread: 0 },
+      meta: {},
+    }),
   };
 }
