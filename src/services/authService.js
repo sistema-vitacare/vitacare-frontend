@@ -3,16 +3,12 @@
 // `3beebe3` do backend). A sessão fica na aba (`sessionStorage`): recarregar
 // a página, inclusive a recarga automática depois de um deploy, não pede
 // login de novo, e outra aba ou outro navegador não a herdam.
-import { permissionsFor } from '../constants/permissions.js';
-import { organization } from '../data/mocks/organization.js';
-import { platformAdmin, platformOrganization } from '../data/mocks/platform.js';
 import {
   normalizeEmail,
   normalizeOrganizationCode,
 } from '../utils/authValidation.js';
 import { apiGet, apiPost, apiPut, configureApiSession } from './apiClient.js';
 import { registerMockState } from './mockApi.js';
-import { allUsers } from './userStore.js';
 
 export const SESSION_STATES = Object.freeze({
   AUTHENTICATED: 'authenticated',
@@ -97,8 +93,8 @@ function notify(event) {
 }
 
 /**
- * Sessão da API no formato que as telas e os serviços ainda simulados leem:
- * o perfil dentro do usuário e o nome fantasia em `tradeName`.
+ * Sessão da API no formato que as telas leem: o perfil dentro do usuário e o
+ * nome fantasia em `tradeName`.
  */
 function toSession({ state, expiresAt, idleTimeoutSeconds, session }) {
   return {
@@ -144,6 +140,8 @@ configureApiSession({
   },
 });
 
+// Os testes voltam a sessão ao início pelo `resetMockState`; sem isso, a
+// sessão e quem a ouve passariam de um teste para o outro.
 registerMockState(() => {
   save(null);
   memory = null;
@@ -254,43 +252,4 @@ export function resetPassword({ token, newPassword }) {
     { token, newPassword },
     { auth: false },
   );
-}
-
-// Sessão de demonstração, sem a API. Fica só para os testes dos serviços
-// ainda simulados, que leem quem consulta por ela, e sai com o último deles
-// (FE-65 do INTEGRACAO.md).
-function demoAccount(profileCode) {
-  if (profileCode === 'platform_admin') {
-    return { user: platformAdmin, organization: platformOrganization };
-  }
-  const user = allUsers().find(
-    (candidate) =>
-      candidate.profile.code === profileCode && candidate.status === 'active',
-  );
-  return { user, organization };
-}
-
-export async function startDemoSession(profileCode) {
-  const { user, organization: org } = demoAccount(profileCode);
-  const session = {
-    state: SESSION_STATES.AUTHENTICATED,
-    expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
-    idleTimeoutSeconds: null,
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      profile: user.profile,
-    },
-    organization: {
-      id: org.id,
-      code: org.code,
-      tradeName: org.tradeName,
-      kind: org.kind ?? 'tenant',
-    },
-    permissions: permissionsFor(user.profile.code),
-    terms: { required: false },
-  };
-  save({ token: null, session });
-  return { data: session, meta: {} };
 }

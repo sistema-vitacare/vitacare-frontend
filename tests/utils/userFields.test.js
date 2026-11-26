@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { normalizeUserBody, userErrors } from '../../src/utils/userFields.js';
+import { userErrors } from '../../src/utils/userFields.js';
 
 const valid = {
   name: 'Ana Exemplo',
@@ -110,29 +110,5 @@ describe('userErrors na edição', () => {
     expect(userErrors({ channel: 'email' }, { partial: true })).toEqual([
       { field: 'channel', code: 'WHITELIST_VALIDATION' },
     ]);
-  });
-});
-
-describe('normalizeUserBody', () => {
-  it('apara o nome, põe o e-mail em minúsculas e deixa só os dígitos do CPF', () => {
-    expect(
-      normalizeUserBody({
-        name: '  Ana Exemplo ',
-        email: ' Ana@Example.TEST ',
-        cpf: '529.982.247-25',
-        phone: ' (16) 99999-0000 ',
-        profileCode: 'caregiver',
-      }),
-    ).toEqual({
-      name: 'Ana Exemplo',
-      email: 'ana@example.test',
-      cpf: '52998224725',
-      phone: '(16) 99999-0000',
-      profileCode: 'caregiver',
-    });
-  });
-
-  it('mantém fora o que não veio', () => {
-    expect(normalizeUserBody({ phone: null })).toEqual({ phone: null });
   });
 });

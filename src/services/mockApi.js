@@ -1,21 +1,14 @@
-// Respostas simuladas no formato da API do vitacare-backend. Os serviços usam
-// estas funções enquanto não há integração; depois, o cliente HTTP produz os
-// mesmos objetos, e páginas e hooks não mudam.
+// O que sobrou da camada simulada, até o FE-65 do INTEGRACAO.md: o envelope
+// `{ data, meta }` que os testes dos hooks montam com `respond`, o `ApiError`
+// do cliente HTTP e a volta ao início do estado guardado em módulo (a sessão
+// do `authService`) entre os testes. Nenhum serviço responde mais com dados
+// simulados.
 
 import { ApiError } from './apiClient.js';
 
-// Nos testes não há espera; no navegador, o atraso deixa os estados de
-// carregamento visíveis, como numa rede real.
-const DELAY_MS = import.meta.env.MODE === 'test' ? 0 : 350;
-
-const DEFAULT_PAGE = 1;
-const DEFAULT_LIMIT = 20;
-
-// O erro é o do cliente HTTP, para que simulado e API cheguem iguais às telas.
 export { ApiError };
 
-// `crypto.randomUUID` só existe em contexto seguro (HTTPS ou localhost); a
-// versão simulada aberta por HTTP fora do localhost quebraria com ele.
+// `crypto.randomUUID` só existe em contexto seguro (HTTPS ou localhost).
 let requestCounter = 0;
 
 function buildMeta(extra = {}) {
@@ -32,54 +25,8 @@ export function respond(data, meta = {}) {
   return { data, meta: buildMeta(meta) };
 }
 
-export function paginate(
-  items,
-  { page = DEFAULT_PAGE, limit = DEFAULT_LIMIT } = {},
-) {
-  const start = (page - 1) * limit;
-  return {
-    data: items.slice(start, start + limit),
-    meta: buildMeta({
-      pagination: {
-        page,
-        limit,
-        total: items.length,
-        totalPages: Math.ceil(items.length / limit),
-      },
-    }),
-  };
-}
-
-export function validationError(fields) {
-  return new ApiError({
-    status: 422,
-    code: 'VALIDATION_FAILED',
-    message: 'Alguns campos precisam ser corrigidos.',
-    fields,
-  });
-}
-
-export function notFoundError(message) {
-  return new ApiError({ status: 404, code: 'NOT_FOUND', message });
-}
-
-function serverError() {
-  return new ApiError({
-    status: 500,
-    code: 'INTERNAL_ERROR',
-    message: 'Não foi possível concluir a operação. Tente novamente.',
-  });
-}
-
-let pendingFailure = null;
-
-/** Faz a próxima requisição simulada falhar, para exercitar o estado de erro. */
-export function failNextRequest(error = serverError()) {
-  pendingFailure = error;
-}
-
-// Serviços com estado próprio (bloqueio de login, senha trocada) registram
-// aqui como voltar ao início, para que um teste não herde o estado do outro.
+// Módulos com estado próprio registram aqui como voltar ao início, para que
+// um teste não herde o estado do outro.
 const stateResets = new Set();
 
 export function registerMockState(reset) {
@@ -87,39 +34,5 @@ export function registerMockState(reset) {
 }
 
 export function resetMockState() {
-  pendingFailure = null;
   stateResets.forEach((reset) => reset());
-}
-
-export async function mockRequest(handler) {
-  if (DELAY_MS > 0) {
-    await new Promise((resolve) => setTimeout(resolve, DELAY_MS));
-  }
-  if (pendingFailure) {
-    const error = pendingFailure;
-    pendingFailure = null;
-    throw error;
-  }
-  return handler();
-}
-
-/**
- * Confere a permissão da sessão como o guard da API: sem sessão, `401`; sem
- * a permissão, `403`. `viewer` é a sessão simulada de `currentViewer()`.
- */
-export function requirePermission(viewer, permission) {
-  if (!viewer) {
-    throw new ApiError({
-      status: 401,
-      code: 'AUTH_UNAUTHENTICATED',
-      message: 'Sessão inválida ou expirada.',
-    });
-  }
-  if (!viewer.permissions.includes(permission)) {
-    throw new ApiError({
-      status: 403,
-      code: 'AUTH_FORBIDDEN',
-      message: 'Você não tem permissão para esta ação.',
-    });
-  }
 }

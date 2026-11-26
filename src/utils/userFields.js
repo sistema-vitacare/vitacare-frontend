@@ -3,7 +3,6 @@
 // tela confere antes do envio para apontar o campo; quem decide é a API.
 import { INVITATION_CHANNELS, TENANT_PROFILES } from '../constants/users.js';
 import { isValidCpf } from './cpf.js';
-import { digitsOnly } from './masks.js';
 
 export const USER_LIMITS = Object.freeze({ name: 180, email: 254, phone: 32 });
 
@@ -94,22 +93,4 @@ export function userErrors(body, { partial = false } = {}) {
     }
   }
   return errors;
-}
-
-/** Corpo como a API grava: textos aparados, e-mail em minúsculas e CPF só com dígitos. */
-export function normalizeUserBody(body) {
-  const normalized = { ...body };
-  if (typeof body.name === 'string') {
-    normalized.name = body.name.trim();
-  }
-  if (typeof body.email === 'string') {
-    normalized.email = body.email.trim().toLowerCase();
-  }
-  if (typeof body.cpf === 'string') {
-    normalized.cpf = digitsOnly(body.cpf);
-  }
-  if (typeof body.phone === 'string') {
-    normalized.phone = body.phone.trim();
-  }
-  return normalized;
 }

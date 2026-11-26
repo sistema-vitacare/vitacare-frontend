@@ -2,16 +2,16 @@ import { ThemeProvider } from '@mui/material';
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import PlanSummary from '../../src/components/PlanSummary.jsx';
-import { ENTERPRISE_PLAN } from '../../src/data/mocks/plans.js';
 import {
   planFeatureLabels,
   planSummaryContent as content,
 } from '../../src/data/planSummary.js';
 import { theme } from '../../src/styles/theme.js';
+import { ENTERPRISE } from '../support/fixtures/organizations.js';
 
 const plan = (overrides = {}) => ({
   organizationId: '6ac48ac1-6fb6-5621-b4f5-dc00e6b1df3d',
-  plan: ENTERPRISE_PLAN,
+  plan: ENTERPRISE,
   term: {
     startsAt: '2026-09-02T13:20:00.000Z',
     endsAt: null,
@@ -34,11 +34,11 @@ describe('PlanSummary', () => {
   it('mostra o plano com descrição, recursos do Quadro 2, vigência e uso', () => {
     renderSummary(plan());
 
-    expect(screen.getByText(ENTERPRISE_PLAN.name)).toBeInTheDocument();
-    expect(screen.getByText(ENTERPRISE_PLAN.description)).toBeInTheDocument();
+    expect(screen.getByText(ENTERPRISE.name)).toBeInTheDocument();
+    expect(screen.getByText(ENTERPRISE.description)).toBeInTheDocument();
     const features = screen.getByRole('list', { name: content.featuresLabel });
     expect(within(features).getAllByRole('listitem')).toHaveLength(
-      ENTERPRISE_PLAN.features.length,
+      ENTERPRISE.features.length,
     );
     expect(features).toHaveTextContent(planFeatureLabels.management_reports);
     expect(

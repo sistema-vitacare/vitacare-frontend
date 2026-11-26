@@ -8,24 +8,12 @@ import { attachmentsAsOf } from '../../src/data/mocks/attachments.js';
 import { forms } from '../../src/data/mocks/forms.js';
 import { followUpsAsOf } from '../../src/data/mocks/followUps.js';
 import { organization } from '../../src/data/mocks/organization.js';
-import {
-  BEM_VIVER_ID,
-  changeRequestsAsOf,
-  clientOrganizations,
-  clientTermsAsOf,
-  simulatedUsage,
-} from '../../src/data/mocks/organizations.js';
 import { patientLinks } from '../../src/data/mocks/patientLinks.js';
 import { patients } from '../../src/data/mocks/patients.js';
 import {
   platformAdmin,
   platformOrganization,
 } from '../../src/data/mocks/platform.js';
-import {
-  BASIC_PLAN,
-  ENTERPRISE_PLAN,
-  organizationTerm,
-} from '../../src/data/mocks/plans.js';
 import { users } from '../../src/data/mocks/users.js';
 import { isValidCpf } from '../../src/utils/cpf.js';
 
@@ -268,95 +256,5 @@ describe('dados simulados de acompanhamento', () => {
     });
 
     expect(wrong.map((attachment) => attachment.id)).toEqual([]);
-  });
-});
-
-describe('dados simulados de gestão', () => {
-  it('seguem os limites do Quadro 2: Basic com 10 usuários e 200 pacientes, Enterprise com 50 e 1.000', () => {
-    expect([BASIC_PLAN.userLimit, BASIC_PLAN.patientLimit]).toEqual([10, 200]);
-    expect([ENTERPRISE_PLAN.userLimit, ENTERPRISE_PLAN.patientLimit]).toEqual([
-      50, 1000,
-    ]);
-    expect(BASIC_PLAN.expandable).toBe(false);
-    expect(ENTERPRISE_PLAN.expandable).toBe(true);
-  });
-
-  it('dão ao Enterprise todos os recursos do Basic e o painel operacional só a ele', () => {
-    expect(
-      BASIC_PLAN.features.every((feature) =>
-        ENTERPRISE_PLAN.features.includes(feature),
-      ),
-    ).toBe(true);
-    expect(BASIC_PLAN.features).not.toContain('operational_dashboard');
-    expect(ENTERPRISE_PLAN.features).toContain('operational_dashboard');
-  });
-
-  it('põem a organização de demonstração no Enterprise, com o termo apontando para ele', () => {
-    expect(organization.usagePlanId).toBe(ENTERPRISE_PLAN.id);
-    expect(organizationTerm.planId).toBe(ENTERPRISE_PLAN.id);
-    expect(organizationTerm.organizationId).toBe(organization.id);
-  });
-
-  it('dão a cada organização cliente o tipo, um plano do catálogo e um código no formato da API', () => {
-    for (const item of clientOrganizations) {
-      expect(item.kind).toBe('tenant');
-      expect([BASIC_PLAN.id, ENTERPRISE_PLAN.id]).toContain(item.usagePlanId);
-      expect(item.code).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
-    }
-    expect(clientOrganizations.map((item) => item.id)).not.toContain(
-      platformOrganization.id,
-    );
-  });
-
-  it('dão a cada organização cliente um termo de vigência no plano dela', () => {
-    const now = new Date('2026-11-16T15:00:00.000Z');
-    const terms = clientTermsAsOf(now);
-
-    expect(terms.map((term) => term.organizationId).sort()).toEqual(
-      clientOrganizations.map((item) => item.id).sort(),
-    );
-    for (const item of clientOrganizations) {
-      const term = terms.find((each) => each.organizationId === item.id);
-      expect(term.planId).toBe(item.usagePlanId);
-      expect(Date.parse(term.startsAt)).toBeLessThan(now.getTime());
-    }
-    expect(terms[0]).toEqual(organizationTerm);
-  });
-
-  it('fazem o termo da Bem Viver vencer em poucos dias, para o aviso aparecer', () => {
-    const now = new Date('2026-11-16T15:00:00.000Z');
-    const term = clientTermsAsOf(now).find(
-      (each) => each.organizationId === BEM_VIVER_ID,
-    );
-    const days = (Date.parse(term.endsAt) - now.getTime()) / 86400000;
-
-    expect(days).toBeGreaterThan(1);
-    expect(days).toBeLessThan(7);
-  });
-
-  it('deixam pendente o pedido da Bem Viver do Basic para o Enterprise', () => {
-    const now = new Date('2026-11-16T15:00:00.000Z');
-    const [request] = changeRequestsAsOf(now);
-
-    expect(request).toMatchObject({
-      organizationId: BEM_VIVER_ID,
-      currentPlan: { id: BASIC_PLAN.id, name: 'Basic' },
-      requestedPlan: { id: ENTERPRISE_PLAN.id, name: 'Enterprise' },
-      status: 'pending',
-      decidedAt: null,
-      decisionNote: null,
-    });
-    expect(Date.parse(request.createdAt)).toBeLessThan(now.getTime());
-  });
-
-  it('dão uso fixo às organizações sem usuários nem pacientes simulados', () => {
-    const others = clientOrganizations.filter(
-      (item) => item.id !== organization.id,
-    );
-
-    expect(Object.keys(simulatedUsage).sort()).toEqual(
-      others.map((item) => item.id).sort(),
-    );
-    expect(simulatedUsage[organization.id]).toBeUndefined();
   });
 });
