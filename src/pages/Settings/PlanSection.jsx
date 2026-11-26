@@ -7,9 +7,14 @@ import { PERMISSIONS as P } from '../../constants/permissions.js';
 import { planSectionContent as content } from '../../data/settingsPages.js';
 import { useSession } from '../../hooks/useSession.js';
 import { useSubmit } from '../../hooks/useSubmit.js';
-import { cancelChangeRequest } from '../../services/organizationService.js';
+import {
+  PLAN_REQUEST_STALE_CODES,
+  cancelChangeRequest,
+} from '../../services/organizationService.js';
 import { formatDateTime } from '../../utils/format.js';
 import ChangeRequestDialog from './ChangeRequestDialog.jsx';
+
+const isStale = (error) => PLAN_REQUEST_STALE_CODES.includes(error?.code);
 
 function PendingRequest({ request, canCancel, onCancel }) {
   return (
@@ -47,6 +52,8 @@ function PendingRequest({ request, canCancel, onCancel }) {
  * o aviso de vencimento que a API manda, limites e uso de usuários e
  * pacientes e a solicitação de mudança em análise, que pode ser cancelada,
  * ou o pedido de uma nova. A API aceita uma solicitação em análise por vez.
+ * `onChanged` recebe o aviso e a severidade dele; a solicitação que outra
+ * pessoa decidiu, cancelou ou fez antes chega como atenção.
  */
 export default function PlanSection({ data, meta, onChanged }) {
   const { can } = useSession();
@@ -66,6 +73,9 @@ export default function PlanSection({ data, meta, onChanged }) {
     if (outcome.data) {
       setCancelling(false);
       onChanged(content.cancelled);
+    } else if (isStale(outcome.error)) {
+      setCancelling(false);
+      onChanged(outcome.error.message, 'warning');
     }
   }
 
@@ -102,6 +112,10 @@ export default function PlanSection({ data, meta, onChanged }) {
             setRequesting(false);
             onChanged(content.sent);
           }}
+          onStale={(message) => {
+            setRequesting(false);
+            onChanged(message, 'warning');
+          }}
         />
       ) : null}
       <ConfirmDialog
@@ -113,7 +127,7 @@ export default function PlanSection({ data, meta, onChanged }) {
         tone="error"
         pending={cancel.status === 'submitting'}
         error={
-          cancel.status === 'error'
+          cancel.status === 'error' && !isStale(cancel.error)
             ? (cancel.error?.message ?? content.unexpected)
             : null
         }

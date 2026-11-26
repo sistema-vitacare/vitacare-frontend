@@ -16,7 +16,10 @@ import {
   rejectRequestContent as content,
 } from '../../data/organizationPlanPages.js';
 import { useSubmit } from '../../hooks/useSubmit.js';
-import { rejectChangeRequest } from '../../services/organizationService.js';
+import {
+  PLAN_REQUEST_STALE_CODES,
+  rejectChangeRequest,
+} from '../../services/organizationService.js';
 import { decisionNoteError } from '../../utils/planTerm.js';
 
 const messages = planTermFieldErrors.note;
@@ -24,9 +27,14 @@ const messages = planTermFieldErrors.note;
 /**
  * Recusa da solicitação de mudança de plano (UC04), com a justificativa que
  * a API exige e que a organização vê. A solicitação decidida ou cancelada
- * nesse meio-tempo volta com a mensagem da API.
+ * nesse meio-tempo chega a `onStale` com a mensagem da API.
  */
-export default function RejectRequestDialog({ request, onClose, onRejected }) {
+export default function RejectRequestDialog({
+  request,
+  onClose,
+  onRejected,
+  onStale,
+}) {
   const titleId = useId();
   const [note, setNote] = useState('');
   const [error, setError] = useState(null);
@@ -48,6 +56,10 @@ export default function RejectRequestDialog({ request, onClose, onRejected }) {
     const outcome = await submit(note.trim());
     if (outcome.data) {
       onRejected();
+      return;
+    }
+    if (PLAN_REQUEST_STALE_CODES.includes(outcome.error.code)) {
+      onStale(outcome.error.message);
       return;
     }
     const field = outcome.error.fields?.find(

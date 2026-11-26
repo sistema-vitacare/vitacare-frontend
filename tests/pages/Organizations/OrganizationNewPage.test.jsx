@@ -13,15 +13,25 @@ import {
 import { temporaryPasswordContent as passwordField } from '../../../src/data/temporaryPassword.js';
 import { userFieldErrors } from '../../../src/data/userPages.js';
 import OrganizationNewPage from '../../../src/pages/Organizations/OrganizationNewPage.jsx';
+import { resetMockState } from '../../../src/services/mockApi.js';
+import { apiFailure, apiStub, reply } from '../../support/apiStub.js';
 import {
-  failNextRequest,
-  resetMockState,
-} from '../../../src/services/mockApi.js';
-import { allClientOrganizations } from '../../../src/services/organizationStore.js';
+  BASIC,
+  PLANS,
+  apiOrganization,
+} from '../../support/fixtures/organizations.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
 
 const NOW = new Date('2026-11-16T15:00:00.000Z');
+const CREATE = 'POST /organizations';
+const PASSWORD = 'X7hK2mPq9RtV4wYz8NcB';
+const AURORA = apiOrganization({
+  id: '2b3c4d5e-6f70-4a81-9c02-b3c4d5e6f708',
+  code: 'casa-aurora',
+  tradeName: 'Casa de Repouso Aurora',
+  createdAt: NOW.toISOString(),
+});
 
 function renderNew() {
   return renderPage(
@@ -83,6 +93,7 @@ const submit = () =>
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'], shouldAdvanceTime: true });
   vi.setSystemTime(NOW);
+  apiStub().use({ 'GET /plans': () => ({ data: PLANS, meta: {} }) });
 });
 
 afterEach(() => {
@@ -108,12 +119,11 @@ describe('cadastro de organização', () => {
   it('aponta os campos antes do envio, inclusive os do administrador', async () => {
     renderNew();
     await screen.findByRole('region', { name: content.sections.organization });
-    // Se a tela chamasse a API, a falha apareceria no lugar dos campos.
-    failNextRequest();
 
     submit();
 
     expect(await screen.findByText(content.invalidFields)).toBeInTheDocument();
+    expect(apiStub().last(CREATE)).toBeUndefined();
     expect(
       screen.getByText(newOrganizationFieldErrors.code.MIN_LENGTH),
     ).toBeInTheDocument();
@@ -135,9 +145,25 @@ describe('cadastro de organização', () => {
     ).toBeInTheDocument();
   });
 
-  it('código e documento repetidos voltam no campo', async () => {
+  it('código e documento repetidos que a API recusa voltam no campo', async () => {
+    apiStub().use({
+      [CREATE]: ({ body }) =>
+        body.code === 'clinica-sol-nascente'
+          ? apiFailure(
+              409,
+              'ORGANIZATION_CODE_TAKEN',
+              'Já existe uma organização com este código.',
+              [{ field: 'code', code: 'DUPLICATE' }],
+            )
+          : apiFailure(
+              409,
+              'ORGANIZATION_DOCUMENT_TAKEN',
+              'Já existe uma organização com este documento.',
+              [{ field: 'document', code: 'DUPLICATE' }],
+            ),
+    });
     renderNew();
-    await fillValid({ code: 'bem-viver' });
+    await fillValid({ code: 'clinica-sol-nascente' });
 
     submit();
 
@@ -149,7 +175,7 @@ describe('cadastro de organização', () => {
     type(
       region(content.sections.organization),
       labels.document,
-      '58.214.903/0001-07',
+      '11.222.333/0001-81',
     );
     submit();
 
@@ -158,7 +184,22 @@ describe('cadastro de organização', () => {
     ).toBeInTheDocument();
   });
 
-  it('cadastra, mostra a senha uma única vez com o código do login e abre a organização', async () => {
+  it('cadastra, mostra a senha da API uma única vez com o código do login e abre a organização', async () => {
+    apiStub().use({
+      [CREATE]: () =>
+        reply(201, {
+          data: {
+            organization: AURORA,
+            administrator: {
+              id: '8f14e45f-ceea-4b7a-9f0b-1c2d3e4f5a6b',
+              name: 'Marta Ribeiro',
+              email: 'marta@aurora.example',
+            },
+            temporaryPassword: PASSWORD,
+          },
+          meta: {},
+        }),
+    });
     const router = renderNew();
     await fillValid();
 
@@ -170,9 +211,19 @@ describe('cadastro de organização', () => {
         created.intro('Marta Ribeiro', 'Casa de Repouso Aurora'),
       ),
     ).toBeInTheDocument();
-    expect(
-      within(dialog).getByLabelText(passwordField.label).value,
-    ).toHaveLength(20);
+    expect(within(dialog).getByLabelText(passwordField.label).value).toBe(
+      PASSWORD,
+    );
+    expect(apiStub().last(CREATE).body).toEqual({
+      code: 'casa-aurora',
+      tradeName: 'Casa de Repouso Aurora',
+      usagePlanId: BASIC.id,
+      administrator: {
+        name: 'Marta Ribeiro',
+        email: 'marta@aurora.example',
+        cpf: '529.982.247-25',
+      },
+    });
     expect(
       within(dialog).getByText(created.loginCode('casa-aurora')),
     ).toBeInTheDocument();
@@ -183,10 +234,7 @@ describe('cadastro de organização', () => {
     expect(
       await screen.findByText('Página da organização'),
     ).toBeInTheDocument();
-    const saved = allClientOrganizations().find(
-      (item) => item.code === 'casa-aurora',
-    );
-    expect(router.state.location.pathname).toBe(organizationPath(saved.id));
+    expect(router.state.location.pathname).toBe(organizationPath(AURORA.id));
   });
 
   it('Cancelar volta para a lista', async () => {

@@ -26,6 +26,7 @@ import {
 import { useResource } from '../../hooks/useResource.js';
 import { useSubmit } from '../../hooks/useSubmit.js';
 import {
+  PLAN_REQUEST_STALE_CODES,
   createChangeRequest,
   listPlans,
 } from '../../services/organizationService.js';
@@ -77,13 +78,15 @@ function PlanOption({ plan, current }) {
 /**
  * Pedido de mudança de plano (UC04, passos 4 e 5): o administrador escolhe
  * um plano do catálogo e pode deixar uma observação. O plano atual só
- * aparece para renovar uma vigência vencida, como a API aceita.
+ * aparece para renovar uma vigência vencida, como a API aceita. Se outra
+ * solicitação já está em análise, `onStale` recebe a mensagem da API.
  */
 export default function ChangeRequestDialog({
   currentPlanId,
   expired,
   onClose,
   onSent,
+  onStale,
 }) {
   const titleId = useId();
   const theme = useTheme();
@@ -115,6 +118,8 @@ export default function ChangeRequestDialog({
     });
     if (outcome.data) {
       onSent();
+    } else if (PLAN_REQUEST_STALE_CODES.includes(outcome.error?.code)) {
+      onStale(outcome.error.message);
     }
   }
 

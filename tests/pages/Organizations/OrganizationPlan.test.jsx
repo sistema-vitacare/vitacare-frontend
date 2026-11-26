@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { useParams } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PATHS, organizationPath } from '../../../src/constants/routes.js';
-import { BEM_VIVER_ID } from '../../../src/data/mocks/organizations.js';
 import {
   organizationPlanContent as content,
   planTermFieldErrors,
@@ -12,38 +11,64 @@ import {
 } from '../../../src/data/organizationPlanPages.js';
 import { planSummaryContent as summary } from '../../../src/data/planSummary.js';
 import OrganizationPlan from '../../../src/pages/Organizations/OrganizationPlan.jsx';
+import { resetMockState } from '../../../src/services/mockApi.js';
+import { apiFailure, apiStub } from '../../support/apiStub.js';
 import {
-  failNextRequest,
-  resetMockState,
-} from '../../../src/services/mockApi.js';
-import { getOrganizationPlan } from '../../../src/services/organizationService.js';
-import { changeChangeRequest } from '../../../src/services/organizationStore.js';
+  BASIC,
+  ENTERPRISE,
+  PLANS,
+  SOL_NASCENTE,
+  apiChangeRequest,
+  apiOrganizationPlan,
+} from '../../support/fixtures/organizations.js';
 import { renderPage } from '../../support/renderPage.jsx';
 
 const NOW = new Date('2026-11-16T15:00:00.000Z');
-// Solicitação simulada da Bem Viver, do Basic para o Enterprise.
-const SEEDED_REQUEST_ID = 'c4a9e000-0000-5000-9000-000000000001';
+const PLAN = 'GET /organizations/:organizationId/plan';
+const REQUEST = apiChangeRequest();
+const NOT_PENDING = 'A solicitação já foi decidida ou cancelada.';
+const EXPIRY =
+  'O plano vence em 21/11/2026 às 23:59 (horário de Brasília). Depois disso, novos cadastros e reativações de usuários e pacientes ficam bloqueados até a renovação. Solicite a renovação na área de plano.';
 
-// A página da organização mostra o aviso do que mudou, como este apoio.
+const planOf = (options = {}) =>
+  apiOrganizationPlan({ organizationId: SOL_NASCENTE.id, ...options });
+
+// O plano que a API devolve agora; as ações do teste o trocam, como o banco
+// faria.
+let current;
+
+// A página da organização mostra o aviso do que mudou, com a severidade,
+// como este apoio.
 function Harness() {
   const { organizationId } = useParams();
   const [notice, setNotice] = useState(null);
   return (
     <>
-      {notice ? <p role="status">{notice}</p> : null}
-      <OrganizationPlan organizationId={organizationId} onChanged={setNotice} />
+      {notice ? (
+        <p role="status" data-severity={notice.severity}>
+          {notice.text}
+        </p>
+      ) : null}
+      <OrganizationPlan
+        organizationId={organizationId}
+        onChanged={(text, severity = 'success') =>
+          setNotice({ text, severity })
+        }
+      />
     </>
   );
 }
 
-function renderPlan(organizationId = BEM_VIVER_ID) {
+function renderPlan() {
   return renderPage(
     [{ path: PATHS.ORGANIZATION_DETAIL, element: <Harness /> }],
-    { profile: 'platform_admin', path: organizationPath(organizationId) },
+    { profile: 'platform_admin', path: organizationPath(SOL_NASCENTE.id) },
   );
 }
 
 const section = () => screen.findByRole('region', { name: content.title });
+const planLoads = () =>
+  apiStub().requests.filter((request) => request.key === PLAN).length;
 
 async function openDialog(action, title) {
   fireEvent.click(
@@ -74,6 +99,16 @@ function type(dialog, label, value) {
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'], shouldAdvanceTime: true });
   vi.setSystemTime(NOW);
+  current = planOf({
+    endsAt: '2026-11-22T02:59:00.000Z',
+    expiryWarning: 'within_7_days',
+    message: EXPIRY,
+    pendingChangeRequest: REQUEST,
+  });
+  apiStub().use({
+    [PLAN]: () => current,
+    'GET /plans': () => ({ data: PLANS, meta: {} }),
+  });
 });
 
 afterEach(() => {
@@ -82,25 +117,38 @@ afterEach(() => {
 });
 
 describe('plano da organização', () => {
-  it('mostra o plano pelo resumo comum, com o aviso de vencimento, o uso e a solicitação em análise', async () => {
+  it('mostra o plano da API pelo resumo comum, com o aviso de vencimento, o uso e a solicitação em análise', async () => {
     renderPlan();
 
     const plan = await section();
     expect(await within(plan).findByText('Basic')).toBeInTheDocument();
-    expect(within(plan).getByRole('alert')).toHaveTextContent(
-      /^O plano vence em 21\/11\/2026 às 23:59/,
-    );
+    expect(within(plan).getByRole('alert')).toHaveTextContent(EXPIRY);
     expect(
       within(plan).getByRole('list', { name: summary.usageLabel }),
     ).toHaveTextContent(summary.usageValue('7', '10'));
     expect(
       within(plan).getByRole('group', { name: content.pendingTitle }),
     ).toHaveTextContent('Basic → Enterprise');
+    expect(apiStub().last(PLAN).params).toEqual({
+      organizationId: SOL_NASCENTE.id,
+    });
   });
 });
 
 describe('atribuição', () => {
-  it('limites só no plano expansível, e o fim escolhido vale até 23:59 de Brasília', async () => {
+  it('limites só no plano expansível, e o fim escolhido vai à API como 23:59 de Brasília', async () => {
+    apiStub().use({
+      'PUT /organizations/:organizationId/plan': ({ body }) => {
+        current = planOf({
+          plan: ENTERPRISE,
+          endsAt: body.endsAt,
+          origin: 'assignment',
+          userLimit: body.userLimit,
+          pendingChangeRequest: REQUEST,
+        });
+        return current;
+      },
+    });
     renderPlan();
     const dialog = await openDialog(content.assign, form.assignTitle);
 
@@ -117,11 +165,19 @@ describe('atribuição', () => {
     expect(await screen.findByRole('status')).toHaveTextContent(
       content.assigned,
     );
+    expect(
+      apiStub().last('PUT /organizations/:organizationId/plan'),
+    ).toMatchObject({
+      params: { organizationId: SOL_NASCENTE.id },
+      body: {
+        planId: ENTERPRISE.id,
+        endsAt: '2026-12-21T02:59:59.999Z',
+        userLimit: 60,
+        reason: 'Contrato anual.',
+      },
+    });
     const plan = await section();
     expect(await within(plan).findByText('Enterprise')).toBeInTheDocument();
-    expect(
-      within(plan).getByText(summary.term('16/11/2026', '20/12/2026')),
-    ).toBeInTheDocument();
     expect(
       within(plan).getByRole('list', { name: summary.usageLabel }),
     ).toHaveTextContent(summary.usageValue('7', '60'));
@@ -129,11 +185,6 @@ describe('atribuição', () => {
     expect(
       within(plan).getByRole('group', { name: content.pendingTitle }),
     ).toBeInTheDocument();
-    expect((await getOrganizationPlan(BEM_VIVER_ID)).data.term).toMatchObject({
-      endsAt: '2026-12-21T02:59:59.999Z',
-      userLimit: 60,
-      patientLimit: null,
-    });
   });
 
   it('aponta limite abaixo do catálogo e fim no passado antes do envio', async () => {
@@ -142,8 +193,6 @@ describe('atribuição', () => {
     await choosePlan(dialog, 'Enterprise');
     type(dialog, form.endsAt, '2026-11-15');
     type(dialog, form.patientLimit, '500');
-    // Se a tela chamasse a API, a falha apareceria no lugar dos campos.
-    failNextRequest();
 
     fireEvent.click(within(dialog).getByRole('button', { name: form.assign }));
 
@@ -157,11 +206,24 @@ describe('atribuição', () => {
         planTermFieldErrors.patientLimit.BELOW_CATALOG,
       ),
     ).toBeInTheDocument();
+    expect(
+      apiStub().last('PUT /organizations/:organizationId/plan'),
+    ).toBeUndefined();
   });
 });
 
 describe('decisão da solicitação', () => {
   it('aprova pela regra da atribuição, e o plano pedido passa a valer', async () => {
+    apiStub().use({
+      'POST /plan-change-requests/:requestId/approve': ({ body }) => {
+        current = planOf({
+          plan: ENTERPRISE,
+          origin: 'change_request',
+          userLimit: body.userLimit,
+        });
+        return { data: { ...REQUEST, status: 'approved' }, meta: {} };
+      },
+    });
     renderPlan();
     const dialog = await openDialog(content.approve, form.approveTitle);
 
@@ -173,6 +235,12 @@ describe('decisão da solicitação', () => {
     expect(await screen.findByRole('status')).toHaveTextContent(
       content.approved,
     );
+    expect(
+      apiStub().last('POST /plan-change-requests/:requestId/approve'),
+    ).toMatchObject({
+      params: { requestId: REQUEST.id },
+      body: { userLimit: 80, decisionNote: 'Segunda unidade confirmada.' },
+    });
     const plan = await section();
     expect(await within(plan).findByText('Enterprise')).toBeInTheDocument();
     expect(
@@ -184,6 +252,12 @@ describe('decisão da solicitação', () => {
   });
 
   it('recusa só com justificativa, e o plano continua', async () => {
+    apiStub().use({
+      'POST /plan-change-requests/:requestId/reject': () => {
+        current = planOf();
+        return { data: { ...REQUEST, status: 'rejected' }, meta: {} };
+      },
+    });
     renderPlan();
     const dialog = await openDialog(content.reject, reject.title);
 
@@ -201,27 +275,97 @@ describe('decisão da solicitação', () => {
     expect(await screen.findByRole('status')).toHaveTextContent(
       content.rejected,
     );
+    expect(
+      apiStub().last('POST /plan-change-requests/:requestId/reject').body,
+    ).toEqual({ decisionNote: 'Sem a segunda unidade confirmada.' });
     const plan = await section();
-    expect(await within(plan).findByText('Basic')).toBeInTheDocument();
+    expect(await within(plan).findByText(BASIC.name)).toBeInTheDocument();
     expect(
       within(plan).queryByRole('group', { name: content.pendingTitle }),
     ).not.toBeInTheDocument();
   });
 
-  it('a solicitação decidida em outro lugar mostra a mensagem da API', async () => {
-    renderPlan();
-    const dialog = await openDialog(content.reject, reject.title);
-    changeChangeRequest(SEEDED_REQUEST_ID, { status: 'cancelled' });
+  describe('situação mudada por outra pessoa', () => {
+    const cancelledMeanwhile = () => {
+      current = planOf();
+      return apiFailure(409, 'PLAN_CHANGE_REQUEST_NOT_PENDING', NOT_PENDING);
+    };
 
-    type(dialog, reject.decisionNote, 'Sem a segunda unidade confirmada.');
-    fireEvent.click(
-      within(dialog).getByRole('button', { name: reject.reject }),
-    );
+    it('a recusa da solicitação já decidida fecha o diálogo, recarrega e avisa', async () => {
+      apiStub().use({
+        'POST /plan-change-requests/:requestId/reject': cancelledMeanwhile,
+      });
+      renderPlan();
+      const dialog = await openDialog(content.reject, reject.title);
+      const before = planLoads();
 
-    expect(
-      await within(dialog).findByText(
-        'A solicitação já foi decidida ou cancelada.',
-      ),
-    ).toBeInTheDocument();
+      type(dialog, reject.decisionNote, 'Sem a segunda unidade confirmada.');
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: reject.reject }),
+      );
+
+      const notice = await screen.findByRole('status');
+      expect(notice).toHaveTextContent(NOT_PENDING);
+      expect(notice).toHaveAttribute('data-severity', 'warning');
+      await waitFor(() =>
+        expect(
+          screen.queryByRole('dialog', { name: reject.title }),
+        ).not.toBeInTheDocument(),
+      );
+      expect(planLoads()).toBe(before + 1);
+      await waitFor(async () =>
+        expect(
+          within(await section()).queryByRole('group', {
+            name: content.pendingTitle,
+          }),
+        ).not.toBeInTheDocument(),
+      );
+    });
+
+    it('a aprovação da solicitação já decidida também fecha, recarrega e avisa', async () => {
+      apiStub().use({
+        'POST /plan-change-requests/:requestId/approve': cancelledMeanwhile,
+      });
+      renderPlan();
+      const dialog = await openDialog(content.approve, form.approveTitle);
+
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: form.approve }),
+      );
+
+      const notice = await screen.findByRole('status');
+      expect(notice).toHaveTextContent(NOT_PENDING);
+      expect(notice).toHaveAttribute('data-severity', 'warning');
+      await waitFor(() =>
+        expect(
+          screen.queryByRole('dialog', { name: form.approveTitle }),
+        ).not.toBeInTheDocument(),
+      );
+    });
+
+    it('outro erro continua no diálogo, sem recarregar', async () => {
+      apiStub().use({
+        'POST /plan-change-requests/:requestId/reject': () =>
+          apiFailure(
+            500,
+            'INTERNAL_ERROR',
+            'Não foi possível concluir a operação. Tente novamente.',
+          ),
+      });
+      renderPlan();
+      const dialog = await openDialog(content.reject, reject.title);
+      const before = planLoads();
+
+      type(dialog, reject.decisionNote, 'Sem a segunda unidade confirmada.');
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: reject.reject }),
+      );
+
+      expect(
+        await within(dialog).findByText(reject.unexpected),
+      ).toBeInTheDocument();
+      expect(planLoads()).toBe(before);
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
   });
 });

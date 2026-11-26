@@ -17,6 +17,7 @@ import { useResource } from '../../hooks/useResource.js';
 import { useSession } from '../../hooks/useSession.js';
 import { useSubmit } from '../../hooks/useSubmit.js';
 import {
+  USER_STALE_CODES,
   deactivateUser,
   getUser,
   issueTemporaryPassword,
@@ -97,7 +98,9 @@ function Invitation({ user }) {
   );
 }
 
-function UserDetail({ user, reload }) {
+const isStale = (error) => USER_STALE_CODES.includes(error?.code);
+
+function UserDetail({ user, reload, notice, onStale, onNoticeClose }) {
   const { can, session } = useSession();
   const actions = userActions(user, { viewerId: session.user.id, can });
   const [dialog, setDialog] = useState(null);
@@ -119,6 +122,8 @@ function UserDetail({ user, reload }) {
     const outcome = await issue.submit(name);
     if (outcome.data) {
       setIssued(outcome);
+    } else if (isStale(outcome.error)) {
+      onStale(outcome.error.message);
     }
   }
 
@@ -134,6 +139,9 @@ function UserDetail({ user, reload }) {
     if (outcome.data) {
       setStatusOpen(false);
       reload();
+    } else if (isStale(outcome.error)) {
+      setStatusOpen(false);
+      onStale(outcome.error.message);
     }
   }
 
@@ -173,7 +181,12 @@ function UserDetail({ user, reload }) {
         actions={buttons.length > 0 ? <>{buttons}</> : null}
       />
       <Stack spacing={2.5}>
-        {issue.status === 'error' ? (
+        {notice ? (
+          <Alert severity="warning" onClose={onNoticeClose}>
+            {notice}
+          </Alert>
+        ) : null}
+        {issue.status === 'error' && !isStale(issue.error) ? (
           <Alert severity="error">
             {issue.error.message ?? content.unexpected}
           </Alert>
@@ -230,15 +243,32 @@ function UserDetail({ user, reload }) {
 
 /**
  * Página do usuário (UC03): dados com o CPF inteiro, convite e as ações que
- * a situação e a permissão permitem. A própria conta só se edita.
+ * a situação e a permissão permitem. A própria conta só se edita. O aviso
+ * de situação mudada fica aqui, fora do usuário, porque a recarga desmonta a
+ * página enquanto busca o usuário de novo.
  */
 export default function UserDetailPage() {
   const { userId } = useParams();
   const load = useCallback(() => getUser(userId), [userId]);
   const resource = useResource(load);
+  const [notice, setNotice] = useState(null);
+
+  function stale(message) {
+    setNotice(message);
+    resource.retry();
+  }
+
   return (
     <ResourceState resource={resource}>
-      {(user) => <UserDetail user={user} reload={resource.retry} />}
+      {(user) => (
+        <UserDetail
+          user={user}
+          reload={resource.retry}
+          notice={notice}
+          onStale={stale}
+          onNoticeClose={() => setNotice(null)}
+        />
+      )}
     </ResourceState>
   );
 }

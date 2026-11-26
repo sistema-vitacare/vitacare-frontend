@@ -46,20 +46,30 @@ import { preloadPages } from './support/preloadPages.js';
 import { resetViewport, setViewportWidth } from './support/viewport.js';
 import { apiStub } from './support/apiStub.js';
 import { ABSENCE, alertRoutes } from './support/fixtures/alerts.js';
-import { auditRoutes } from './support/fixtures/audit.js';
+import { PATRICIA, auditRoutes } from './support/fixtures/audit.js';
 import { credentialsFor } from './support/fixtures/sessions.js';
 import { followUpRoutes } from './support/fixtures/followUps.js';
 import { formRoutes } from './support/fixtures/forms.js';
 import { medicationRoutes } from './support/fixtures/medications.js';
+import {
+  SOL_NASCENTE,
+  apiChangeRequest,
+  platformRoutes,
+  settingsRoutes,
+} from './support/fixtures/organizations.js';
 import { apiPatient, patientRoutes } from './support/fixtures/patients.js';
+import {
+  BRUNO,
+  HELENA,
+  apiUser,
+  userRoutes,
+} from './support/fixtures/users.js';
 
 await preloadPages();
 
-const RAFAEL = 'f6b21c50-000b-5e70-878b-b5e7f5f9a410';
 const HOUR = 60 * 60 * 1000;
 
 const DIRCE = '0b639b83-76d0-570a-9017-7b6263d892cf';
-const BEM_VIVER = 'cecd71bf-0168-5d1b-bd8e-ca3083210067';
 const PROFILE_CHANGED_EVENT = 'a0d17000-0000-5000-8000-000000000009';
 
 function renderApp(path, routes = appRoutes) {
@@ -118,8 +128,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// Pacientes, formulários, registros, medicamentos e alertas vêm da API pelo
-// stub; só usuários e organizações continuam simulados (Bloco 14).
+// Todas as áreas vêm da API pelo stub, com as respostas dos fixtures.
 beforeEach(() => {
   apiStub().use({
     ...patientRoutes(),
@@ -127,6 +136,20 @@ beforeEach(() => {
     ...followUpRoutes(),
     ...medicationRoutes(),
     ...alertRoutes(),
+    ...userRoutes([
+      apiUser(HELENA),
+      apiUser(BRUNO),
+      apiUser({
+        id: PATRICIA,
+        name: 'Patrícia Lemos Duarte',
+        email: 'patricia@example.test',
+        cpf: '13579246828',
+        profileCode: 'professional',
+        status: 'inactive',
+      }),
+    ]),
+    ...platformRoutes({ requests: [apiChangeRequest()] }),
+    ...settingsRoutes(),
   });
 });
 
@@ -459,18 +482,16 @@ describe('rotas', () => {
     expect(
       await screen.findByRole('button', { name: userListContent.newUser }),
     ).toBeInTheDocument();
-    fireEvent.click(
-      await screen.findByRole('link', { name: 'Rafael Moura Brandão' }),
-    );
-    expect(await heading('Rafael Moura Brandão')).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe(userPath(RAFAEL));
+    fireEvent.click(await screen.findByRole('link', { name: BRUNO.name }));
+    expect(await heading(BRUNO.name)).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(userPath(BRUNO.id));
   });
 
   it('nega a página do usuário ao profissional', async () => {
     const router = renderApp(PATHS.LOGIN);
     await signInAs('professional');
     await heading(navLabels.patients);
-    await act(() => router.navigate(userPath(RAFAEL)));
+    await act(() => router.navigate(userPath(BRUNO.id)));
     expect(await heading(statusContent.accessDenied.title)).toBeInTheDocument();
   });
 
@@ -548,10 +569,12 @@ describe('rotas', () => {
     await act(() => router.navigate(PATHS.ORGANIZATIONS));
     const table = await screen.findByRole('table');
     fireEvent.click(
-      await within(table).findByRole('link', { name: 'Clínica Bem Viver' }),
+      await within(table).findByRole('link', { name: SOL_NASCENTE.tradeName }),
     );
-    expect(await heading('Clínica Bem Viver')).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe(organizationPath(BEM_VIVER));
+    expect(await heading(SOL_NASCENTE.tradeName)).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(
+      organizationPath(SOL_NASCENTE.id),
+    );
   });
 
   it('nega as organizações ao administrador da organização', async () => {
@@ -561,7 +584,7 @@ describe('rotas', () => {
     for (const path of [
       PATHS.ORGANIZATIONS,
       PATHS.ORGANIZATION_NEW,
-      organizationPath(BEM_VIVER),
+      organizationPath(SOL_NASCENTE.id),
     ]) {
       await act(() => router.navigate(path));
       expect(
