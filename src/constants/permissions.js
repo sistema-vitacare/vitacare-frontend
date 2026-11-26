@@ -1,7 +1,8 @@
 // Réplica de `src/modules/Access/access.permissions.ts` do vitacare-backend,
-// que é a fonte oficial. Enquanto a sessão é simulada, as permissões saem
-// daqui, e uma mudança na matriz do backend precisa ser repetida; a API
-// devolve as permissões efetivas no login (`data.session`) e em `GET /profile`.
+// que é a fonte oficial. A sessão traz as permissões efetivas da API, no
+// login (`data.session`) e em `GET /profile`; daqui saem os códigos que as
+// telas consultam e as permissões das sessões dos testes, e uma mudança na
+// matriz do backend precisa ser repetida.
 
 export const PERMISSIONS = Object.freeze({
   PATIENTS_READ: 'patients:read',

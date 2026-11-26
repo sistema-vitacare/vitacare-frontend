@@ -55,7 +55,9 @@ function PendingRequest({ request, canDecide, onApprove, onReject }) {
  * Plano de uma organização cliente para a plataforma (UC04): o resumo comum
  * com o aviso de vencimento e o uso, "Atribuir plano" e a solicitação em
  * análise com Aprovar e Recusar, cada um num diálogo. Depois de cada ação o
- * plano recarrega, e `onChanged` recebe o aviso para a página.
+ * plano recarrega, e `onChanged` recebe o aviso e a severidade para a
+ * página; a solicitação que outra pessoa decidiu ou cancelou chega como
+ * atenção, com a mensagem da API.
  */
 export default function OrganizationPlan({ organizationId, onChanged }) {
   const { can } = useSession();
@@ -68,11 +70,13 @@ export default function OrganizationPlan({ organizationId, onChanged }) {
   const [dialog, setDialog] = useState(null);
   const manage = can(P.PLATFORM_ORGANIZATIONS_UPDATE);
 
-  function done(notice) {
+  function done(notice, severity = 'success') {
     setDialog(null);
     plan.retry();
-    onChanged(notice);
+    onChanged(notice, severity);
   }
+
+  const stale = (message) => done(message, 'warning');
 
   const pending = plan.data?.pendingChangeRequest ?? null;
 
@@ -115,6 +119,7 @@ export default function OrganizationPlan({ organizationId, onChanged }) {
           onSaved={() =>
             done(dialog === 'approve' ? content.approved : content.assigned)
           }
+          onStale={stale}
         />
       ) : null}
       {dialog === 'reject' ? (
@@ -122,6 +127,7 @@ export default function OrganizationPlan({ organizationId, onChanged }) {
           request={pending}
           onClose={() => setDialog(null)}
           onRejected={() => done(content.rejected)}
+          onStale={stale}
         />
       ) : null}
     </Box>

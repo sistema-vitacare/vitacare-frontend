@@ -1,7 +1,6 @@
 // Sessões dos testes no formato do login da API (`auth-login.md` e
-// `profile-consultar.md`), com os usuários de demonstração: os ids e a
-// organização são os dos dados simulados, para que as telas ainda simuladas
-// encontrem quem consulta.
+// `profile-consultar.md`), com os usuários e as organizações de demonstração
+// dos dados simulados.
 import { permissionsFor } from '../../../src/constants/permissions.js';
 import { organization } from '../../../src/data/mocks/organization.js';
 import {

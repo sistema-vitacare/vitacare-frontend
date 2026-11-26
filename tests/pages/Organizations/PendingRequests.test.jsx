@@ -1,17 +1,22 @@
 import { act, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PATHS, organizationPath } from '../../../src/constants/routes.js';
-import { BEM_VIVER_ID } from '../../../src/data/mocks/organizations.js';
 import { pendingRequestsContent as content } from '../../../src/data/organizationPlanPages.js';
 import PendingRequests from '../../../src/pages/Organizations/PendingRequests.jsx';
 import { resetMockState } from '../../../src/services/mockApi.js';
-import { changeChangeRequest } from '../../../src/services/organizationStore.js';
 import { formatDateTime } from '../../../src/utils/format.js';
+import { apiStub } from '../../support/apiStub.js';
+import {
+  SOL_NASCENTE,
+  apiChangeRequest,
+  platformRoutes,
+} from '../../support/fixtures/organizations.js';
 import { renderPage } from '../../support/renderPage.jsx';
 
 const NOW = new Date('2026-11-16T15:00:00.000Z');
-// Solicitação simulada da Bem Viver, do Basic para o Enterprise.
-const SEEDED_REQUEST_ID = 'c4a9e000-0000-5000-9000-000000000001';
+const REQUEST = apiChangeRequest({
+  notes: 'Vamos abrir a segunda unidade e passar de 10 usuários.',
+});
 
 function renderQueue() {
   return renderPage(
@@ -34,8 +39,7 @@ function renderQueue() {
   );
 }
 
-// As consultas simuladas não esperam nos testes; uma volta do relógio basta
-// para todas terminarem.
+// Uma volta do relógio basta para as respostas do stub chegarem.
 const settle = () =>
   act(() => new Promise((resolve) => setTimeout(resolve, 0)));
 
@@ -50,26 +54,32 @@ afterEach(() => {
 });
 
 describe('solicitações em análise', () => {
-  it('mostram a organização, os planos, a data e a observação, levando à organização', async () => {
+  it('mostram a organização pela consulta dela, os planos, a data e a observação, levando à organização', async () => {
+    apiStub().use(platformRoutes({ requests: [REQUEST] }));
     renderQueue();
 
     const queue = await screen.findByRole('region', { name: content.title });
     const link = await within(queue).findByRole('link', {
-      name: 'Clínica Bem Viver',
+      name: SOL_NASCENTE.tradeName,
     });
-    expect(link).toHaveAttribute('href', organizationPath(BEM_VIVER_ID));
+    expect(link).toHaveAttribute('href', organizationPath(SOL_NASCENTE.id));
     const item = link.closest('li');
     expect(item).toHaveTextContent(content.change('Basic', 'Enterprise'));
     expect(item).toHaveTextContent(
-      content.requestedAt(formatDateTime('2026-11-14T15:00:00.000Z')),
+      content.requestedAt(formatDateTime(REQUEST.createdAt)),
     );
-    expect(item).toHaveTextContent(
-      content.notes('Vamos abrir a segunda unidade e passar de 10 usuários.'),
+    expect(item).toHaveTextContent(content.notes(REQUEST.notes));
+    expect(apiStub().last('GET /plan-change-requests').query).toEqual({
+      status: 'pending',
+      limit: '100',
+    });
+    expect(apiStub().last('GET /organizations/:organizationId').params).toEqual(
+      { organizationId: SOL_NASCENTE.id },
     );
   });
 
   it('a seção some sem solicitação em análise', async () => {
-    changeChangeRequest(SEEDED_REQUEST_ID, { status: 'rejected' });
+    apiStub().use(platformRoutes({ requests: [] }));
     renderQueue();
     await screen.findByText('Lista');
 

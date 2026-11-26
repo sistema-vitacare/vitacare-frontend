@@ -20,6 +20,7 @@ import {
 } from '../../data/organizationPlanPages.js';
 import { useSubmit } from '../../hooks/useSubmit.js';
 import {
+  PLAN_REQUEST_STALE_CODES,
   approveChangeRequest,
   assignOrganizationPlan,
 } from '../../services/organizationService.js';
@@ -75,7 +76,8 @@ function bodyFor(values, { plan, approving }) {
  * Termo novo pela plataforma (UC04), num diálogo: a atribuição escolhe o
  * plano; a aprovação usa o plano pedido. Nos dois, data de fim, limites, só
  * no plano expansível e nunca abaixo do catálogo, e motivo ou justificativa
- * seguem a mesma regra da API, apontada antes do envio.
+ * seguem a mesma regra da API, apontada antes do envio. A solicitação que
+ * outra pessoa decidiu ou cancelou chega a `onStale` com a mensagem da API.
  */
 export default function PlanTermDialog({
   organizationId,
@@ -84,6 +86,7 @@ export default function PlanTermDialog({
   request = null,
   onClose,
   onSaved,
+  onStale,
 }) {
   const titleId = useId();
   const theme = useTheme();
@@ -133,6 +136,10 @@ export default function PlanTermDialog({
     const { data, error } = await submit(body);
     if (data) {
       onSaved();
+      return;
+    }
+    if (PLAN_REQUEST_STALE_CODES.includes(error.code)) {
+      onStale(error.message);
       return;
     }
     if (error.fields) {

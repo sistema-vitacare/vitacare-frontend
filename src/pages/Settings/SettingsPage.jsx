@@ -61,8 +61,10 @@ export default function SettingsPage() {
   const [editing, setEditing] = useState(false);
   const [notice, setNotice] = useState(null);
 
-  function planChanged(text) {
-    setNotice(text);
+  // A situação mudada por outra pessoa chega como aviso de atenção; o que a
+  // própria tela fez, como sucesso.
+  function planChanged(text, severity = 'success') {
+    setNotice({ text, severity });
     plan.retry();
   }
 
@@ -71,8 +73,8 @@ export default function SettingsPage() {
       <PageHeader title={content.title} />
       <Stack spacing={2.5}>
         {notice ? (
-          <Alert severity="success" onClose={() => setNotice(null)}>
-            {notice}
+          <Alert severity={notice.severity} onClose={() => setNotice(null)}>
+            {notice.text}
           </Alert>
         ) : null}
         <ResourceState resource={organization}>
@@ -101,7 +103,10 @@ export default function SettingsPage() {
           onClose={() => setEditing(false)}
           onSaved={() => {
             setEditing(false);
-            setNotice(organizationSectionContent.saved);
+            setNotice({
+              text: organizationSectionContent.saved,
+              severity: 'success',
+            });
             organization.retry();
           }}
         />

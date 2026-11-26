@@ -13,7 +13,6 @@ import {
   requestPasswordRecovery,
   resetPassword,
   restoreSession,
-  startDemoSession,
   subscribeSession,
 } from '../../src/services/authService.js';
 import { resetMockState } from '../../src/services/mockApi.js';
@@ -310,13 +309,5 @@ describe('authService', () => {
       token: null,
       body: { token: 'token-do-link', newPassword: 'nova-senha' },
     });
-  });
-
-  it('abre a sessão de demonstração dos serviços ainda simulados, sem chamar a API', async () => {
-    const { data } = await startDemoSession('caregiver');
-
-    expect(data.user.profile.code).toBe('caregiver');
-    expect(currentViewer()).toBe(data);
-    expect(apiStub().requests).toEqual([]);
   });
 });

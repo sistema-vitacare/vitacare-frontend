@@ -10,6 +10,7 @@ import { organizationDataContent as content } from '../../data/organizationPages
 import { useSession } from '../../hooks/useSession.js';
 import { useSubmit } from '../../hooks/useSubmit.js';
 import {
+  ORGANIZATION_STALE_CODES,
   deactivateOrganization,
   reactivateOrganization,
   updateOrganization,
@@ -19,11 +20,14 @@ import OrganizationStatusChip from './OrganizationStatusChip.jsx';
 
 const FIELDS = ['code', 'tradeName', 'legalName', 'document', 'phone', 'email'];
 
+const isStale = (error) => ORGANIZATION_STALE_CODES.includes(error?.code);
+
 /**
  * Dados e situação de uma organização cliente (UC03): Editar no mesmo
  * diálogo das Configurações, também com a organização inativa, e Inativar
- * ou Reativar com confirmação. `onChanged` recebe o aviso do que mudou, para
- * a página recarregar.
+ * ou Reativar com confirmação. `onChanged` recebe o aviso do que mudou e a
+ * severidade dele, para a página recarregar; a situação que outra pessoa já
+ * mudou chega como atenção, com a mensagem da API.
  */
 export default function OrganizationData({ organization, onChanged }) {
   const { can } = useSession();
@@ -54,6 +58,9 @@ export default function OrganizationData({ organization, onChanged }) {
     if (outcome.data) {
       setConfirming(false);
       onChanged(transition.done);
+    } else if (isStale(outcome.error)) {
+      setConfirming(false);
+      onChanged(outcome.error.message, 'warning');
     }
   }
 
@@ -128,7 +135,7 @@ export default function OrganizationData({ organization, onChanged }) {
         tone={active ? 'error' : 'primary'}
         pending={status.status === 'submitting'}
         error={
-          status.status === 'error'
+          status.status === 'error' && !isStale(status.error)
             ? (status.error?.message ?? content.unexpected)
             : null
         }

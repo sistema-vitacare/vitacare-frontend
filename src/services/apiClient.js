@@ -1,7 +1,7 @@
 // Cliente HTTP da API do vitacare-backend (manual da API, seções "Contrato
 // transversal" e "Guia de integração dos clientes"). Os serviços chamam as
-// rotas por aqui e recebem `{ data, meta }` ou um `ApiError`, os mesmos
-// objetos dos serviços simulados; por isso páginas e hooks não mudam.
+// rotas por aqui e recebem `{ data, meta }` ou um `ApiError`, o formato que
+// páginas e hooks leem.
 import { apiErrorMessages } from '../data/apiErrors.js';
 import { apiOrigin } from '../utils/runtimeConfig.js';
 
@@ -178,7 +178,7 @@ function fileNameFrom(header) {
 /**
  * Arquivo gerado pela API (PDF, CSV e anexo), com o Bearer: o link direto
  * não funciona, porque a rota exige o token. Devolve `{ data: { blob,
- * fileName } }`, o formato dos serviços simulados.
+ * fileName } }`, que a tela salva com o `saveFile`.
  */
 export async function apiDownload(path, query) {
   const { response, sentToken } = await send('GET', path, { query });

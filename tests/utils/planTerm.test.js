@@ -1,12 +1,12 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { BASIC_PLAN, ENTERPRISE_PLAN } from '../../src/data/mocks/plans.js';
 import {
   decisionNoteError,
   endOfDayInSaoPaulo,
   planTermFieldErrors,
   planTermRuleError,
 } from '../../src/utils/planTerm.js';
+import { BASIC, ENTERPRISE } from '../support/fixtures/organizations.js';
 
 const NOW = new Date('2026-11-16T15:00:00.000Z');
 
@@ -54,7 +54,7 @@ describe('planTermFieldErrors', () => {
 });
 
 describe('planTermRuleError', () => {
-  const rule = (body, plan = ENTERPRISE_PLAN) =>
+  const rule = (body, plan = ENTERPRISE) =>
     planTermRuleError(body, { plan, now: NOW });
 
   it('recusa a data de fim igual ou anterior ao instante atual', () => {
@@ -66,7 +66,7 @@ describe('planTermRuleError', () => {
   });
 
   it('só aceita limite personalizado no plano expansível', () => {
-    expect(rule({ patientLimit: 300 }, BASIC_PLAN)).toEqual({
+    expect(rule({ patientLimit: 300 }, BASIC)).toEqual({
       field: 'patientLimit',
       code: 'NOT_EXPANDABLE',
     });

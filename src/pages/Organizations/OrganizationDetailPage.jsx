@@ -14,7 +14,8 @@ import OrganizationPlan from './OrganizationPlan.jsx';
 /**
  * Página de uma organização para a plataforma (UC03 e UC04): dados e
  * situação e, para organização cliente, o plano com a solicitação em
- * análise. O aviso de cada mudança fica no topo.
+ * análise. O aviso de cada mudança fica no topo: sucesso para o que a tela
+ * fez, atenção para a situação que outra pessoa já tinha mudado.
  */
 export default function OrganizationDetailPage() {
   const { organizationId } = useParams();
@@ -24,6 +25,7 @@ export default function OrganizationDetailPage() {
   );
   const organization = useResource(load);
   const [notice, setNotice] = useState(null);
+  const changed = (text, severity = 'success') => setNotice({ text, severity });
 
   if (organization.status === 'error' && organization.error.status === 404) {
     return (
@@ -55,22 +57,19 @@ export default function OrganizationDetailPage() {
           />
           <Stack spacing={2.5}>
             {notice ? (
-              <Alert severity="success" onClose={() => setNotice(null)}>
-                {notice}
+              <Alert severity={notice.severity} onClose={() => setNotice(null)}>
+                {notice.text}
               </Alert>
             ) : null}
             <OrganizationData
               organization={data}
-              onChanged={(text) => {
-                setNotice(text);
+              onChanged={(text, severity) => {
+                changed(text, severity);
                 organization.retry();
               }}
             />
             {data.kind === 'platform' ? null : (
-              <OrganizationPlan
-                organizationId={data.id}
-                onChanged={setNotice}
-              />
+              <OrganizationPlan organizationId={data.id} onChanged={changed} />
             )}
           </Stack>
         </>

@@ -1,9 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PATHS } from '../../../src/constants/routes.js';
+import { PATHS, userPath } from '../../../src/constants/routes.js';
 import { TENANT_PROFILES } from '../../../src/constants/users.js';
-import { organization } from '../../../src/data/mocks/organization.js';
-import { BASIC_PLAN, ENTERPRISE_PLAN } from '../../../src/data/mocks/plans.js';
 import { profileLabels } from '../../../src/data/profiles.js';
 import { temporaryPasswordContent as passwordField } from '../../../src/data/temporaryPassword.js';
 import {
@@ -14,12 +12,68 @@ import {
 } from '../../../src/data/userPages.js';
 import UserListPage from '../../../src/pages/Users/UserListPage.jsx';
 import { resetMockState } from '../../../src/services/mockApi.js';
-import { changeTerm } from '../../../src/services/organizationStore.js';
-import { allUsers } from '../../../src/services/userStore.js';
+import { apiFailure, apiPage, apiStub, reply } from '../../support/apiStub.js';
+import {
+  ENTERPRISE,
+  apiOrganizationPlan,
+} from '../../support/fixtures/organizations.js';
+import {
+  ANA,
+  BRUNO,
+  CARLA,
+  HELENA,
+  apiUser,
+  listedUser,
+  passwordInvitation,
+} from '../../support/fixtures/users.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
 
-const PATRICIA = '2fb0cec5-0e79-5ae3-9dd8-bea87be4292f';
+const USERS = [
+  apiUser({
+    ...ANA,
+    invitation: passwordInvitation({ status: 'expired' }),
+  }),
+  apiUser(BRUNO),
+  apiUser(CARLA),
+  apiUser(HELENA),
+];
+const COUNTS = { admin: 1, professional: 3, caregiver: 5, family: 2 };
+const CREATED = apiUser({
+  id: 'bc47b782-f11d-4eab-8c3e-4f5a6b7c8d9e',
+  name: 'Daniel Exemplo',
+  email: 'daniel@example.test',
+  cpf: '52998224725',
+  profileCode: 'caregiver',
+  invitation: passwordInvitation({ expiresAt: '2026-11-11T15:00:00.000Z' }),
+});
+const PASSWORD = 'X7hK2mPq9RtV4wYz8NcB';
+
+/**
+ * A lista e os contadores usam a mesma rota: os contadores pedem só os
+ * ativos de um perfil, com limite 1, e leem o `total`.
+ */
+function userRoutes({ users = USERS, counts = COUNTS } = {}) {
+  return {
+    'GET /users': ({ query }) =>
+      query.limit === '1'
+        ? apiPage([], { limit: 1, total: counts[query.profileCode] })
+        : apiPage(users.map(listedUser)),
+    'GET /organizations/me/plan': () =>
+      apiOrganizationPlan({
+        plan: ENTERPRISE,
+        usage: { users: 11, patients: 40 },
+      }),
+  };
+}
+
+function listQuery() {
+  return apiStub()
+    .requests.filter(
+      (request) => request.key === 'GET /users' && request.query.limit !== '1',
+    )
+    .at(-1).query;
+}
 
 function renderList({ path = PATHS.USERS, width } = {}) {
   return renderPage(
@@ -54,14 +108,35 @@ function chooseProfile(dialog, code) {
 }
 
 const newUser = {
-  [form.name]: 'Ana Nova',
-  [form.email]: 'ana.nova@ipeamarelo.example',
+  [form.name]: 'Daniel Exemplo',
+  [form.email]: 'daniel@example.test',
   [form.cpf]: '529.982.247-25',
 };
+
+async function createWithPassword() {
+  apiStub().use({
+    'POST /users': () =>
+      reply(201, {
+        data: {
+          channel: 'temporary_password',
+          temporaryPassword: PASSWORD,
+          expiresAt: CREATED.invitation.expiresAt,
+          user: CREATED,
+        },
+        meta: {},
+      }),
+  });
+  const dialog = await openNewUser();
+  fill(dialog, newUser);
+  chooseProfile(dialog, 'caregiver');
+  fireEvent.click(within(dialog).getByRole('button', { name: form.save }));
+  return screen.findByRole('dialog', { name: result.passwordTitle });
+}
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'], shouldAdvanceTime: true });
   vi.setSystemTime(new Date('2026-11-10T15:00:00.000Z'));
+  apiStub().use(userRoutes());
 });
 
 afterEach(() => {
@@ -80,94 +155,101 @@ function stubClipboard(clipboard) {
 }
 
 describe('UserListPage', () => {
-  it('lista os usuários com perfil, situação e último acesso', async () => {
+  it('lista os usuários da API com perfil, situação e último acesso', async () => {
     renderList();
 
     expect(
-      await screen.findByText(content.subtitle(allUsers().length)),
+      await screen.findByText(content.subtitle(USERS.length)),
     ).toBeInTheDocument();
-    const helena = rowOf('Helena Vasconcelos');
+    const helena = rowOf(HELENA.name);
     expect(within(helena).getByText('Administrador')).toBeInTheDocument();
     expect(within(helena).getByText('Ativo')).toBeInTheDocument();
     expect(
-      within(rowOf('Edna Carvalho Pires')).getByText('Convite vencido'),
+      within(rowOf(ANA.name)).getByText('Convite vencido'),
     ).toBeInTheDocument();
-    expect(
-      within(rowOf('Patrícia Lemos Duarte')).getByText('Inativo'),
-    ).toBeInTheDocument();
+    expect(within(rowOf(CARLA.name)).getByText('Inativo')).toBeInTheDocument();
   });
 
-  // Minimização: a lista não expõe o CPF; ele só aparece na página do
-  // usuário, como na API.
+  // Minimização: a lista não expõe o CPF, que a API manda mascarado; ele só
+  // aparece na página do usuário.
   it('não mostra CPF na lista', async () => {
     renderList();
-    await screen.findByText('Helena Vasconcelos');
+    await screen.findByText(HELENA.name);
 
     expect(screen.queryByText(/\d{3}\.\d{3}/)).not.toBeInTheDocument();
   });
 
-  it('conta os ativos de cada perfil e as vagas do plano em uso', async () => {
+  it('conta os ativos de cada perfil pelo total da API e mostra as vagas do plano', async () => {
     renderList();
     const region = await screen.findByRole('region', {
       name: content.countersLabel,
     });
 
     for (const code of TENANT_PROFILES) {
-      const total = allUsers().filter(
-        (user) => user.status === 'active' && user.profile.code === code,
-      ).length;
       const counter = (
         await within(region).findByText(profileLabels[code])
       ).closest('li');
-      await waitFor(() => expect(counter).toHaveTextContent(String(total)));
+      await waitFor(() =>
+        expect(counter).toHaveTextContent(String(COUNTS[code])),
+      );
     }
-    const used = allUsers().filter((user) =>
-      ['pending', 'active'].includes(user.status),
-    ).length;
     expect(
-      await screen.findByText(content.seats(used, ENTERPRISE_PLAN.userLimit)),
+      await screen.findByText(content.seats(11, ENTERPRISE.userLimit)),
     ).toBeInTheDocument();
+    const counted = apiStub()
+      .requests.filter((request) => request.query.limit === '1')
+      .map((request) => request.query);
+    expect(counted).toHaveLength(TENANT_PROFILES.length);
+    expect(counted).toContainEqual({
+      status: 'active',
+      profileCode: 'family',
+      limit: '1',
+    });
   });
 
-  it('abre com perfil e situação do endereço e guarda a busca nele', async () => {
+  it('manda à API o perfil e a situação do endereço e guarda a busca nele', async () => {
     const router = renderList({
       path: `${PATHS.USERS}?perfil=caregiver&situacao=pending`,
     });
+    await screen.findByText(ANA.name);
 
-    expect(await screen.findByText('Edna Carvalho Pires')).toBeInTheDocument();
-    expect(screen.queryByText('Juliana Bastos')).not.toBeInTheDocument();
+    expect(listQuery()).toMatchObject({
+      profileCode: 'caregiver',
+      status: 'pending',
+    });
 
     fireEvent.change(screen.getByLabelText(content.searchLabel), {
-      target: { value: 'edna' },
+      target: { value: 'ana' },
     });
     await waitFor(() =>
-      expect(router.state.location.search).toContain('busca=edna'),
+      expect(router.state.location.search).toContain('busca=ana'),
     );
     expect(router.state.location.search).toContain('perfil=caregiver');
+    await waitFor(() => expect(listQuery().search).toBe('ana'));
   });
 
   it('mostra cartões no celular', async () => {
     renderList({ width: 375 });
 
-    expect(await screen.findByText('Helena Vasconcelos')).toBeInTheDocument();
+    expect(await screen.findByText(HELENA.name)).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
-  it('cadastra, mostra a senha uma única vez e abre o usuário ao fechar', async () => {
+  it('cadastra sem canal, mostra a senha da API uma única vez e abre o usuário ao fechar', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     stubClipboard({ writeText });
     const router = renderList();
-    const dialog = await openNewUser();
-    fill(dialog, newUser);
-    chooseProfile(dialog, 'caregiver');
 
-    fireEvent.click(within(dialog).getByRole('button', { name: form.save }));
+    const shown = await createWithPassword();
 
-    const shown = await screen.findByRole('dialog', {
-      name: result.passwordTitle,
+    expect(apiStub().last('POST /users').body).toEqual({
+      name: 'Daniel Exemplo',
+      email: 'daniel@example.test',
+      cpf: '529.982.247-25',
+      profileCode: 'caregiver',
     });
     const password = within(shown).getByLabelText(passwordField.label);
-    expect(password.value).toHaveLength(20);
+    expect(password.value).toBe(PASSWORD);
     expect(
       within(shown).getByText(result.validUntil('11/11/2026 às 12:00')),
     ).toBeInTheDocument();
@@ -177,12 +259,42 @@ describe('UserListPage', () => {
     expect(
       await within(shown).findByText(passwordField.copied),
     ).toBeInTheDocument();
-    expect(writeText).toHaveBeenCalledWith(password.value);
+    expect(writeText).toHaveBeenCalledWith(PASSWORD);
 
     fireEvent.click(within(shown).getByRole('button', { name: result.close }));
     expect(await screen.findByText('Página do usuário')).toBeInTheDocument();
-    const created = allUsers().find((user) => user.name === 'Ana Nova');
-    expect(router.state.location.pathname).toBe(`${PATHS.USERS}/${created.id}`);
+    expect(router.state.location.pathname).toBe(userPath(CREATED.id));
+  });
+
+  it('mostra a mensagem da API quando o convite vai por e-mail, sem senha', async () => {
+    const message =
+      'Convite enviado ao e-mail do usuário. O link vale até 13/11/2026 às 12:00 (horário de Brasília).';
+    apiStub().use({
+      'POST /users': () =>
+        reply(201, {
+          data: {
+            channel: 'email',
+            expiresAt: '2026-11-13T15:00:00.000Z',
+            delivery: { status: 'sent' },
+            user: CREATED,
+          },
+          meta: { message },
+        }),
+    });
+    renderList();
+    const dialog = await openNewUser();
+    fill(dialog, newUser);
+    chooseProfile(dialog, 'caregiver');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: form.save }));
+
+    const shown = await screen.findByRole('dialog', {
+      name: result.emailTitle,
+    });
+    expect(within(shown).getByText(message)).toBeInTheDocument();
+    expect(
+      within(shown).queryByLabelText(passwordField.label),
+    ).not.toBeInTheDocument();
   });
 
   // Fora de contexto seguro (HTTP sem localhost), o navegador não oferece
@@ -191,13 +303,7 @@ describe('UserListPage', () => {
     stubClipboard(undefined);
     document.execCommand = vi.fn(() => true);
     renderList();
-    const dialog = await openNewUser();
-    fill(dialog, newUser);
-    chooseProfile(dialog, 'family');
-    fireEvent.click(within(dialog).getByRole('button', { name: form.save }));
-    const shown = await screen.findByRole('dialog', {
-      name: result.passwordTitle,
-    });
+    const shown = await createWithPassword();
 
     fireEvent.click(
       within(shown).getByRole('button', { name: passwordField.copy }),
@@ -217,13 +323,7 @@ describe('UserListPage', () => {
     });
     document.execCommand = vi.fn(() => true);
     renderList();
-    const dialog = await openNewUser();
-    fill(dialog, newUser);
-    chooseProfile(dialog, 'family');
-    fireEvent.click(within(dialog).getByRole('button', { name: form.save }));
-    const shown = await screen.findByRole('dialog', {
-      name: result.passwordTitle,
-    });
+    const shown = await createWithPassword();
 
     fireEvent.click(
       within(shown).getByRole('button', { name: passwordField.copy }),
@@ -235,11 +335,19 @@ describe('UserListPage', () => {
     expect(document.execCommand).toHaveBeenCalledWith('copy');
   });
 
-  it('aponta no campo o e-mail já usado na organização', async () => {
+  it('aponta no campo o e-mail que a API diz já usado na organização', async () => {
+    apiStub().use({
+      'POST /users': () =>
+        apiFailure(
+          409,
+          'USER_DUPLICATE_EMAIL',
+          'Já existe um usuário com este e-mail na organização. Se ele estiver inativo, reative-o.',
+          [{ field: 'email', code: 'DUPLICATE' }],
+        ),
+    });
     renderList();
     const dialog = await openNewUser();
-    const patricia = allUsers().find((user) => user.id === PATRICIA);
-    fill(dialog, { ...newUser, [form.email]: patricia.email });
+    fill(dialog, { ...newUser, [form.email]: CARLA.email });
     chooseProfile(dialog, 'caregiver');
 
     fireEvent.click(within(dialog).getByRole('button', { name: form.save }));
@@ -250,7 +358,11 @@ describe('UserListPage', () => {
   });
 
   it('mostra a mensagem da API quando o plano não tem vaga', async () => {
-    changeTerm(organization.id, { planId: BASIC_PLAN.id });
+    const message =
+      'O limite de usuários do plano foi atingido. Inative um usuário ou solicite a mudança de plano.';
+    apiStub().use({
+      'POST /users': () => apiFailure(409, 'USER_PLAN_LIMIT_REACHED', message),
+    });
     renderList();
     const dialog = await openNewUser();
     fill(dialog, newUser);
@@ -258,10 +370,6 @@ describe('UserListPage', () => {
 
     fireEvent.click(within(dialog).getByRole('button', { name: form.save }));
 
-    expect(
-      await within(dialog).findByText(
-        'O limite de usuários do plano foi atingido. Inative um usuário ou solicite a mudança de plano.',
-      ),
-    ).toBeInTheDocument();
+    expect(await within(dialog).findByText(message)).toBeInTheDocument();
   });
 });

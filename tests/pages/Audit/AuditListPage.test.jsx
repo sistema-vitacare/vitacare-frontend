@@ -9,13 +9,19 @@ import { periodFieldsContent } from '../../../src/data/periodFields.js';
 import AuditListPage from '../../../src/pages/Audit/AuditListPage.jsx';
 import { resetMockState } from '../../../src/services/mockApi.js';
 import { formatDateTime } from '../../../src/utils/format.js';
-import { apiFailure, apiFile, apiStub } from '../../support/apiStub.js';
+import {
+  apiFailure,
+  apiFile,
+  apiPage,
+  apiStub,
+} from '../../support/apiStub.js';
 import {
   AUDIT_EVENTS,
   BEM_VIVER,
   auditRoutes,
   eventId,
 } from '../../support/fixtures/audit.js';
+import { apiOrganization } from '../../support/fixtures/organizations.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
 
@@ -262,8 +268,18 @@ describe('exportação', () => {
 });
 
 describe('administrador da plataforma', () => {
-  it('vê a coluna e o filtro de organização e os nomes de outra organização como a API os mascara', async () => {
-    apiStub().use(auditRoutes({ total: 27 }));
+  it('vê a coluna, o filtro com as organizações da API e os nomes de outra organização como a API os mascara', async () => {
+    apiStub().use({
+      ...auditRoutes({ total: 27 }),
+      'GET /organizations': () =>
+        apiPage([
+          apiOrganization({
+            id: BEM_VIVER.id,
+            code: 'bem-viver',
+            tradeName: BEM_VIVER.name,
+          }),
+        ]),
+    });
     const router = renderList({ profile: 'platform_admin' });
 
     expect(
@@ -276,6 +292,11 @@ describe('administrador da plataforma', () => {
       0,
     );
 
+    await waitFor(() =>
+      expect(apiStub().last('GET /organizations').query).toEqual({
+        limit: '100',
+      }),
+    );
     choose(content.organizationLabel, BEM_VIVER.name);
 
     await waitFor(() => expect(lastQuery().organizationId).toBe(BEM_VIVER.id));

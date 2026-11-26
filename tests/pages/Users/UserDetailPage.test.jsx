@@ -11,22 +11,39 @@ import {
 } from '../../../src/data/userPages.js';
 import UserDetailPage from '../../../src/pages/Users/UserDetailPage.jsx';
 import { resetMockState } from '../../../src/services/mockApi.js';
-import { setInvitationEmailEnabled } from '../../../src/services/userService.js';
+import { apiFailure, apiStub, reply } from '../../support/apiStub.js';
+import {
+  ANA,
+  BRUNO,
+  HELENA,
+  apiUser,
+  emailInvitation,
+  passwordInvitation,
+} from '../../support/fixtures/users.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
 
-const HELENA = 'f43fdabb-62fc-569d-aa6b-02800cd5b1cd';
-const RAFAEL = 'f6b21c50-000b-5e70-878b-b5e7f5f9a410';
-const ROSANGELA = '828a4d5b-6754-54c6-8b60-63833149e502';
-const EDNA = '8ffa0d80-db2f-52a7-a275-08f89cce49c1';
+const DETAIL = 'GET /users/:userId';
+const PASSWORD = 'X7hK2mPq9RtV4wYz8NcB';
+const INACTIVE_MESSAGE = 'O usuário já está inativo.';
 
-function renderUser(userId) {
+// O usuário que a API devolve agora; as ações do teste o trocam, como o
+// banco faria.
+let current;
+
+function serve(user) {
+  current = user;
+  apiStub().use({ [DETAIL]: () => ({ data: current, meta: {} }) });
+}
+
+function renderUser(user) {
+  serve(user);
   return renderPage(
     [
       { path: PATHS.USER_DETAIL, element: <UserDetailPage /> },
       { path: PATHS.USERS, element: <p>Lista de usuários</p> },
     ],
-    { profile: 'admin', path: userPath(userId) },
+    { profile: 'admin', path: userPath(user.id) },
   );
 }
 
@@ -40,6 +57,21 @@ function value(container, label) {
 
 const action = (name) => screen.getByRole('button', { name });
 const queryAction = (name) => screen.queryByRole('button', { name });
+const loads = () =>
+  apiStub().requests.filter((request) => request.key === DETAIL).length;
+
+async function confirmDeactivation() {
+  fireEvent.click(
+    await screen.findByRole('button', { name: content.actions.deactivate }),
+  );
+  const dialog = await screen.findByRole('dialog', {
+    name: content.deactivate.title,
+  });
+  fireEvent.click(
+    within(dialog).getByRole('button', { name: content.deactivate.confirm }),
+  );
+  return dialog;
+}
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -53,14 +85,20 @@ afterEach(() => {
 });
 
 describe('UserDetailPage', () => {
-  it('mostra os dados com o CPF inteiro e o convite vencido do convidado', async () => {
-    renderUser(EDNA);
+  it('mostra os dados da API com o CPF inteiro e o convite vencido do convidado', async () => {
+    renderUser(
+      apiUser({
+        ...ANA,
+        invitation: passwordInvitation({ status: 'expired' }),
+      }),
+    );
 
     expect(
-      await screen.findByRole('heading', { name: 'Edna Carvalho Pires' }),
+      await screen.findByRole('heading', { name: ANA.name }),
     ).toBeInTheDocument();
+    expect(apiStub().last(DETAIL).params.userId).toBe(ANA.id);
     const data = section(content.dataTitle);
-    expect(value(data, content.fields.cpf)).toHaveTextContent('743.063.185-16');
+    expect(value(data, content.fields.cpf)).toHaveTextContent('529.982.247-25');
     expect(value(data, content.fields.profile)).toHaveTextContent(
       profileLabels.caregiver,
     );
@@ -75,8 +113,8 @@ describe('UserDetailPage', () => {
   });
 
   it('não mostra o convite de quem já está ativo', async () => {
-    renderUser(RAFAEL);
-    await screen.findByRole('heading', { name: 'Rafael Moura Brandão' });
+    renderUser(apiUser(BRUNO));
+    await screen.findByRole('heading', { name: BRUNO.name });
 
     expect(
       screen.queryByRole('heading', { name: content.invitationTitle }),
@@ -84,8 +122,8 @@ describe('UserDetailPage', () => {
   });
 
   it('oferece as ações do usuário ativo', async () => {
-    renderUser(RAFAEL);
-    await screen.findByRole('heading', { name: 'Rafael Moura Brandão' });
+    renderUser(apiUser(BRUNO));
+    await screen.findByRole('heading', { name: BRUNO.name });
 
     for (const name of [
       content.actions.edit,
@@ -99,8 +137,8 @@ describe('UserDetailPage', () => {
   });
 
   it('na própria conta, oferece só a edição', async () => {
-    renderUser(HELENA);
-    await screen.findByRole('heading', { name: 'Helena Vasconcelos' });
+    renderUser(apiUser(HELENA));
+    await screen.findByRole('heading', { name: HELENA.name });
 
     expect(action(content.actions.edit)).toBeInTheDocument();
     expect(queryAction(content.actions.changeProfile)).toBeNull();
@@ -109,31 +147,50 @@ describe('UserDetailPage', () => {
   });
 
   it('inativa com confirmação e passa a oferecer a reativação', async () => {
-    renderUser(RAFAEL);
-    fireEvent.click(
-      await screen.findByRole('button', { name: content.actions.deactivate }),
-    );
-    const dialog = await screen.findByRole('dialog', {
-      name: content.deactivate.title,
+    renderUser(apiUser(BRUNO));
+    apiStub().use({
+      'POST /users/:userId/deactivate': () => {
+        current = apiUser({ ...BRUNO, status: 'inactive' });
+        return { data: current, meta: {} };
+      },
     });
+
+    const dialog = await confirmDeactivation();
+
     expect(
-      within(dialog).getByText(content.deactivate.text('Rafael Moura Brandão')),
+      within(dialog).getByText(content.deactivate.text(BRUNO.name)),
     ).toBeInTheDocument();
-
-    fireEvent.click(
-      within(dialog).getByRole('button', { name: content.deactivate.confirm }),
-    );
-
     expect(
       await screen.findByRole('button', { name: content.actions.reactivate }),
     ).toBeInTheDocument();
     expect(
       value(section(content.dataTitle), content.fields.status),
     ).toHaveTextContent('Inativo');
+    expect(apiStub().last('POST /users/:userId/deactivate').params.userId).toBe(
+      BRUNO.id,
+    );
   });
 
-  it('reemite o convite e mostra a nova senha uma única vez', async () => {
-    renderUser(EDNA);
+  it('reemite o convite no canal do servidor e mostra a nova senha uma única vez', async () => {
+    renderUser(
+      apiUser({
+        ...ANA,
+        invitation: passwordInvitation({ status: 'expired' }),
+      }),
+    );
+    apiStub().use({
+      'POST /users/:userId/invitation': () => {
+        current = apiUser({ ...ANA, invitation: passwordInvitation() });
+        return reply(201, {
+          data: {
+            channel: 'temporary_password',
+            temporaryPassword: PASSWORD,
+            expiresAt: '2026-11-11T15:00:00.000Z',
+          },
+          meta: {},
+        });
+      },
+    });
     fireEvent.click(
       await screen.findByRole('button', {
         name: content.actions.reissueInvitation,
@@ -143,21 +200,35 @@ describe('UserDetailPage', () => {
     const shown = await screen.findByRole('dialog', {
       name: result.passwordTitle,
     });
-    const password = within(shown).getByLabelText(passwordField.label).value;
-    expect(password).toHaveLength(20);
+    expect(within(shown).getByLabelText(passwordField.label).value).toBe(
+      PASSWORD,
+    );
+    expect(
+      apiStub().last('POST /users/:userId/invitation').body,
+    ).toBeUndefined();
     fireEvent.click(within(shown).getByRole('button', { name: result.close }));
 
     await waitFor(() =>
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
     );
-    expect(screen.queryByDisplayValue(password)).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue(PASSWORD)).not.toBeInTheDocument();
     expect(
       value(section(content.dataTitle), content.fields.status),
     ).toHaveTextContent('Convidado');
   });
 
   it('gera senha provisória para o usuário ativo', async () => {
-    renderUser(RAFAEL);
+    renderUser(apiUser(BRUNO));
+    apiStub().use({
+      'POST /auth/users/:userId/temporary-password': () =>
+        reply(201, {
+          data: {
+            temporaryPassword: PASSWORD,
+            expiresAt: '2026-11-11T15:00:00.000Z',
+          },
+          meta: {},
+        }),
+    });
     fireEvent.click(
       await screen.findByRole('button', {
         name: content.actions.temporaryPassword,
@@ -167,28 +238,49 @@ describe('UserDetailPage', () => {
     const shown = await screen.findByRole('dialog', {
       name: result.passwordTitle,
     });
-    expect(
-      within(shown).getByLabelText(passwordField.label).value,
-    ).toHaveLength(20);
+    expect(within(shown).getByLabelText(passwordField.label).value).toBe(
+      PASSWORD,
+    );
   });
 
-  it('com o SMTP ligado, reemite por link e mostra a mensagem da API', async () => {
-    setInvitationEmailEnabled(true);
-    renderUser(EDNA);
-    fireEvent.click(
-      await screen.findByRole('button', {
-        name: content.actions.reissueInvitation,
+  it('com o convite por e-mail, mostra a mensagem da API e oferece a reemissão com senha provisória', async () => {
+    const message =
+      'Convite enviado ao e-mail do usuário. O link vale até 13/11/2026 às 12:00 (horário de Brasília).';
+    renderUser(
+      apiUser({
+        ...ANA,
+        invitation: emailInvitation({ status: 'invalidated' }),
       }),
     );
+    apiStub().use({
+      'POST /users/:userId/invitation': () => {
+        current = apiUser({
+          ...ANA,
+          invitation: emailInvitation({
+            expiresAt: '2026-11-13T15:00:00.000Z',
+          }),
+        });
+        return reply(201, {
+          data: {
+            channel: 'email',
+            expiresAt: '2026-11-13T15:00:00.000Z',
+            delivery: { status: 'sent' },
+          },
+          meta: { message },
+        });
+      },
+    });
+    expect(
+      await screen.findByRole('button', {
+        name: content.actions.reissueWithPassword,
+      }),
+    ).toBeInTheDocument();
+    fireEvent.click(action(content.actions.reissueInvitation));
 
     const shown = await screen.findByRole('dialog', {
       name: result.emailTitle,
     });
-    expect(
-      within(shown).getByText(
-        'Convite enviado ao e-mail do usuário. O link vale até 13/11/2026 às 12:00 (horário de Brasília).',
-      ),
-    ).toBeInTheDocument();
+    expect(within(shown).getByText(message)).toBeInTheDocument();
     expect(within(shown).queryByLabelText(passwordField.label)).toBeNull();
     fireEvent.click(within(shown).getByRole('button', { name: result.close }));
 
@@ -198,11 +290,44 @@ describe('UserDetailPage', () => {
         value(invitation, content.invitationFields.channel),
       ).toHaveTextContent(content.channelLabels.email),
     );
-    expect(action(content.actions.reissueWithPassword)).toBeInTheDocument();
+  });
+
+  it('reemite com senha provisória pedindo o canal à API', async () => {
+    renderUser(apiUser({ ...ANA, invitation: emailInvitation() }));
+    apiStub().use({
+      'POST /users/:userId/invitation': () =>
+        reply(201, {
+          data: {
+            channel: 'temporary_password',
+            temporaryPassword: PASSWORD,
+            expiresAt: '2026-11-11T15:00:00.000Z',
+          },
+          meta: {},
+        }),
+    });
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: content.actions.reissueWithPassword,
+      }),
+    );
+
+    await screen.findByRole('dialog', { name: result.passwordTitle });
+    expect(apiStub().last('POST /users/:userId/invitation').body).toEqual({
+      channel: 'temporary_password',
+    });
   });
 
   it('altera o perfil com o aviso dos vínculos de cuidado', async () => {
-    renderUser(ROSANGELA);
+    renderUser(apiUser(ANA));
+    apiStub().use({
+      'PATCH /users/:userId/profile': ({ body }) => {
+        current = apiUser({ ...ANA, profileCode: body.profileCode });
+        return {
+          data: { id: ANA.id, name: ANA.name, profile: current.profile },
+          meta: {},
+        };
+      },
+    });
     fireEvent.click(
       await screen.findByRole('button', {
         name: content.actions.changeProfile,
@@ -228,10 +353,19 @@ describe('UserDetailPage', () => {
         value(section(content.dataTitle), content.fields.profile),
       ).toHaveTextContent(profileLabels.professional),
     );
+    expect(apiStub().last('PATCH /users/:userId/profile').body).toEqual({
+      profileCode: 'professional',
+    });
   });
 
-  it('edita os dados no diálogo', async () => {
-    renderUser(RAFAEL);
+  it('edita no diálogo enviando só o que mudou', async () => {
+    renderUser(apiUser(BRUNO));
+    apiStub().use({
+      'PATCH /users/:userId': ({ body }) => {
+        current = { ...current, ...body };
+        return { data: current, meta: {} };
+      },
+    });
     fireEvent.click(
       await screen.findByRole('button', { name: content.actions.edit }),
     );
@@ -247,5 +381,102 @@ describe('UserDetailPage', () => {
         value(section(content.dataTitle), content.fields.phone),
       ).toHaveTextContent('(16) 99999-0000'),
     );
+    expect(apiStub().last('PATCH /users/:userId').body).toEqual({
+      phone: '(16) 99999-0000',
+    });
+  });
+
+  describe('situação mudada por outra pessoa', () => {
+    it('fecha a confirmação, recarrega o usuário e mostra a mensagem da API', async () => {
+      renderUser(apiUser(BRUNO));
+      apiStub().use({
+        'POST /users/:userId/deactivate': () => {
+          current = apiUser({ ...BRUNO, status: 'inactive' });
+          return apiFailure(409, 'USER_ALREADY_INACTIVE', INACTIVE_MESSAGE);
+        },
+      });
+      await screen.findByRole('heading', { name: BRUNO.name });
+      const before = loads();
+
+      await confirmDeactivation();
+
+      expect(await screen.findByText(INACTIVE_MESSAGE)).toBeInTheDocument();
+      expect(
+        screen.queryByRole('dialog', { name: content.deactivate.title }),
+      ).not.toBeInTheDocument();
+      expect(loads()).toBe(before + 1);
+      expect(action(content.actions.reactivate)).toBeInTheDocument();
+      expect(screen.getByRole('alert')).toHaveClass('MuiAlert-colorWarning');
+    });
+
+    it('recarrega quando o convite já foi aceito antes da reemissão', async () => {
+      const message =
+        'O usuário já está ativo. Para uma nova senha, use a redefinição de senha.';
+      renderUser(apiUser({ ...ANA, invitation: passwordInvitation() }));
+      apiStub().use({
+        'POST /users/:userId/invitation': () => {
+          current = apiUser(ANA);
+          return apiFailure(409, 'USER_INVITATION_ALREADY_ACCEPTED', message);
+        },
+      });
+      fireEvent.click(
+        await screen.findByRole('button', {
+          name: content.actions.reissueInvitation,
+        }),
+      );
+
+      expect(await screen.findByText(message)).toBeInTheDocument();
+      expect(
+        await screen.findByRole('button', {
+          name: content.actions.temporaryPassword,
+        }),
+      ).toBeInTheDocument();
+      expect(queryAction(content.actions.reissueInvitation)).toBeNull();
+    });
+
+    it('recarrega quando quem ia receber a senha provisória deixou de estar ativo', async () => {
+      renderUser(apiUser(BRUNO));
+      apiStub().use({
+        'POST /auth/users/:userId/temporary-password': () => {
+          current = apiUser({ ...BRUNO, status: 'inactive' });
+          return apiFailure(
+            404,
+            'AUTH_USER_NOT_FOUND',
+            'Usuário não encontrado.',
+          );
+        },
+      });
+      fireEvent.click(
+        await screen.findByRole('button', {
+          name: content.actions.temporaryPassword,
+        }),
+      );
+
+      expect(
+        await screen.findByText('Usuário não encontrado.'),
+      ).toBeInTheDocument();
+      expect(
+        await screen.findByRole('button', { name: content.actions.reactivate }),
+      ).toBeInTheDocument();
+    });
+
+    it('outro erro continua na confirmação, sem recarregar', async () => {
+      renderUser(apiUser(BRUNO));
+      apiStub().use({
+        'POST /users/:userId/deactivate': () => ({ data: current, meta: {} }),
+      });
+      apiStub().fail('POST /users/:userId/deactivate');
+      await screen.findByRole('heading', { name: BRUNO.name });
+      const before = loads();
+
+      const dialog = await confirmDeactivation();
+
+      expect(
+        await within(dialog).findByText(
+          'Não foi possível concluir a operação. Tente novamente.',
+        ),
+      ).toBeInTheDocument();
+      expect(loads()).toBe(before);
+    });
   });
 });

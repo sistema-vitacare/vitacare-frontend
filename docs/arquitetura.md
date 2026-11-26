@@ -31,8 +31,8 @@ As dependências seguem um único sentido: páginas, hooks, serviços, dados.
 | Páginas | `src/pages/` | Uma pasta por tela. Montam o layout e tratam os estados de carregamento, vazio e erro. |
 | Componentes | `src/components/` | Peças usadas em duas ou mais telas. Um trecho vira componente a partir da segunda repetição. |
 | Hooks | `src/hooks/` | Chamam os serviços e entregam dados e estado às páginas. |
-| Serviços | `src/services/` | Único ponto de acesso a dados: chamam a API pelo cliente HTTP ou, enquanto a área não é integrada, respondem com os dados simulados. |
-| Dados | `src/data/` | Textos da interface e dados simulados. Nenhum texto, lista ou valor fica fixo dentro de componente. |
+| Serviços | `src/services/` | Único ponto de acesso a dados: chamam a API pelo cliente HTTP. |
+| Dados | `src/data/` | Textos da interface e os dados simulados que restam para os testes. Nenhum texto, lista ou valor fica fixo dentro de componente. |
 | Constantes | `src/constants/` | Rotas, permissões e listas fechadas, como severidades, unidades de dose e tipos de campo. |
 | Estilos | `src/styles/` | Tema do Material UI: cores, tipografia, espaçamentos, raios, sombras e movimento. |
 | Utilitários | `src/utils/` | Funções puras: máscaras, formatação de datas, cálculo de idade. |
@@ -56,44 +56,25 @@ O painel e o detalhe de cada indicador mostram a mensagem do `403` do plano sem 
 
 A edição do paciente envia só os campos alterados, comparados com o paciente carregado; sem alteração, a tela avisa e não chama a API. Mandar o cadastro inteiro traria de volta, em silêncio, um responsável que outra pessoa trocou durante a edição. A API não tem controle de versão, então duas edições do mesmo campo continuam valendo pelo último salvamento.
 
-A integração anda por área: o corpo de cada serviço passa a chamar as rotas da API, e páginas e hooks não mudam. Enquanto uma área não é integrada, os serviços dela respondem com os dados simulados descritos abaixo.
-
-## Dados simulados
-
-Os serviços ainda não integrados respondem no mesmo formato da API do backend. O utilitário `src/services/mockApi.js` monta essas respostas:
-
-- sucesso: `{ data, meta }`, com `meta.requestId` e `meta.timestamp`;
-- listagem: `meta.pagination` com `page`, `limit`, `total` e `totalPages`, página 1 e limite 20 quando não informados, como na API;
-- erro: o mesmo `ApiError` do cliente HTTP, então as telas tratam erro do mesmo jeito nas áreas simuladas e nas integradas.
-
-Cada requisição simulada espera um atraso curto, zerado nos testes. A função `failNextRequest` faz a próxima requisição falhar, para exercitar os estados de erro das telas.
-
-Só usuários e organizações continuam simulados (Bloco 14). Os serviços simulados sabem quem consulta pela sessão da API que o `authService` guarda (`currentViewer()`): a tela não passa o usuário a cada chamada. O painel, os relatórios e a auditoria leem a API, e os ids reais que eles trazem ainda não existem no serviço simulado de usuários: o link da auditoria para um usuário abre com o erro de carregamento; os links para um registro e para um alerta abrem pela API. O filtro de organização da auditoria, do administrador da plataforma, lista as organizações simuladas. Nos testes, as sessões são as dos usuários de demonstração, e pacientes, formulários, registros, medicamentos, regras de alerta, alertas e notificações vêm de `tests/support/fixtures/`.
+Quando a API recusa uma ação porque o item já não está como a tela o carregou, mudado por outra pessoa ou em outra aba (o vínculo de cuidado revogado, o anexo removido, o usuário ou a organização que já estão na situação pedida, o convite já aceito, a solicitação de mudança de plano já decidida ou uma outra já em análise), a tela recarrega o que mostra, fechando o diálogo quando há um, e avisa o que aconteceu, com a mensagem da API ou, no anexo, com o texto da tela, porque tentar de novo falharia igual. Os códigos de cada área ficam no serviço dela.
 
 As telas não chamam os serviços direto. Para ler, usam o hook `useResource`, que devolve um de quatro estados (`loading`, `success`, `empty` ou `error`) e uma função `retry` para tentar de novo depois de uma falha. Para enviar um formulário, usam o `useSubmit`, que devolve `idle`, `submitting`, `success` ou `error`, com os dados, o `meta` e o erro da resposta. A sessão é a exceção: login, primeiro acesso e Sair passam pelo `SessionProvider`, que guarda o resultado.
 
-Os dados simulados ficam em `src/data/mocks/`, com os campos da API, e usam nomes, documentos e contatos inventados. Todo CPF passa nos dígitos verificadores, e todo paciente aponta para um profissional de saúde existente. Nenhum dado pessoal real entra no repositório.
+As regras de conteúdo que a API confere (campos de formulário por tipo, respostas de registro, anexos, medicamentos e regras de alerta) ficam em `src/utils/`, nas mesmas funções que as telas usam para apontar o problema antes do envio.
 
-Os dados de acompanhamento seguem as mesmas regras da API, conferidas por teste. Nenhum serviço lê mais os formulários, os registros e os anexos: eles ficam só como fonte dos fixtures dos testes e do `mocks.test.js`, até o FE-65.
+## Dados simulados
+
+Nenhum serviço responde com dados simulados. O que sobrou da camada simulada serve só aos testes e sai no FE-65 do `INTEGRACAO.md`:
+
+- `src/services/mockApi.js`: o `respond`, que monta o envelope `{ data, meta }` nos testes dos hooks; o `ApiError` do cliente HTTP; e o `resetMockState`, que volta ao início, entre os testes, o estado guardado em módulo, como a sessão do `authService`;
+- `src/data/mocks/`: a organização de demonstração, a organização de plataforma e o administrador dela, os usuários, os pacientes, os vínculos de cuidado, os formulários, os registros e os anexos, com os campos da API. Os fixtures de `tests/support/fixtures/` montam com eles as sessões dos usuários de demonstração, os pacientes, os formulários, os registros e os eventos de auditoria.
+
+Os dados simulados usam nomes, documentos e contatos inventados. Todo CPF passa nos dígitos verificadores, e todo paciente aponta para um profissional de saúde existente. Nenhum dado pessoal real entra no repositório. Os vínculos e os dados de acompanhamento seguem as mesmas regras da API, conferidas pelo `mocks.test.js`:
 
 - **Vínculos de cuidado** (`patientLinks.js`): só cuidador e familiar, no papel igual ao perfil, com no máximo um vínculo vigente por pessoa e paciente. O vínculo de profissional responsável vem do campo `responsible` do paciente.
 - **Formulários** (`forms.js`): no formato de `GET /forms/{formId}`, com as versões publicadas guardadas em `versions` (a vigente é a última) e o rascunho vivo da próxima versão em `draft`. Os dados simulados cobrem as situações da API: formulários com versão 1 publicada, um nunca publicado, um com rascunho pendente, um com duas versões e um desativado. Publicar cria a versão seguinte, e os registros antigos continuam ligados à versão que responderam.
 - **Registros de acompanhamento** (`followUps.js`): feitos só por cuidador com vínculo vigente, respondendo a versão vigente de um formulário que vale para o paciente. As datas são relativas ao dia de hoje no fuso de Brasília, porque a evolução da API olha por padrão os últimos 30 dias; com datas fixas, os gráficos ficariam vazios poucas semanas depois. Valores, autores e horários são fixos.
 - **Anexos** (`attachments.js`): enviados pelo autor do registro, depois dele, nos tipos e no tamanho que a API aceita.
-- **Organizações clientes** (`organizations.js`): a de demonstração e duas outras, cada uma com o termo de vigência do seu plano. A Clínica Bem Viver fica no Basic, com vencimento poucos dias depois da consulta, para o aviso de vencimento aparecer, e com uma solicitação pendente do Enterprise, para a fila da plataforma não nascer vazia. Usuários e pacientes simulados são só da organização de demonstração, contada pelos estados; as outras têm uso em números fixos, e a cadastrada na sessão nasce com o primeiro administrador e nenhum paciente.
-
-O estado que a API guardaria no banco fica nos serviços, e `resetMockState` volta tudo ao início:
-
-- `src/services/patientStore.js`: os pacientes e os vínculos dos dados simulados, lidos pelos serviços ainda simulados (as telas de pacientes já leem a API), com o alcance de cada perfil;
-- `src/services/userStore.js`: usuários cadastrados por convite, editados, com perfil ou situação trocados e com convite ou senha provisória emitidos; é a fonte dos usuários para o login, os vínculos de cuidado e o profissional responsável;
-- `src/services/organizationStore.js`: organizações cadastradas e editadas na sessão, com a situação; termo de vigência de cada organização, que a atribuição e a aprovação trocam inteiro, como a API; e solicitações de mudança de plano, com as decisões.
-
-As regras de conteúdo que a API confere (campos de formulário por tipo, respostas de registro, anexos, medicamentos e regras de alerta) ficam em `src/utils/`, nas mesmas funções que as telas usam para apontar o problema antes do envio.
-
-Duas alternativas foram descartadas:
-
-- **Importar os dados simulados direto nas páginas.** A integração exigiria alterar todas as telas.
-- **Interceptar requisições HTTP com Mock Service Worker.** Colocaria no navegador um service worker só para os dados simulados, e o PWA não usa service worker.
 
 ## Sessão, perfis e permissões
 
@@ -105,7 +86,7 @@ Duas alternativas foram descartadas:
 | Familiar | `family` | Consulta do paciente vinculado: cadastro, histórico, evolução, alertas e medicamentos. |
 | Administrador da plataforma | `platform_admin` | Organizações clientes e seus planos, e a auditoria de todas as organizações. |
 
-As permissões da sessão são as efetivas que a API devolve no login e em `GET /profile`. A matriz local (`src/constants/permissions.js`) replica `src/modules/Access/access.permissions.ts` do vitacare-backend, a fonte oficial, e serve aos códigos que as telas consultam, aos serviços ainda simulados e às sessões dos testes; mudança na matriz do backend continua sendo repetida aqui.
+As permissões da sessão são as efetivas que a API devolve no login e em `GET /profile`. A matriz local (`src/constants/permissions.js`) replica `src/modules/Access/access.permissions.ts` do vitacare-backend, a fonte oficial, e serve aos códigos que as telas consultam e às sessões dos testes; mudança na matriz do backend continua sendo repetida aqui.
 
 As telas consultam permissões, por exemplo `can('patients:create')`, e nunca o nome do perfil. Assim, uma mudança na matriz não exige alterar telas. Conteúdo que depende de uma permissão fica dentro de `RequirePermission`: sem a permissão, o conteúdo não é renderizado e não carrega dados.
 

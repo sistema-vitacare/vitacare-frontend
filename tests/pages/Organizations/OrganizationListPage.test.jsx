@@ -5,11 +5,19 @@ import { organizationListContent } from '../../../src/data/organizationPages.js'
 import { pendingRequestsContent } from '../../../src/data/organizationPlanPages.js';
 import OrganizationListPage from '../../../src/pages/Organizations/OrganizationListPage.jsx';
 import { resetMockState } from '../../../src/services/mockApi.js';
+import { apiStub } from '../../support/apiStub.js';
+import {
+  SOL_NASCENTE,
+  VIVA_BEM,
+  apiChangeRequest,
+  platformRoutes,
+} from '../../support/fixtures/organizations.js';
 import { renderPage } from '../../support/renderPage.jsx';
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'], shouldAdvanceTime: true });
   vi.setSystemTime(new Date('2026-11-16T15:00:00.000Z'));
+  apiStub().use(platformRoutes({ requests: [apiChangeRequest()] }));
 });
 
 afterEach(() => {
@@ -31,7 +39,7 @@ describe('página das organizações', () => {
       name: pendingRequestsContent.title,
     });
     expect(
-      await within(queue).findByRole('link', { name: 'Clínica Bem Viver' }),
+      await within(queue).findByRole('link', { name: SOL_NASCENTE.tradeName }),
     ).toBeInTheDocument();
     const search = screen.getByLabelText(organizationListContent.searchLabel);
     expect(
@@ -44,7 +52,7 @@ describe('página das organizações', () => {
       }),
     ).toBeInTheDocument();
     expect(await screen.findByRole('table')).toHaveTextContent(
-      'Residencial Ipê Amarelo',
+      VIVA_BEM.tradeName,
     );
   });
 });
