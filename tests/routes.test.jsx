@@ -45,10 +45,12 @@ import { theme } from '../src/styles/theme.js';
 import { preloadPages } from './support/preloadPages.js';
 import { resetViewport, setViewportWidth } from './support/viewport.js';
 import { apiStub } from './support/apiStub.js';
+import { ABSENCE, alertRoutes } from './support/fixtures/alerts.js';
 import { auditRoutes } from './support/fixtures/audit.js';
 import { credentialsFor } from './support/fixtures/sessions.js';
 import { followUpRoutes } from './support/fixtures/followUps.js';
 import { formRoutes } from './support/fixtures/forms.js';
+import { medicationRoutes } from './support/fixtures/medications.js';
 import { apiPatient, patientRoutes } from './support/fixtures/patients.js';
 
 await preloadPages();
@@ -116,10 +118,16 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// As telas ainda simuladas escolhem o paciente pela API (Bloco 10); as de
-// formulários e de registros leem pela API desde o Bloco 11.
+// Pacientes, formulários, registros, medicamentos e alertas vêm da API pelo
+// stub; só usuários e organizações continuam simulados (Bloco 14).
 beforeEach(() => {
-  apiStub().use({ ...patientRoutes(), ...formRoutes(), ...followUpRoutes() });
+  apiStub().use({
+    ...patientRoutes(),
+    ...formRoutes(),
+    ...followUpRoutes(),
+    ...medicationRoutes(),
+    ...alertRoutes(),
+  });
 });
 
 describe('rotas', () => {
@@ -407,9 +415,7 @@ describe('rotas', () => {
     await signInAs('professional');
     await heading(navLabels.patients);
 
-    await act(() =>
-      router.navigate(alertPath('a1e70000-0000-5000-8009-000000000001')),
-    );
+    await act(() => router.navigate(alertPath(ABSENCE)));
     expect(await heading('Ausência de registro')).toBeInTheDocument();
 
     await act(() => router.navigate(alertPath('nao-existe')));
@@ -421,9 +427,7 @@ describe('rotas', () => {
     await signInAs('platform_admin');
     // A página inicial da plataforma são as organizações.
     await heading(navLabels.organizations);
-    await act(() =>
-      router.navigate(alertPath('a1e70000-0000-5000-8009-000000000001')),
-    );
+    await act(() => router.navigate(alertPath(ABSENCE)));
     expect(await heading(statusContent.accessDenied.title)).toBeInTheDocument();
   });
 

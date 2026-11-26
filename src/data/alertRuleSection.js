@@ -38,6 +38,7 @@ export const alertRuleSectionContent = {
   errors: {
     ALERT_RULE_ALREADY_INACTIVE: 'A regra já estava inativa.',
     ALERT_RULE_ALREADY_ACTIVE: 'A regra já estava ativa.',
+    ALERT_RULE_NOT_FOUND: 'A regra não foi encontrada.',
   },
   unexpected: 'Não foi possível concluir agora. Tente de novo em instantes.',
 };
@@ -52,6 +53,7 @@ export const alertRuleDialogContent = {
   everyone: 'Todos os pacientes do formulário',
   patientHelper:
     'A regra de um paciente substitui as gerais do mesmo campo para ele.',
+  noPatients: 'Nenhum paciente ativo encontrado',
   lockedHelper: 'Campo e paciente não mudam; outra combinação é outra regra.',
   name: 'Nome da regra',
   nameHelper: 'Vira o título do alerta.',
@@ -74,6 +76,7 @@ export const alertRuleDialogContent = {
       'O paciente está inativo. Reative-o antes de criar regras para ele.',
     ALERT_RULE_INACTIVE: 'A regra foi inativada. Reative-a antes de editar.',
     ALERT_RULE_NOTHING_TO_UPDATE: 'Nenhuma alteração para salvar.',
+    ALERT_RULE_NOT_FOUND: 'A regra não foi encontrada.',
     PATIENT_NOT_FOUND: 'Paciente não encontrado.',
   },
 };

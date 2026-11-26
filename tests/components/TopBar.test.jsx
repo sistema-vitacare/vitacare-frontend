@@ -1,13 +1,17 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
+import NotificationsProvider from '../../src/components/NotificationsProvider.jsx';
 import TopBar from '../../src/components/TopBar.jsx';
-import { PATHS } from '../../src/constants/routes.js';
+import { PATHS, alertPath } from '../../src/constants/routes.js';
+import { notificationBellContent as bell } from '../../src/data/alertPages.js';
 import { changePasswordContent } from '../../src/data/access.js';
 import { profileLabels } from '../../src/data/profiles.js';
 import { topBarSearchContent } from '../../src/data/patientList.js';
 import { resetMockState } from '../../src/services/mockApi.js';
 import { renderPage } from '../support/renderPage.jsx';
 import { resetViewport } from '../support/viewport.js';
+import { apiPage, apiStub } from '../support/apiStub.js';
+import { allAlerts, apiNotification } from '../support/fixtures/alerts.js';
 
 const PROFILES = [
   'admin',
@@ -110,5 +114,134 @@ describe('menu do usuário', () => {
     expect(
       await screen.findByRole('dialog', { name: changePasswordContent.title }),
     ).toBeInTheDocument();
+  });
+});
+
+describe('sino de notificações', () => {
+  const UNREAD = 'GET /notifications/unread-count';
+  const BOX = 'GET /notifications';
+  const READ = 'POST /notifications/:notificationId/read';
+  const READ_ALL = 'POST /notifications/read-all';
+  const [reading, absence] = allAlerts();
+  const UNREAD_ID = 'b0710000-0000-5000-8000-000000000001';
+
+  // O sino lê o contador do provedor que o AppShell monta.
+  function renderBell(profile) {
+    return renderPage(
+      [
+        {
+          path: PATHS.DASHBOARD,
+          element: (
+            <NotificationsProvider>
+              <TopBar />
+            </NotificationsProvider>
+          ),
+        },
+        { path: PATHS.ALERT_DETAIL, element: <p>Detalhe do alerta</p> },
+      ],
+      { profile, path: PATHS.DASHBOARD },
+    );
+  }
+
+  function stubInbox(unread) {
+    let count = unread;
+    apiStub().use({
+      [UNREAD]: () => ({ data: { unread: count }, meta: {} }),
+      [BOX]: () =>
+        apiPage([
+          apiNotification(UNREAD_ID, reading),
+          apiNotification('b0710000-0000-5000-8000-000000000002', absence, {
+            readAt: '2026-11-24T12:00:00.000Z',
+          }),
+        ]),
+      [READ]: () => {
+        count -= 1;
+        return { data: null, meta: {} };
+      },
+      [READ_ALL]: () => {
+        count = 0;
+        return { data: { updated: unread }, meta: {} };
+      },
+    });
+  }
+
+  it('mostra o número de notificações não lidas do próprio usuário', async () => {
+    stubInbox(3);
+    renderBell('caregiver');
+
+    expect(
+      await screen.findByRole('button', { name: bell.open(3) }),
+    ).toBeVisible();
+  });
+
+  it('não aparece para quem não lê alertas, nem pede o contador', async () => {
+    renderBell('platform_admin');
+
+    expect(
+      await screen.findByRole('button', {
+        name: /Administrador da plataforma/,
+      }),
+    ).toBeVisible();
+    expect(screen.queryByRole('button', { name: bell.open(0) })).toBeNull();
+    expect(apiStub().last(UNREAD)).toBeUndefined();
+  });
+
+  it('abre a caixa, marca a notificação como lida e leva ao alerta', async () => {
+    stubInbox(1);
+    const router = renderBell('caregiver');
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Notificações, 1 não lida' }),
+    );
+    const box = await screen.findByRole('dialog', { name: bell.title });
+    expect(
+      within(box).getByText(`(${bell.unread})`, { exact: false }),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      within(box).getByRole('button', { name: new RegExp(reading.title) }),
+    );
+
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(alertPath(reading.id)),
+    );
+    expect(apiStub().last(READ).params.notificationId).toBe(UNREAD_ID);
+  });
+
+  it('leva ao alerta da notificação já lida sem marcar de novo', async () => {
+    stubInbox(1);
+    const router = renderBell('caregiver');
+
+    fireEvent.click(await screen.findByRole('button', { name: bell.open(1) }));
+    const box = await screen.findByRole('dialog', { name: bell.title });
+    fireEvent.click(
+      await within(box).findByRole('button', {
+        name: new RegExp(absence.title),
+      }),
+    );
+
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(alertPath(absence.id)),
+    );
+    expect(apiStub().last(READ)).toBeUndefined();
+  });
+
+  it('marca todas como lidas e zera o contador', async () => {
+    stubInbox(2);
+    renderBell('caregiver');
+
+    fireEvent.click(await screen.findByRole('button', { name: bell.open(2) }));
+    const box = await screen.findByRole('dialog', { name: bell.title });
+    fireEvent.click(
+      await within(box).findByRole('button', { name: bell.readAll }),
+    );
+
+    // A caixa aberta é modal e esconde o sino dos leitores de tela.
+    expect(
+      await screen.findByRole('button', { name: bell.open(0), hidden: true }),
+    ).toBeInTheDocument();
+    expect(apiStub().last(READ_ALL).body).toEqual({});
+    expect(
+      within(box).getByRole('button', { name: bell.readAll }),
+    ).toBeDisabled();
   });
 });

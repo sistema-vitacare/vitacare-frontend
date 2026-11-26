@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/react';
+import { act, fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PATHS, formPath } from '../../../src/constants/routes.js';
 import {
@@ -10,14 +10,44 @@ import FormPage from '../../../src/pages/Forms/FormPage.jsx';
 import { resetMockState } from '../../../src/services/mockApi.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
-import { apiStub } from '../../support/apiStub.js';
+import { apiFailure, apiPage, apiStub } from '../../support/apiStub.js';
+import {
+  SATURATION_RULE,
+  SYSTOLIC_RULE,
+  TEMPERATURE,
+  VITAL_SIGNS,
+  alertRuleRoutes,
+  allAlertRules,
+  apiAlertRule,
+} from '../../support/fixtures/alertRules.js';
 import { formRoutes } from '../../support/fixtures/forms.js';
-import { patientRoutes } from '../../support/fixtures/patients.js';
+import {
+  activePatients,
+  apiPatient,
+  patientRoutes,
+} from '../../support/fixtures/patients.js';
 
-const VITAL_SIGNS = '8c0342e9-d9e9-58c2-a229-1c32168a8bf2';
 const DAILY = 'd9d5ba57-125a-506d-a026-be0c9dc2dad6';
 const WELL_BEING_DRAFT = 'fc78dd55-dd62-5075-bd49-995af47c3da7';
 const TRIAGE_INACTIVE = '1ed79d8c-e5ae-5629-a92d-7e74d66bd81a';
+const DIRCE = '0b639b83-76d0-570a-9017-7b6263d892cf';
+const OSVALDO = '91fb0349-7fb0-5be9-ac72-eb28afa2b17e';
+const IOLANDA = 'b07a6b59-2a82-5a9f-be9b-c41102749e06';
+const FEVER_RULE = 'a1e70000-0000-5000-8000-000000000001';
+const CREATE = 'POST /alert-rules';
+const UPDATE = 'PATCH /alert-rules/:ruleId';
+const DEACTIVATE = 'POST /alert-rules/:ruleId/deactivate';
+const REACTIVATE = 'POST /alert-rules/:ruleId/reactivate';
+
+// O que a API devolve na lista; o teste que grava muda esta lista, como a API
+// faria, e a seção a pede de novo.
+let alertRules;
+
+function change(ruleId, changes) {
+  const index = alertRules.findIndex(({ id }) => id === ruleId);
+  alertRules[index] = { ...alertRules[index], ...changes };
+  return { data: alertRules[index], meta: {} };
+}
 
 function renderForm(formId, profile = 'professional') {
   return renderPage([{ path: PATHS.FORM_DETAIL, element: <FormPage /> }], {
@@ -52,25 +82,74 @@ function choose(label, option) {
   fireEvent.click(screen.getByRole('option', { name: option }));
 }
 
+function fill(label, value) {
+  fireEvent.change(within(dialog()).getByLabelText(label, { exact: false }), {
+    target: { value },
+  });
+}
+
+/** Responde a criação com a regra de febre que a API gravaria. */
+function createFever() {
+  apiStub().use({
+    [CREATE]: ({ body }) => {
+      const created = apiAlertRule(
+        FEVER_RULE,
+        VITAL_SIGNS,
+        TEMPERATURE,
+        body.name,
+        {
+          operator: body.operator,
+          referenceValue: body.referenceValue,
+          severity: body.severity,
+        },
+      );
+      alertRules.push(created);
+      return { data: created, meta: {} };
+    },
+  });
+}
+
+async function fillFever() {
+  choose(dialogContent.field, 'Temperatura (°C)');
+  fill(dialogContent.name, 'Febre');
+  choose(dialogContent.operator, 'maior ou igual a');
+  fill(dialogContent.reference, '37,8');
+  choose(dialogContent.severity, 'Atenção');
+}
+
+async function openNewRule(formId) {
+  renderForm(formId);
+  await rules();
+  fireEvent.click(screen.getByRole('button', { name: content.add }));
+  await screen.findByRole('dialog');
+}
+
 afterEach(() => {
   resetMockState();
   resetViewport();
 });
 
-// A página do formulário lê pela API (Bloco 11); as regras de alerta ainda
-// são simuladas (FE-57), com os ids dos dados simulados que o fixture usa.
 beforeEach(() => {
-  apiStub().use({ ...patientRoutes(), ...formRoutes() });
+  alertRules = allAlertRules();
+  apiStub().use({
+    ...patientRoutes(),
+    ...formRoutes(),
+    ...alertRuleRoutes(alertRules),
+  });
 });
 
 describe('AlertRulesSection', () => {
   it('lista as regras do formulário com campo, condição, severidade, alcance e situação', async () => {
-    renderForm(VITAL_SIGNS);
+    renderForm(VITAL_SIGNS.id);
 
     // O formulário e as regras carregam em sequência; cada um tem a própria
     // espera, para que a máquina lenta não some as duas cargas nos 5 s.
     await screen.findByRole('heading', { level: 1, name: 'Sinais vitais' });
     expect(await rules()).toHaveLength(3);
+    expect(apiStub().last('GET /alert-rules').query).toEqual({
+      formId: VITAL_SIGNS.id,
+      limit: '100',
+    });
     const systolic = await rule('Pressão sistólica acima de 160');
     expect(
       within(systolic).getByText('Pressão sistólica maior que 160 mmHg'),
@@ -87,7 +166,7 @@ describe('AlertRulesSection', () => {
   });
 
   it('não aparece para quem não configura regras', async () => {
-    renderForm(VITAL_SIGNS, 'caregiver');
+    renderForm(VITAL_SIGNS.id, 'caregiver');
 
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Sinais vitais' }),
@@ -95,14 +174,13 @@ describe('AlertRulesSection', () => {
     expect(
       screen.queryByRole('heading', { name: content.title }),
     ).not.toBeInTheDocument();
+    expect(apiStub().last('GET /alert-rules')).toBeUndefined();
   });
 
   it('cria a regra geral, com os campos inválidos destacados antes', async () => {
-    renderForm(VITAL_SIGNS);
-    await rules();
+    createFever();
+    await openNewRule(VITAL_SIGNS.id);
 
-    fireEvent.click(screen.getByRole('button', { name: content.add }));
-    await screen.findByRole('dialog');
     fireEvent.click(
       within(dialog()).getByRole('button', { name: dialogContent.save }),
     );
@@ -116,25 +194,24 @@ describe('AlertRulesSection', () => {
     expect(
       within(dialog()).getByText(fieldErrors.referenceValue.default),
     ).toBeVisible();
+    expect(apiStub().last(CREATE)).toBeUndefined();
 
-    choose(dialogContent.field, 'Temperatura (°C)');
-    fireEvent.change(
-      within(dialog()).getByLabelText(dialogContent.name, { exact: false }),
-      { target: { value: 'Febre' } },
-    );
-    choose(dialogContent.operator, 'maior ou igual a');
-    fireEvent.change(
-      within(dialog()).getByLabelText(dialogContent.reference, {
-        exact: false,
-      }),
-      { target: { value: '37,8' } },
-    );
-    choose(dialogContent.severity, 'Atenção');
+    await fillFever();
     fireEvent.click(
       within(dialog()).getByRole('button', { name: dialogContent.save }),
     );
 
     expect(await screen.findByText(content.saved)).toBeVisible();
+    expect(apiStub().last(CREATE).body).toEqual({
+      formId: VITAL_SIGNS.id,
+      fieldKey: TEMPERATURE.key,
+      patientId: null,
+      name: 'Febre',
+      description: null,
+      operator: 'gte',
+      referenceValue: 37.8,
+      severity: 'warning',
+    });
     expect(
       within(await rule('Febre')).getByText(
         'Temperatura maior ou igual a 37,8 °C',
@@ -142,12 +219,18 @@ describe('AlertRulesSection', () => {
     ).toBeVisible();
   });
 
-  it('oferece só os pacientes do público do formulário para a regra própria', async () => {
-    renderForm(DAILY);
-    await rules();
-
-    fireEvent.click(screen.getByRole('button', { name: content.add }));
-    await screen.findByRole('dialog');
+  it('oferece os pacientes ativos do público, mesmo os fora da primeira página', async () => {
+    // Osvaldo está no público e além da primeira página; Iolanda, no
+    // público e inativa.
+    apiStub().use(
+      patientRoutes(
+        activePatients().filter(
+          (patient) => ![OSVALDO, IOLANDA].includes(patient.id),
+        ),
+        [apiPatient(OSVALDO), apiPatient(IOLANDA, { status: 'inactive' })],
+      ),
+    );
+    await openNewRule(DAILY);
     fireEvent.mouseDown(
       within(dialog()).getByRole('combobox', { name: dialogContent.patient }),
     );
@@ -156,13 +239,48 @@ describe('AlertRulesSection', () => {
     expect(options.map((option) => option.textContent)).toEqual([
       dialogContent.everyone,
       'Dirce Albuquerque Moraes',
-      'Iolanda Ferraz',
       'Osvaldo Teixeira Lins',
     ]);
   });
 
-  it('edita com campo e paciente fixos e o Salvar só depois de uma mudança', async () => {
-    renderForm(VITAL_SIGNS);
+  it('busca na API o paciente que não coube na primeira página do público da organização', async () => {
+    createFever();
+    const firstPage = activePatients().filter(
+      (patient) => patient.id !== DIRCE,
+    );
+    apiStub().use({
+      'GET /patients': ({ query }) =>
+        apiPage(query.search ? [apiPatient(DIRCE)] : firstPage),
+    });
+    await openNewRule(VITAL_SIGNS.id);
+    await fillFever();
+
+    // Quem digita está com o foco no campo; sem ele, o Autocomplete volta o
+    // texto ao valor escolhido a cada render.
+    const patient = within(dialog()).getByRole('combobox', {
+      name: dialogContent.patient,
+    });
+    act(() => patient.focus());
+    fireEvent.change(patient, { target: { value: 'Dirce' } });
+    fireEvent.click(
+      await screen.findByRole('option', { name: 'Dirce Albuquerque Moraes' }),
+    );
+    fireEvent.click(
+      within(dialog()).getByRole('button', { name: dialogContent.save }),
+    );
+
+    expect(await screen.findByText(content.saved)).toBeVisible();
+    expect(
+      apiStub().requests.find((request) => request.query.search),
+    ).toMatchObject({ query: { search: 'Dirce', limit: '100' } });
+    expect(apiStub().last(CREATE).body.patientId).toBe(DIRCE);
+  });
+
+  it('edita com campo e paciente fixos, enviando só o que mudou', async () => {
+    apiStub().use({
+      [UPDATE]: ({ params, body }) => change(params.ruleId, body),
+    });
+    renderForm(VITAL_SIGNS.id);
     await rules();
 
     fireEvent.click(
@@ -178,16 +296,21 @@ describe('AlertRulesSection', () => {
     expect(
       within(dialog()).getByRole('combobox', { name: dialogContent.field }),
     ).toHaveAttribute('aria-disabled', 'true');
+    expect(
+      within(dialog()).getByRole('combobox', { name: dialogContent.patient }),
+    ).toBeDisabled();
     expect(save).toBeDisabled();
-    fireEvent.change(
-      within(dialog()).getByLabelText(dialogContent.reference, {
-        exact: false,
-      }),
-      { target: { value: '170' } },
-    );
+    fill(dialogContent.reference, '170');
     fireEvent.click(save);
 
     expect(await screen.findByText(content.saved)).toBeVisible();
+    expect(apiStub().last(UPDATE)).toMatchObject({
+      params: { ruleId: SYSTOLIC_RULE },
+      body: { referenceValue: 170 },
+    });
+    expect(Object.keys(apiStub().last(UPDATE).body)).toEqual([
+      'referenceValue',
+    ]);
     expect(
       within(await rule('Pressão sistólica acima de 160')).getByText(
         'Pressão sistólica maior que 170 mmHg',
@@ -196,7 +319,16 @@ describe('AlertRulesSection', () => {
   });
 
   it('inativa com confirmação e reativa', async () => {
-    renderForm(VITAL_SIGNS);
+    apiStub().use({
+      [DEACTIVATE]: ({ params }) =>
+        change(params.ruleId, {
+          status: 'inactive',
+          deactivatedAt: '2026-11-25T13:00:00.000Z',
+        }),
+      [REACTIVATE]: ({ params }) =>
+        change(params.ruleId, { status: 'active', deactivatedAt: null }),
+    });
+    renderForm(VITAL_SIGNS.id);
     await rules();
 
     fireEvent.click(
@@ -215,6 +347,7 @@ describe('AlertRulesSection', () => {
     );
 
     expect(await screen.findByText(content.deactivated)).toBeVisible();
+    expect(apiStub().last(DEACTIVATE).params.ruleId).toBe(SATURATION_RULE);
     // O botão de reativar só existe na regra inativa.
     fireEvent.click(
       await screen.findByRole('button', {
@@ -222,6 +355,32 @@ describe('AlertRulesSection', () => {
       }),
     );
     expect(await screen.findByText(content.reactivated)).toBeVisible();
+    expect(apiStub().last(REACTIVATE).params.ruleId).toBe(SATURATION_RULE);
+  });
+
+  it('explica a regra que não foi encontrada ao inativar', async () => {
+    apiStub().use({
+      [DEACTIVATE]: () =>
+        apiFailure(404, 'ALERT_RULE_NOT_FOUND', 'Regra não encontrada.'),
+    });
+    renderForm(VITAL_SIGNS.id);
+    await rules();
+
+    fireEvent.click(
+      within(await rule('Saturação abaixo de 92')).getByRole('button', {
+        name: content.deactivateOf('Saturação abaixo de 92'),
+      }),
+    );
+    const confirm = await screen.findByRole('dialog');
+    fireEvent.click(
+      within(confirm).getByRole('button', {
+        name: content.deactivateDialog.confirm,
+      }),
+    );
+
+    expect(
+      await screen.findByText(content.errors.ALERT_RULE_NOT_FOUND),
+    ).toBeVisible();
   });
 
   it('pede a publicação no formulário em rascunho', async () => {

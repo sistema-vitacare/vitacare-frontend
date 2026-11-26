@@ -103,6 +103,7 @@ function Reading({ alert }) {
           ],
           [reading.rule, alert.rule.name],
           [reading.followUp, visit],
+          [reading.author, alert.followUp.author.name],
         ]}
       />
     </SectionCard>

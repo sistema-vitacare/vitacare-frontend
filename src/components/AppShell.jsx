@@ -8,6 +8,7 @@ import { useSession } from '../hooks/useSession.js';
 import BottomNav from './BottomNav.jsx';
 import NavList from './NavList.jsx';
 import TermsLink from './TermsLink.jsx';
+import NotificationsProvider from './NotificationsProvider.jsx';
 import TopBar from './TopBar.jsx';
 
 const SIDEBAR_WIDTH = 264;
@@ -97,74 +98,81 @@ export default function AppShell() {
   const organizationName = session.organization.tradeName;
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        minHeight: '100dvh',
-        bgcolor: 'background.default',
-      }}
-    >
-      {isDesktop ? (
-        <Box
-          sx={{
-            position: 'sticky',
-            top: 0,
-            height: '100dvh',
-            flexShrink: 0,
-            bgcolor: 'background.paper',
-            borderRight: 1,
-            borderColor: 'divider',
-          }}
-        >
-          <Sidebar items={items} organizationName={organizationName} />
-        </Box>
-      ) : null}
-
-      {drawerNav ? (
-        <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)}>
-          <Sidebar
-            items={items}
-            organizationName={organizationName}
-            onNavigate={() => setDrawerOpen(false)}
-          />
-        </Drawer>
-      ) : null}
-
+    <NotificationsProvider>
       <Box
-        sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}
+        sx={{
+          display: 'flex',
+          minHeight: '100dvh',
+          bgcolor: 'background.default',
+        }}
       >
-        <TopBar
-          onOpenMenu={drawerNav ? () => setDrawerOpen(true) : undefined}
-          showBrand={!isDesktop}
-        />
+        {isDesktop ? (
+          <Box
+            sx={{
+              position: 'sticky',
+              top: 0,
+              height: '100dvh',
+              flexShrink: 0,
+              bgcolor: 'background.paper',
+              borderRight: 1,
+              borderColor: 'divider',
+            }}
+          >
+            <Sidebar items={items} organizationName={organizationName} />
+          </Box>
+        ) : null}
+
+        {drawerNav ? (
+          <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+            <Sidebar
+              items={items}
+              organizationName={organizationName}
+              onNavigate={() => setDrawerOpen(false)}
+            />
+          </Drawer>
+        ) : null}
+
         <Box
-          component="main"
           sx={{
             flex: 1,
-            width: '100%',
-            maxWidth: 1320,
-            px: { xs: 2, md: 4 },
-            pt: { xs: 3, md: 4 },
-            pb: { xs: 3, md: 4 },
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
-          <Outlet />
+          <TopBar
+            onOpenMenu={drawerNav ? () => setDrawerOpen(true) : undefined}
+            showBrand={!isDesktop}
+          />
+          <Box
+            component="main"
+            sx={{
+              flex: 1,
+              width: '100%',
+              maxWidth: 1320,
+              px: { xs: 2, md: 4 },
+              pt: { xs: 3, md: 4 },
+              pb: { xs: 3, md: 4 },
+            }}
+          >
+            <Outlet />
+          </Box>
+          <Box
+            component="footer"
+            sx={{
+              width: '100%',
+              maxWidth: 1320,
+              px: { xs: 2, md: 4 },
+              // Espaço para a barra inferior fixa não cobrir o fim da tela.
+              pb: bottomNav ? 12 : { xs: 3, md: 4 },
+            }}
+          >
+            <TermsLink />
+          </Box>
         </Box>
-        <Box
-          component="footer"
-          sx={{
-            width: '100%',
-            maxWidth: 1320,
-            px: { xs: 2, md: 4 },
-            // Espaço para a barra inferior fixa não cobrir o fim da tela.
-            pb: bottomNav ? 12 : { xs: 3, md: 4 },
-          }}
-        >
-          <TermsLink />
-        </Box>
-      </Box>
 
-      {bottomNav ? <BottomNav items={items} /> : null}
-    </Box>
+        {bottomNav ? <BottomNav items={items} /> : null}
+      </Box>
+    </NotificationsProvider>
   );
 }

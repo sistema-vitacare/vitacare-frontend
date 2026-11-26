@@ -1,9 +1,9 @@
 // Formulários dos dados simulados no formato da API (`forms-listar.md` e
 // `forms-consultar.md`), como o administrador e o profissional os recebem,
-// para os testes das telas que leem formulários. Os ids são os dos dados
-// simulados, que os serviços ainda simulados conhecem. Nenhuma regra do
-// backend é aplicada: o teste diz a lista que a API devolveria. Sai com os
-// dados simulados (FE-65 do INTEGRACAO.md).
+// para os testes das telas que leem formulários. Nenhum serviço lê mais os
+// formulários simulados: eles ficam só como fonte deste fixture e do
+// `mocks.test.js`. Nenhuma regra do backend é aplicada: o teste diz a lista
+// que a API devolveria. Sai com os dados simulados (FE-65 do INTEGRACAO.md).
 import { forms } from '../../../src/data/mocks/forms.js';
 import { enabledFieldCount } from '../../../src/utils/formFields.js';
 import { apiFailure, apiPage } from '../apiStub.js';

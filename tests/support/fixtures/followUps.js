@@ -1,10 +1,11 @@
 // Registros e anexos dos dados simulados no formato da API
 // (`follow-ups-listar.md`, `follow-ups-consultar.md` e
 // `follow-up-attachments-listar.md`), para os testes das telas que leem
-// registros. Os ids são os dos dados simulados, que os serviços ainda
-// simulados conhecem. Nenhuma regra do backend é aplicada, nem a do familiar,
-// que não recebe o anulado: o teste diz a lista que a API devolveria. Sai com
-// os dados simulados (FE-65 do INTEGRACAO.md).
+// registros. Nenhum serviço lê mais os registros e os anexos simulados: eles
+// ficam só como fonte deste fixture e do `mocks.test.js`. Nenhuma regra do
+// backend é aplicada, nem a do familiar, que não recebe o anulado: o teste diz
+// a lista que a API devolveria. Sai com os dados simulados (FE-65 do
+// INTEGRACAO.md).
 import { attachmentsAsOf } from '../../../src/data/mocks/attachments.js';
 import { followUpsAsOf } from '../../../src/data/mocks/followUps.js';
 import { apiFailure, apiPage } from '../apiStub.js';

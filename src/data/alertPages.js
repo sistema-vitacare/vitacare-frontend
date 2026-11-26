@@ -25,19 +25,19 @@ export const frequencyUnitNames = {
 
 export const alertListContent = {
   title: 'Alertas',
-  subtitle: 'Alertas e lembretes de um paciente, por severidade.',
+  subtitle:
+    'Alertas e lembretes dos pacientes que você acompanha, por prioridade.',
   picker: {
     patient: 'Paciente',
-    patientPlaceholder: 'Busque pelo nome',
-    choosePatient: 'Escolha um paciente para ver os alertas dele.',
+    patientPlaceholder: 'Todos os pacientes',
     noPatients: 'Nenhum paciente ativo encontrado',
     openPatient: 'Abrir o paciente',
   },
   countersLabel: 'Alertas abertos por severidade',
   tabsLabel: 'Situação e severidade dos alertas',
-  listLabel: 'Alertas do paciente',
+  listLabel: 'Alertas',
   tabs: {
-    open: 'Abertos',
+    open: 'Todos',
     critical: 'Crítico',
     warning: 'Atenção',
     info: 'Informativo',
@@ -45,17 +45,26 @@ export const alertListContent = {
   },
   tabLabel: (label, count) => `${label} (${count})`,
   empty: {
-    open: 'Nenhum alerta aberto para este paciente.',
+    open: 'Nenhum alerta aberto.',
     critical: 'Nenhum alerta crítico aberto.',
     warning: 'Nenhum alerta de atenção aberto.',
     info: 'Nenhum alerta informativo aberto.',
     resolved: 'Nenhum alerta resolvido.',
   },
+  patient: (name, condition) => (condition ? `${name} · ${condition}` : name),
+  recordedBy: (name) => `Registrado por ${name}`,
   resolvedBy: (name, dateTime) => `Resolvido por ${name} em ${dateTime}`,
   view: 'Ver detalhe',
   viewOf: (title) => `Ver o detalhe de ${title}`,
   resolved: 'Alerta resolvido para toda a equipe.',
   alreadyResolved: 'Outra pessoa já tinha resolvido este alerta.',
+  readAll: 'Marcar todos como lidos',
+  allRead: (updated) =>
+    updated === 1
+      ? '1 notificação marcada como lida.'
+      : `${updated} notificações marcadas como lidas.`,
+  readAllFailed:
+    'Não foi possível marcar as notificações agora. Tente de novo em instantes.',
 };
 
 export const alertDetailContent = {
@@ -80,6 +89,7 @@ export const alertDetailContent = {
     rule: 'Regra',
     condition: 'Condição da regra',
     followUp: 'Registro de origem',
+    author: 'Registrado por',
     visit: (dateTime) => `Visita de ${dateTime}`,
     annulled: 'Registro anulado depois do alerta',
   },
@@ -108,4 +118,23 @@ export const resolveAlertContent = {
     confirm: 'Resolver',
   },
   unexpected: 'Não foi possível resolver agora. Tente de novo em instantes.',
+};
+
+export const notificationBellContent = {
+  open: (unread) => {
+    if (unread === 0) {
+      return 'Notificações';
+    }
+    return unread === 1
+      ? 'Notificações, 1 não lida'
+      : `Notificações, ${unread} não lidas`;
+  },
+  title: 'Notificações',
+  listLabel: 'Notificações dos alertas',
+  unread: 'Não lida',
+  readAll: 'Marcar todas como lidas',
+  empty: 'Nenhuma notificação.',
+  line: (patientName, dateTime) => `${patientName} · ${dateTime}`,
+  readAllFailed:
+    'Não foi possível marcar as notificações agora. Tente de novo em instantes.',
 };

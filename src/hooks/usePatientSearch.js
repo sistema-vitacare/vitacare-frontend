@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { listPatients } from '../services/patientService.js';
+import { getPatient, listPatients } from '../services/patientService.js';
 import { useResource } from './useResource.js';
 
 /** Pacientes da primeira página e de cada busca (o plano admite 1.000). */
@@ -50,4 +50,35 @@ export function usePatientSearch(patients) {
     setInput,
     loading: Boolean(term) && matches.status === 'loading',
   };
+}
+
+const loadActive = () =>
+  listPatients({ status: 'active', limit: PATIENTS_LIMIT });
+const noPatients = () => Promise.resolve({ data: [], meta: {} });
+
+/**
+ * Primeira página dos pacientes ativos (`patients`) e, em `known`, também os
+ * de `patientIds` que estão fora dela (inativos ou além da página), pela
+ * consulta de cada um, para aparecerem pelo nome, e não pelo id.
+ */
+export function usePatientNames(patientIds) {
+  const list = useResource(loadActive);
+  const patients = list.data ?? [];
+  const ready = ['success', 'empty'].includes(list.status);
+  const missingKey = ready
+    ? patientIds
+        .filter((id) => !patients.some((patient) => patient.id === id))
+        .join(',')
+    : '';
+  const loadMissing = useCallback(
+    () =>
+      missingKey
+        ? Promise.all(missingKey.split(',').map((id) => getPatient(id))).then(
+            (answers) => ({ data: answers.map(({ data }) => data), meta: {} }),
+          )
+        : noPatients(),
+    [missingKey],
+  );
+  const others = useResource(loadMissing);
+  return { patients, known: [...patients, ...(others.data ?? [])] };
 }
