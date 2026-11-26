@@ -134,10 +134,15 @@ function NotificationBox({ onOpenAlert }) {
   );
 }
 
+// Como o `visuallyHidden` do MUI. Em `px`, porque o `sx` lê número até 1
+// como porcentagem.
 const visuallyHidden = {
   position: 'absolute',
-  width: 1,
-  height: 1,
+  width: '1px',
+  height: '1px',
+  margin: '-1px',
+  padding: 0,
+  border: 0,
   overflow: 'hidden',
   clip: 'rect(0 0 0 0)',
   whiteSpace: 'nowrap',
