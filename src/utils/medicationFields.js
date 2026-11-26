@@ -1,9 +1,9 @@
 // Regras do corpo do cadastro (POST /medications) e da edição (PATCH
 // /medications/{id}), as mesmas de `medicationFields.ts` do backend (422
 // VALIDATION_FAILED). Um código por campo, o primeiro da ordem da API. A
-// tela confere antes de enviar e o serviço simulado recusa do mesmo jeito.
-// Fim anterior ao início gravado e edição sem mudança são do serviço,
-// porque dependem do medicamento gravado.
+// tela confere antes de enviar; quem decide é a API. Fim anterior ao início
+// gravado e edição sem mudança ficam só com a API, porque dependem do
+// medicamento gravado.
 import {
   DOSE_UNITS,
   MEDICATION_LIMITS as LIMITS,

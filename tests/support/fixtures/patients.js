@@ -1,6 +1,5 @@
 // Pacientes dos dados simulados no formato da API (`patients-listar.md` e
-// `patients-consultar.md`), para os testes das telas que leem pacientes. Os
-// ids são os dos dados simulados, que os serviços ainda simulados conhecem.
+// `patients-consultar.md`), para os testes das telas que leem pacientes.
 // Nenhuma regra do backend é aplicada: o teste diz a lista que a API
 // devolveria. Sai com os dados simulados (FE-65 do INTEGRACAO.md).
 import { patients } from '../../../src/data/mocks/patients.js';

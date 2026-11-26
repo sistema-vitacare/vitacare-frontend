@@ -1,8 +1,8 @@
 // Regras dos campos e dos dados de um formulário, as mesmas da API: o
 // contrato do DTO (422 VALIDATION_FAILED), a coerência de cada campo com o
 // tipo e a unicidade (`formFields.policy.ts` do backend, 422
-// FORM_INVALID_FIELDS). A tela confere antes de enviar e o serviço simulado
-// recusa do mesmo jeito que a API.
+// FORM_INVALID_FIELDS). A tela confere antes de enviar; quem decide é a
+// API.
 import {
   AUDIENCES,
   FIELD_TYPES,
