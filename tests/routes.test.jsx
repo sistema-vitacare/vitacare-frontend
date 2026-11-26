@@ -118,8 +118,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// As telas ainda simuladas escolhem o paciente pela API (Bloco 10); as de
-// formulários e de registros leem pela API desde o Bloco 11.
+// Pacientes, formulários, registros, medicamentos e alertas vêm da API pelo
+// stub; só usuários e organizações continuam simulados (Bloco 14).
 beforeEach(() => {
   apiStub().use({
     ...patientRoutes(),
