@@ -147,7 +147,11 @@ export default function PlanTermDialog({
       setFormError(content.invalidFields);
       return;
     }
-    setFormError(error.status === 409 ? error.message : content.unexpected);
+    // Regra recusada sem campo, como o plano pedido que saiu do catálogo
+    // (`422`), também tem a mensagem da API; rede e servidor, não.
+    setFormError(
+      [409, 422].includes(error.status) ? error.message : content.unexpected,
+    );
   }
 
   const fieldProps = (field, label, helper) => ({

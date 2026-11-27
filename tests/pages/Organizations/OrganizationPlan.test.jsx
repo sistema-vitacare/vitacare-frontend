@@ -249,6 +249,21 @@ describe('decisão da solicitação', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('mostra no diálogo a mensagem da API quando o plano pedido saiu do catálogo', async () => {
+    const message = 'Plano de uso inexistente ou indisponível.';
+    apiStub().use({
+      'POST /plan-change-requests/:requestId/approve': () =>
+        apiFailure(422, 'PLAN_NOT_FOUND', message),
+    });
+    renderPlan();
+    const dialog = await openDialog(content.approve, form.approveTitle);
+
+    fireEvent.click(within(dialog).getByRole('button', { name: form.approve }));
+
+    expect(await within(dialog).findByText(message)).toBeInTheDocument();
+    expect(within(dialog).queryByText(form.unexpected)).not.toBeInTheDocument();
+  });
+
   it('recusa só com justificativa, e o plano continua', async () => {
     apiStub().use({
       'POST /plan-change-requests/:requestId/reject': () => {
