@@ -7,6 +7,7 @@ import { apiPage, apiStub } from '../../support/apiStub.js';
 import { allForms, apiForm, formRoutes } from '../../support/fixtures/forms.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
+import { prefixesOf, typeLikeBrowser } from '../../support/browserTyping.js';
 
 const LIST = 'GET /forms';
 const TRIAGE = 'Triagem de urgência';
@@ -96,6 +97,18 @@ describe('FormListPage', () => {
       page: '1',
       limit: '20',
     });
+  });
+
+  it('guarda no campo cada letra da busca na hora em que ela entra e manda o texto inteiro à API', async () => {
+    apiStub().use({ [LIST]: () => apiPage(allForms()) });
+    renderList('admin');
+    await screen.findByText(content.count(6));
+
+    const field = screen.getByLabelText(content.searchLabel);
+    expect(typeLikeBrowser(field, 'Fictícia')).toEqual(prefixesOf('Fictícia'));
+    await waitFor(() =>
+      expect(apiStub().last(LIST).query.search).toBe('Fictícia'),
+    );
   });
 
   it('dá à cuidadora o que a API devolve, em leitura e sem filtro de situação', async () => {

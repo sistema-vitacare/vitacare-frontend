@@ -74,8 +74,11 @@ function useFilters() {
       [PARAMS.status, next.status === 'active' ? '' : next.status],
       [PARAMS.page, next.page === 1 ? '' : String(next.page)],
     ].filter(([, value]) => value !== '');
+    // O campo mostra o valor do endereço: com a navegação em transição, o
+    // React devolveria ao campo o valor antigo, e letras digitadas se perderiam.
     setParams(new URLSearchParams(entries), {
       replace: true,
+      flushSync: true,
       state: document ? { search: next.search } : null,
     });
   }

@@ -11,6 +11,7 @@ import {
 } from '../../support/fixtures/patients.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
+import { prefixesOf, typeLikeBrowser } from '../../support/browserTyping.js';
 
 const LIST = 'GET /patients';
 const DIRCE = '0b639b83-76d0-570a-9017-7b6263d892cf';
@@ -135,6 +136,30 @@ describe('PatientListPage', () => {
     );
     expect(apiStub().last(LIST).query.search).toBe('dirce');
     expect(router.state.location.search).toBe('?busca=dirce');
+  });
+
+  it('guarda no campo cada letra da busca na hora em que ela entra e manda o texto inteiro à API', async () => {
+    answer(({ query }) => apiPage(query.search ? [] : activePatients()));
+    renderList('admin');
+    await screen.findByRole('table');
+
+    const field = screen.getByLabelText(content.searchLabel);
+    expect(typeLikeBrowser(field, 'Fictícia')).toEqual(prefixesOf('Fictícia'));
+    await waitFor(() =>
+      expect(apiStub().last(LIST).query.search).toBe('Fictícia'),
+    );
+  });
+
+  it('guarda no campo cada letra da condição na hora em que ela entra e manda o texto inteiro à API', async () => {
+    answer(({ query }) => apiPage(query.condition ? [] : activePatients()));
+    renderList('admin');
+    await screen.findByRole('table');
+
+    const field = screen.getByLabelText(content.conditionLabel);
+    expect(typeLikeBrowser(field, 'Fictícia')).toEqual(prefixesOf('Fictícia'));
+    await waitFor(() =>
+      expect(apiStub().last(LIST).query.condition).toBe('Fictícia'),
+    );
   });
 
   it('busca por CPF sem pôr o documento no endereço', async () => {

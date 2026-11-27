@@ -27,6 +27,7 @@ import {
 } from '../../support/fixtures/users.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
+import { prefixesOf, typeLikeBrowser } from '../../support/browserTyping.js';
 
 const USERS = [
   apiUser({
@@ -224,6 +225,15 @@ describe('UserListPage', () => {
     );
     expect(router.state.location.search).toContain('perfil=caregiver');
     await waitFor(() => expect(listQuery().search).toBe('ana'));
+  });
+
+  it('guarda no campo cada letra da busca na hora em que ela entra e manda o texto inteiro à API', async () => {
+    renderList();
+    await screen.findByText(ANA.name);
+
+    const field = screen.getByLabelText(content.searchLabel);
+    expect(typeLikeBrowser(field, 'Fictícia')).toEqual(prefixesOf('Fictícia'));
+    await waitFor(() => expect(listQuery().search).toBe('Fictícia'));
   });
 
   it('mostra cartões no celular', async () => {

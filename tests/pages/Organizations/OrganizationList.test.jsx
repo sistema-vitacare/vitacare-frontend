@@ -15,6 +15,7 @@ import {
 } from '../../support/fixtures/organizations.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
+import { prefixesOf, typeLikeBrowser } from '../../support/browserTyping.js';
 
 const NOW = new Date('2026-11-16T15:00:00.000Z');
 const LIST = 'GET /organizations';
@@ -77,6 +78,16 @@ describe('lista de organizações', () => {
     ).toBeInTheDocument();
     expect(within(inactive).getByText('Enterprise')).toBeInTheDocument();
     expect(apiStub().last(LIST).query).toEqual({ page: '1', limit: '20' });
+  });
+
+  it('guarda no campo cada letra da busca na hora em que ela entra e manda o texto inteiro à API', async () => {
+    renderList();
+
+    const field = await screen.findByLabelText(content.searchLabel);
+    expect(typeLikeBrowser(field, 'Fictícia')).toEqual(prefixesOf('Fictícia'));
+    await waitFor(() =>
+      expect(apiStub().last(LIST).query.search).toBe('Fictícia'),
+    );
   });
 
   it('a busca e a situação vão para o endereço e para a API e voltam à primeira página', async () => {
