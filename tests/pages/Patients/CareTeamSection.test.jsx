@@ -285,7 +285,10 @@ describe('CareTeamSection', () => {
       }),
     );
 
-    expect(await screen.findByText(revoked)).toBeInTheDocument();
+    const notice = await screen.findByText(revoked);
+    expect(notice.closest('.MuiAlert-root')).toHaveClass(
+      'MuiAlert-colorWarning',
+    );
     await waitFor(() => expect(members()).toHaveLength(2));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 
@@ -319,7 +322,10 @@ describe('CareTeamSection', () => {
       within(dialog).getByRole('button', { name: content.dialog.save }),
     );
 
-    expect(await screen.findByText(gone)).toBeInTheDocument();
+    const notice = await screen.findByText(gone);
+    expect(notice.closest('.MuiAlert-root')).toHaveClass(
+      'MuiAlert-colorWarning',
+    );
     await waitFor(() => expect(members()).toHaveLength(2));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });

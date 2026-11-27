@@ -329,15 +329,23 @@ describe('PatientDetailPage', () => {
     ).toBeNull();
   });
 
-  it('explica a situação já mudada em outra aba', async () => {
+  it('fecha a confirmação, recarrega o paciente e avisa quando outra aba já mudou a situação', async () => {
+    let status = 'active';
     renderDetail(DIRCE);
     apiStub().use({
-      [DEACTIVATE]: () =>
-        apiFailure(
+      'GET /patients/:patientId': () => ({
+        data: apiPatient(DIRCE, { status }),
+        meta: {},
+      }),
+      [DEACTIVATE]: () => {
+        // Outra aba inativou antes da confirmação desta.
+        status = 'inactive';
+        return apiFailure(
           409,
           'PATIENT_ALREADY_INACTIVE',
           'O paciente já está inativo.',
-        ),
+        );
+      },
     });
     await heading('Dirce Albuquerque Moraes');
 
@@ -354,8 +362,47 @@ describe('PatientDetailPage', () => {
     );
 
     expect(
+      await screen.findByRole('button', { name: content.actions.reactivate }),
+    ).toBeVisible();
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    const notice = screen.getByText(
+      content.statusErrors.PATIENT_ALREADY_INACTIVE,
+    );
+    expect(notice.closest('.MuiAlert-root')).toHaveClass(
+      'MuiAlert-colorWarning',
+    );
+    expect(notice).not.toHaveTextContent(/recarregue/i);
+  });
+
+  it('outro erro da situação continua na confirmação, sem recarregar', async () => {
+    renderDetail(DIRCE, 'professional', {
+      patient: apiPatient(DIRCE, { status: 'inactive' }),
+    });
+    apiStub().use({
+      'POST /patients/:patientId/reactivate': () =>
+        apiFailure(
+          422,
+          'PATIENT_PLAN_LIMIT_REACHED',
+          'O plano atingiu o limite de pacientes ativos.',
+        ),
+    });
+    await heading('Dirce Albuquerque Moraes');
+
+    fireEvent.click(
+      screen.getByRole('button', { name: content.actions.reactivate }),
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: content.reactivateDialog.title,
+    });
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: content.reactivateDialog.confirm,
+      }),
+    );
+
+    expect(
       await within(dialog).findByText(
-        content.statusErrors.PATIENT_ALREADY_INACTIVE,
+        content.statusErrors.PATIENT_PLAN_LIMIT_REACHED,
       ),
     ).toBeVisible();
   });

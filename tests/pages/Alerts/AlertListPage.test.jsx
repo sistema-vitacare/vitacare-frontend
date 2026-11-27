@@ -9,7 +9,7 @@ import {
 import AlertListPage from '../../../src/pages/Alerts/AlertListPage.jsx';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
-import { apiStub } from '../../support/apiStub.js';
+import { apiFailure, apiStub } from '../../support/apiStub.js';
 import {
   DIRCE,
   OSVALDO,
@@ -171,6 +171,36 @@ describe('AlertListPage', () => {
     expect(apiStub().last(RESOLVE).params.alertId).toBe(READING);
     expect(await tab(content.tabs.open, 2)).toBeVisible();
     expect(counter('Crítico')).toHaveTextContent('0');
+  });
+
+  it('avisa e recarrega quando outra pessoa resolveu o alerta antes', async () => {
+    apiStub().use({
+      [RESOLVE]: ({ params }) => {
+        const index = alerts.findIndex(({ id }) => id === params.alertId);
+        alerts[index] = { ...alerts[index], status: 'resolved' };
+        return apiFailure(
+          409,
+          'ALERT_ALREADY_RESOLVED',
+          'O alerta já foi resolvido.',
+        );
+      },
+    });
+    renderList('caregiver');
+    expect(await tab(content.tabs.open, 3)).toBeVisible();
+
+    fireEvent.click(
+      (await screen.findAllByRole('button', { name: /^Resolver / }))[0],
+    );
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: resolve.dialog.confirm }),
+    );
+
+    const notice = await screen.findByText(content.alreadyResolved);
+    expect(notice.closest('.MuiAlert-root')).toHaveClass(
+      'MuiAlert-colorWarning',
+    );
+    expect(await tab(content.tabs.open, 2)).toBeVisible();
   });
 
   it('mostra os alertas à familiar, sem o botão de resolver', async () => {

@@ -1,4 +1,10 @@
-import { act, fireEvent, screen, within } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PATHS, formPath } from '../../../src/constants/routes.js';
 import {
@@ -356,10 +362,18 @@ describe('AlertRulesSection', () => {
     expect(apiStub().last(REACTIVATE).params.ruleId).toBe(SATURATION_RULE);
   });
 
-  it('explica a regra que não foi encontrada ao inativar', async () => {
+  it('fecha a confirmação, recarrega as regras e avisa quando outra pessoa já inativou a regra', async () => {
     apiStub().use({
-      [DEACTIVATE]: () =>
-        apiFailure(404, 'ALERT_RULE_NOT_FOUND', 'Regra não encontrada.'),
+      [DEACTIVATE]: ({ params }) => {
+        // Outra pessoa inativou a regra antes da confirmação.
+        const index = alertRules.findIndex(({ id }) => id === params.ruleId);
+        alertRules[index] = { ...alertRules[index], status: 'inactive' };
+        return apiFailure(
+          409,
+          'ALERT_RULE_ALREADY_INACTIVE',
+          'A regra já está inativa.',
+        );
+      },
     });
     renderForm(VITAL_SIGNS.id);
     await rules();
@@ -376,9 +390,40 @@ describe('AlertRulesSection', () => {
       }),
     );
 
+    const notice = await screen.findByText(
+      content.errors.ALERT_RULE_ALREADY_INACTIVE,
+    );
+    expect(notice.closest('.MuiAlert-root')).toHaveClass(
+      'MuiAlert-colorWarning',
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(
-      await screen.findByText(content.errors.ALERT_RULE_NOT_FOUND),
+      await within(await rule('Saturação abaixo de 92')).findByRole('button', {
+        name: content.reactivateOf('Saturação abaixo de 92'),
+      }),
     ).toBeVisible();
+  });
+
+  it('outro erro da inativação continua na confirmação, sem recarregar', async () => {
+    apiStub().use({
+      [DEACTIVATE]: () => apiFailure(500, 'INTERNAL_ERROR', 'Erro interno.'),
+    });
+    renderForm(VITAL_SIGNS.id);
+    await rules();
+
+    fireEvent.click(
+      within(await rule('Saturação abaixo de 92')).getByRole('button', {
+        name: content.deactivateOf('Saturação abaixo de 92'),
+      }),
+    );
+    const confirm = await screen.findByRole('dialog');
+    fireEvent.click(
+      within(confirm).getByRole('button', {
+        name: content.deactivateDialog.confirm,
+      }),
+    );
+
+    expect(await within(confirm).findByText(content.unexpected)).toBeVisible();
   });
 
   it('pede a publicação no formulário em rascunho', async () => {

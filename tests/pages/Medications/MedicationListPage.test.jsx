@@ -335,10 +335,56 @@ describe('MedicationListPage', () => {
     );
   });
 
-  it('explica o medicamento que saiu do alcance ao inativar', async () => {
+  it('fecha a confirmação, recarrega a lista e avisa quando o medicamento saiu do alcance', async () => {
+    apiStub().use({
+      [DEACTIVATE]: ({ params }) => {
+        // Outra pessoa tirou o medicamento do alcance antes da confirmação.
+        medications.splice(
+          medications.findIndex(({ id }) => id === params.medicationId),
+          1,
+        );
+        return apiFailure(
+          404,
+          'MEDICATION_NOT_FOUND',
+          'Medicamento não encontrado.',
+        );
+      },
+    });
+    renderList('professional', medicationsPath(DIRCE));
+    const hydro = await screen.findByRole('article', {
+      name: 'Hidroclorotiazida 25 mg',
+    });
+
+    fireEvent.click(
+      within(hydro).getByRole('button', { name: cards.deactivate }),
+    );
+    const confirm = await screen.findByRole('dialog');
+    fireEvent.click(
+      within(confirm).getByRole('button', {
+        name: list.deactivateDialog.confirm,
+      }),
+    );
+
+    const notice = await screen.findByText(list.errors.MEDICATION_NOT_FOUND);
+    expect(notice.closest('.MuiAlert-root')).toHaveClass(
+      'MuiAlert-colorWarning',
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('article', { name: 'Hidroclorotiazida 25 mg' }),
+      ).toBeNull(),
+    );
+  });
+
+  it('outro erro da inativação continua na confirmação, sem recarregar', async () => {
     apiStub().use({
       [DEACTIVATE]: () =>
-        apiFailure(404, 'MEDICATION_NOT_FOUND', 'Medicamento não encontrado.'),
+        apiFailure(
+          422,
+          'MEDICATION_PATIENT_INACTIVE',
+          'O paciente está inativo.',
+        ),
     });
     renderList('professional', medicationsPath(DIRCE));
     const hydro = await screen.findByRole('article', {
@@ -356,7 +402,7 @@ describe('MedicationListPage', () => {
     );
 
     expect(
-      await within(confirm).findByText(list.errors.MEDICATION_NOT_FOUND),
+      await within(confirm).findByText(list.errors.MEDICATION_PATIENT_INACTIVE),
     ).toBeVisible();
   });
 

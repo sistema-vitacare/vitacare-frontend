@@ -1,4 +1,5 @@
 import {
+  Alert,
   Box,
   Button,
   Card,
@@ -38,6 +39,7 @@ import { useResource } from '../../hooks/useResource.js';
 import { useSession } from '../../hooks/useSession.js';
 import { useSubmit } from '../../hooks/useSubmit.js';
 import {
+  PATIENT_STALE_CODES,
   deactivatePatient,
   getPatient,
   getPatientOverview,
@@ -327,7 +329,7 @@ function Overview({ patientId }) {
   );
 }
 
-function StatusAction({ patient, onChanged }) {
+function StatusAction({ patient, onChanged, onStale }) {
   const [open, setOpen] = useState(false);
   const active = patient.status === 'active';
   const action = useCallback(
@@ -343,6 +345,11 @@ function StatusAction({ patient, onChanged }) {
     if (!outcome.error) {
       setOpen(false);
       onChanged();
+    } else if (PATIENT_STALE_CODES.includes(outcome.error.code)) {
+      // Outra aba já mudou a situação: tentar de novo falharia igual, então a
+      // confirmação fecha e a página recarrega com o aviso.
+      setOpen(false);
+      onStale(content.statusErrors[outcome.error.code]);
     }
   }
 
@@ -375,7 +382,7 @@ function StatusAction({ patient, onChanged }) {
   );
 }
 
-function PatientDetail({ patient, reload }) {
+function PatientDetail({ patient, reload, notice, onStale, onNoticeClose }) {
   const { can } = useSession();
   const active = patient.status === 'active';
   const actions = (
@@ -408,7 +415,7 @@ function PatientDetail({ patient, reload }) {
         </Button>
       ) : null}
       {can(P.PATIENTS_DEACTIVATE) ? (
-        <StatusAction patient={patient} onChanged={reload} />
+        <StatusAction patient={patient} onChanged={reload} onStale={onStale} />
       ) : null}
       {active && can(P.PATIENTS_UPDATE) ? (
         <Button
@@ -438,6 +445,11 @@ function PatientDetail({ patient, reload }) {
         actions={actions}
       />
       <Stack spacing={2.5}>
+        {notice ? (
+          <Alert severity="warning" onClose={onNoticeClose}>
+            {notice}
+          </Alert>
+        ) : null}
         <PatientSummary patient={patient} />
         {can(P.PATIENT_HISTORY_READ) ? (
           <Overview patientId={patient.id} />
@@ -465,6 +477,13 @@ export default function PatientDetailPage() {
   const { patientId } = useParams();
   const load = useCallback(() => getPatient(patientId), [patientId]);
   const resource = useResource(load);
+  // O aviso fica aqui, fora do que a recarga desmonta.
+  const [notice, setNotice] = useState(null);
+
+  function stale(message) {
+    setNotice(message);
+    resource.retry();
+  }
 
   // A API responde 404 também para paciente fora do alcance, para não
   // revelar que ele existe; a tela trata os dois casos do mesmo jeito.
@@ -487,7 +506,15 @@ export default function PatientDetailPage() {
   }
   return (
     <ResourceState resource={resource}>
-      {(patient) => <PatientDetail patient={patient} reload={resource.retry} />}
+      {(patient) => (
+        <PatientDetail
+          patient={patient}
+          reload={resource.retry}
+          notice={notice}
+          onStale={stale}
+          onNoticeClose={() => setNotice(null)}
+        />
+      )}
     </ResourceState>
   );
 }

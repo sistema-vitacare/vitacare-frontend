@@ -23,6 +23,7 @@ import { useResource } from '../../hooks/useResource.js';
 import { useSession } from '../../hooks/useSession.js';
 import { useSubmit } from '../../hooks/useSubmit.js';
 import {
+  ATTACHMENT_STALE_CODES,
   downloadAttachment,
   listAttachments,
   removeAttachment,
@@ -84,14 +85,14 @@ export default function AttachmentsSection({ record, patientActive }) {
     const problem = attachmentFileError(file);
     setMessage(null);
     if (problem) {
-      setError(errorText(problem));
+      setError({ text: errorText(problem), severity: 'error' });
       return;
     }
     const outcome = await request.submit(() =>
       uploadAttachment(record.id, file),
     );
     if (outcome.error) {
-      setError(errorText(outcome.error.code));
+      setError({ text: errorText(outcome.error.code), severity: 'error' });
       return;
     }
     setError(null);
@@ -100,10 +101,14 @@ export default function AttachmentsSection({ record, patientActive }) {
   }
 
   // Outra pessoa removeu o anexo antes: tentar de novo falharia igual, então a
-  // lista é recarregada sem ele.
+  // lista é recarregada sem ele, com o aviso de atenção da situação mudada.
   function fail(error) {
-    setError(errorText(error.code));
-    if (error.code === 'ATTACHMENT_NOT_FOUND') {
+    const gone = ATTACHMENT_STALE_CODES.includes(error.code);
+    setError({
+      text: errorText(error.code),
+      severity: gone ? 'warning' : 'error',
+    });
+    if (gone) {
       attachments.retry();
     }
   }
@@ -179,7 +184,7 @@ export default function AttachmentsSection({ record, patientActive }) {
             {message}
           </Alert>
         ) : null}
-        {error ? <Alert severity="error">{error}</Alert> : null}
+        {error ? <Alert severity={error.severity}>{error.text}</Alert> : null}
         <ResourceState resource={attachments} emptyText={content.empty}>
           {(list) => (
             <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none' }}>

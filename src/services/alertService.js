@@ -4,6 +4,9 @@
 // gera, ordena e conta os alertas.
 import { apiGet, apiPath, apiPost } from './apiClient.js';
 
+/** Alerta que outra pessoa resolveu antes: a tela recarrega. */
+export const ALERT_STALE_CODES = Object.freeze(['ALERT_ALREADY_RESOLVED']);
+
 export function listAlerts(query = {}) {
   return apiGet('/alerts', query);
 }

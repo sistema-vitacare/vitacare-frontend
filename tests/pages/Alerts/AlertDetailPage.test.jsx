@@ -174,7 +174,10 @@ describe('AlertDetailPage', () => {
 
     await confirmResolve('Pressão sistólica acima de 160');
 
-    expect(await screen.findByText(list.alreadyResolved)).toBeVisible();
+    const notice = await screen.findByText(list.alreadyResolved);
+    expect(notice.closest('.MuiAlert-root')).toHaveClass(
+      'MuiAlert-colorWarning',
+    );
     expect(
       await screen.findByText(/^Resolvido por Rafael Moura Brandão em /),
     ).toBeVisible();

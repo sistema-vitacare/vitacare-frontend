@@ -10,6 +10,7 @@ import { alertRuleSectionContent as content } from '../../data/alertRuleSection.
 import { useResource } from '../../hooks/useResource.js';
 import { useSubmit } from '../../hooks/useSubmit.js';
 import {
+  ALERT_RULE_STALE_CODES,
   deactivateAlertRule,
   listAlertRules,
   reactivateAlertRule,
@@ -136,16 +137,24 @@ function RulesList({ form }) {
     const { data, error } = await statusChange.submit({ rule, active });
     if (data) {
       setDeactivating(null);
-      setNotice(active ? content.reactivated : content.deactivated);
+      setNotice({ text: active ? content.reactivated : content.deactivated });
       rules.retry();
       return;
     }
-    setActionError(content.errors[error.code] ?? content.unexpected);
+    const text = content.errors[error.code] ?? content.unexpected;
+    if (ALERT_RULE_STALE_CODES.includes(error.code)) {
+      // Tentar de novo falharia igual: as regras voltam como estão agora.
+      setDeactivating(null);
+      setNotice({ text, severity: 'warning' });
+      rules.retry();
+      return;
+    }
+    setActionError(text);
   }
 
   function saved() {
     setEditing(null);
-    setNotice(content.saved);
+    setNotice({ text: content.saved });
     rules.retry();
   }
 
@@ -161,8 +170,11 @@ function RulesList({ form }) {
         </Typography>
       ) : null}
       {notice ? (
-        <Alert severity="success" onClose={() => setNotice(null)}>
-          {notice}
+        <Alert
+          severity={notice.severity ?? 'success'}
+          onClose={() => setNotice(null)}
+        >
+          {notice.text}
         </Alert>
       ) : null}
       {actionError && !deactivating ? (

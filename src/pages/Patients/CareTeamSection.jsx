@@ -337,7 +337,7 @@ function CareTeamCard({ patient }) {
         </Button>
       </Stack>
       {notice ? (
-        <Alert severity="info" sx={{ mb: 2 }}>
+        <Alert severity="warning" sx={{ mb: 2 }}>
           {notice}
         </Alert>
       ) : null}

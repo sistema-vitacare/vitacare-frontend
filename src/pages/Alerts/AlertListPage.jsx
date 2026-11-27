@@ -217,7 +217,7 @@ function Alerts({ patientId }) {
   function resolved({ alreadyResolved }) {
     setNotice(
       alreadyResolved
-        ? { severity: 'info', text: content.alreadyResolved }
+        ? { severity: 'warning', text: content.alreadyResolved }
         : { severity: 'success', text: content.resolved },
     );
     summary.retry();

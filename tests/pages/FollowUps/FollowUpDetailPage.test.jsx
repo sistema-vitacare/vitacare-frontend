@@ -368,9 +368,12 @@ describe('FollowUpDetailPage', () => {
       }),
     );
 
-    expect(
-      await screen.findByText(content.attachments.errors.ATTACHMENT_NOT_FOUND),
-    ).toBeInTheDocument();
+    const notice = await screen.findByText(
+      content.attachments.errors.ATTACHMENT_NOT_FOUND,
+    );
+    expect(notice.closest('.MuiAlert-root')).toHaveClass(
+      'MuiAlert-colorWarning',
+    );
     await waitFor(() =>
       expect(screen.queryByText('receita-medica.pdf')).toBeNull(),
     );
@@ -391,9 +394,12 @@ describe('FollowUpDetailPage', () => {
       }),
     );
 
-    expect(
-      await screen.findByText(content.attachments.errors.ATTACHMENT_NOT_FOUND),
-    ).toBeInTheDocument();
+    const notice = await screen.findByText(
+      content.attachments.errors.ATTACHMENT_NOT_FOUND,
+    );
+    expect(notice.closest('.MuiAlert-root')).toHaveClass(
+      'MuiAlert-colorWarning',
+    );
     await waitFor(() =>
       expect(screen.queryByText('receita-medica.pdf')).toBeNull(),
     );
