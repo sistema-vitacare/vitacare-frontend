@@ -6,7 +6,7 @@ A aplicação é um PWA responsivo, construído com React e Material UI, que con
 
 ## Situação atual
 
-Todas as telas usam a API do backend: o acesso (login, sessão, termo de uso, aceite do convite, primeiro acesso, recuperação e troca de senha), os pacientes, os formulários, os registros de acompanhamento e os anexos, os medicamentos, as regras de alerta, os alertas e as notificações, a gestão (painel, relatórios e auditoria), os usuários, as configurações da organização e as organizações e os planos da plataforma. Os dados simulados que restam em `src/data/mocks/` servem só de fonte para os testes.
+Todas as telas usam a API do backend: o acesso (login, sessão, termo de uso, aceite do convite, primeiro acesso, recuperação e troca de senha), os pacientes, os formulários, os registros de acompanhamento e os anexos, os medicamentos, as regras de alerta, os alertas e as notificações, a gestão (painel, relatórios e auditoria), os usuários, as configurações da organização e as organizações e os planos da plataforma.
 
 ## Como rodar
 
@@ -44,7 +44,6 @@ Em produção, o frontend roda na VPS como um container nginx na porta 1040, pub
 | `src/components/` | Componentes usados em mais de um lugar, como o layout autenticado, o layout das telas de acesso, o cabeçalho de página, o cartão de seção, a lista de rótulos e valores, os estados de carregamento, vazio e erro, a escolha do paciente das listas por paciente, a lista e os filtros dos registros de acompanhamento, os campos de período, o cartão de uma série de evolução, o selo de severidade, o diálogo de confirmação, a troca da própria senha, a edição dos dados de uma organização, o campo da senha provisória com Copiar, o resumo do plano com o uso, a região rolável com foco pelo teclado, o link do termo de uso no rodapé, o sino de notificações e o provedor do contador dele, o provedor de sessão e as proteções por sessão e por permissão. |
 | `src/constants/` | Listas fechadas, como os endereços do sistema, os itens do menu, a matriz de permissões dos perfis, os tipos de campo dos formulários, as unidades e vias dos medicamentos, as severidades, origens e operadores dos alertas, os atalhos de período do painel, os perfis e situações dos usuários e as gravidades da auditoria. |
 | `src/data/` | Textos da interface. |
-| `src/data/mocks/` | Dados simulados no formato da API, que nenhum serviço lê mais e ficam como fonte dos fixtures dos testes até o FE-65: a organização de demonstração, a organização de plataforma e o administrador dela, os usuários, os pacientes e os vínculos de cuidado, os formulários com versões e rascunho, os registros e os anexos. |
 | `src/pages/` | Telas, uma pasta por tela. |
 | `src/pages/Login/` | Entrada no sistema. |
 | `src/pages/Patients/` | Pacientes: listagem, cadastro e edição, detalhe com a equipe de cuidado e histórico com a evolução. |
@@ -67,15 +66,15 @@ Em produção, o frontend roda na VPS como um container nginx na porta 1040, pub
 | `src/hooks/` | Hooks que ligam as telas aos serviços: o `useResource`, para leitura, o `useSubmit`, para envio, a busca de pacientes das escolhas de paciente, o contador de notificações do sino e os filtros do painel e dos relatórios guardados no endereço. |
 | `src/services/` | Único ponto de acesso a dados: o cliente HTTP da API e os serviços de cada área, que chamam as rotas dela. |
 | `src/styles/` | Tema do Material UI: cores, tipografia, raios, sombras e movimento. |
-| `src/utils/` | Funções puras: validações (CPF, campos de acesso, cadastro de paciente, usuário e organização, inclusive a nova com o primeiro administrador), regras dos campos de formulário, das respostas de registro, dos anexos, dos medicamentos e das regras de alerta, a agenda dos medicamentos, a regra de período da API, as ações de cada usuário, as regras do termo do plano (limites, data de fim e motivo), o endereço do item de um evento de auditoria, a entrega de arquivo baixado, a recarga da página depois de um deploy, a origem da API lida do `/config.js`, a leitura do texto do termo de uso, máscaras, números digitados com vírgula, formatação de datas e doses e os indicadores de evolução. |
+| `src/utils/` | Funções puras: validações (CPF, campos de acesso, cadastro de paciente, usuário e organização, inclusive a nova com o primeiro administrador), regras dos campos de formulário, das respostas de registro, dos anexos, dos medicamentos e das regras de alerta, a agenda dos medicamentos, a regra de período da API, as ações de cada usuário, as regras do termo do plano (limites, data de fim e motivo), o endereço do item de um evento de auditoria, a entrega de arquivo baixado, a recarga da página depois de um deploy, a origem da API lida do `/config.js`, a leitura do texto do termo de uso, máscaras, números digitados com vírgula e formatação de datas e doses. |
 | `tests/` | Testes automatizados, espelhando as pastas de `src/`. |
-| `tests/support/` | Apoio dos testes: stub da API, sessões dos usuários de demonstração no formato do login da API, pacientes, formulários, registros e anexos dos dados simulados e eventos de auditoria, medicamentos, regras de alerta, alertas, notificações, usuários, organizações, planos e solicitações de mudança de plano no formato da API, verificações de projeto, cálculo de contraste, largura de tela simulada, renderização de telas com a sessão do perfil e carga das telas sob demanda antes dos testes do roteador. |
+| `tests/support/` | Apoio dos testes: stub da API; os dados dos testes, com os campos da API (a organização de demonstração, a organização de plataforma e o administrador dela, os usuários, os pacientes e os vínculos de cuidado, os formulários com versões e rascunho, os registros e os anexos), e os indicadores de evolução calculados como a API; sessões dos usuários de demonstração no formato do login da API, pacientes, formulários, registros e anexos montados com esses dados e eventos de auditoria, medicamentos, regras de alerta, alertas, notificações, usuários, organizações, planos e solicitações de mudança de plano no formato da API, verificações de projeto, cálculo de contraste, largura de tela simulada, renderização de telas com a sessão do perfil e carga das telas sob demanda antes dos testes do roteador. |
 
 Todo arquivo solto em `src/` e toda pasta de `src/` até dois níveis precisam de uma linha nesta tabela; um teste falha quando falta alguma.
 
 ## Documentação
 
-- [Arquitetura](docs/arquitetura.md): tecnologias, camadas, acesso à API, dados simulados, perfis de acesso e identidade visual.
+- [Arquitetura](docs/arquitetura.md): tecnologias, camadas, acesso à API, dados dos testes, perfis de acesso e identidade visual.
 - [Deploy na VPS](docs/deploy-vps.md): imagem, stack do Portainer, configuração, segurança e operação em produção.
 - [Como contribuir](CONTRIBUTING.md): branches, mensagens de commit, pull requests e documentação.
 

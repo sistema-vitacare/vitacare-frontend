@@ -1,6 +1,6 @@
 # Arquitetura do frontend
 
-Este documento descreve como o frontend do VitaCare é construído: tecnologias, camadas, acesso à API, dados simulados, controle de acesso por perfil, identidade visual, acessibilidade e instalação.
+Este documento descreve como o frontend do VitaCare é construído: tecnologias, camadas, acesso à API, dados dos testes, controle de acesso por perfil, identidade visual, acessibilidade e instalação.
 
 As regras de negócio e a proteção dos dados pertencem à API. O frontend apresenta as informações e oculta o que o perfil não pode fazer, mas isso é apenas interface: a autorização acontece no backend.
 
@@ -32,7 +32,7 @@ As dependências seguem um único sentido: páginas, hooks, serviços, dados.
 | Componentes | `src/components/` | Peças usadas em duas ou mais telas. Um trecho vira componente a partir da segunda repetição. |
 | Hooks | `src/hooks/` | Chamam os serviços e entregam dados e estado às páginas. |
 | Serviços | `src/services/` | Único ponto de acesso a dados: chamam a API pelo cliente HTTP. |
-| Dados | `src/data/` | Textos da interface e os dados simulados que restam para os testes. Nenhum texto, lista ou valor fica fixo dentro de componente. |
+| Dados | `src/data/` | Textos da interface. Nenhum texto, lista ou valor fica fixo dentro de componente. |
 | Constantes | `src/constants/` | Rotas, permissões e listas fechadas, como severidades, unidades de dose e tipos de campo. |
 | Estilos | `src/styles/` | Tema do Material UI: cores, tipografia, espaçamentos, raios, sombras e movimento. |
 | Utilitários | `src/utils/` | Funções puras: máscaras, formatação de datas, cálculo de idade. |
@@ -62,17 +62,14 @@ As telas não chamam os serviços direto. Para ler, usam o hook `useResource`, q
 
 As regras de conteúdo que a API confere (campos de formulário por tipo, respostas de registro, anexos, medicamentos e regras de alerta) ficam em `src/utils/`, nas mesmas funções que as telas usam para apontar o problema antes do envio.
 
-## Dados simulados
+## Dados dos testes
 
-Nenhum serviço responde com dados simulados. O que sobrou da camada simulada serve só aos testes e sai no FE-65 do `INTEGRACAO.md`:
+Os testes não chamam a API (`CONTRIBUTING.md`, seção "Testes"). As respostas das rotas são montadas com os dados de `tests/support/data/`, que têm os campos da API: a organização de demonstração, a organização de plataforma e o administrador dela, os usuários, os pacientes, os vínculos de cuidado, os formulários, os registros e os anexos. Os fixtures de `tests/support/fixtures/` montam com eles as sessões dos usuários de demonstração, os pacientes, os formulários, os registros e os eventos de auditoria, e o `tests/support/evolution.js` calcula os indicadores de evolução com as fórmulas da API.
 
-- `src/services/mockApi.js`: o `respond`, que monta o envelope `{ data, meta }` nos testes dos hooks; o `ApiError` do cliente HTTP; e o `resetMockState`, que volta ao início, entre os testes, o estado guardado em módulo, como a sessão do `authService`;
-- `src/data/mocks/`: a organização de demonstração, a organização de plataforma e o administrador dela, os usuários, os pacientes, os vínculos de cuidado, os formulários, os registros e os anexos, com os campos da API. Os fixtures de `tests/support/fixtures/` montam com eles as sessões dos usuários de demonstração, os pacientes, os formulários, os registros e os eventos de auditoria.
-
-Os dados simulados usam nomes, documentos e contatos inventados. Todo CPF passa nos dígitos verificadores, e todo paciente aponta para um profissional de saúde existente. Nenhum dado pessoal real entra no repositório. Os vínculos e os dados de acompanhamento seguem as mesmas regras da API, conferidas pelo `mocks.test.js`:
+Os dados dos testes usam nomes, documentos e contatos inventados. Todo CPF passa nos dígitos verificadores, e todo paciente aponta para um profissional de saúde existente. Nenhum dado pessoal real entra no repositório. Os vínculos e os dados de acompanhamento seguem as mesmas regras da API, conferidas pelo `tests/support/data.test.js`:
 
 - **Vínculos de cuidado** (`patientLinks.js`): só cuidador e familiar, no papel igual ao perfil, com no máximo um vínculo vigente por pessoa e paciente. O vínculo de profissional responsável vem do campo `responsible` do paciente.
-- **Formulários** (`forms.js`): no formato de `GET /forms/{formId}`, com as versões publicadas guardadas em `versions` (a vigente é a última) e o rascunho vivo da próxima versão em `draft`. Os dados simulados cobrem as situações da API: formulários com versão 1 publicada, um nunca publicado, um com rascunho pendente, um com duas versões e um desativado. Publicar cria a versão seguinte, e os registros antigos continuam ligados à versão que responderam.
+- **Formulários** (`forms.js`): no formato de `GET /forms/{formId}`, com as versões publicadas guardadas em `versions` (a vigente é a última) e o rascunho vivo da próxima versão em `draft`. Os dados cobrem as situações da API: formulários com versão 1 publicada, um nunca publicado, um com rascunho pendente, um com duas versões e um desativado. Publicar cria a versão seguinte, e os registros antigos continuam ligados à versão que responderam.
 - **Registros de acompanhamento** (`followUps.js`): feitos só por cuidador com vínculo vigente, respondendo a versão vigente de um formulário que vale para o paciente. As datas são relativas ao dia de hoje no fuso de Brasília, porque a evolução da API olha por padrão os últimos 30 dias; com datas fixas, os gráficos ficariam vazios poucas semanas depois. Valores, autores e horários são fixos.
 - **Anexos** (`attachments.js`): enviados pelo autor do registro, depois dele, nos tipos e no tamanho que a API aceita.
 
