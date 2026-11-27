@@ -4,13 +4,13 @@ import { PATHS } from '../../../src/constants/routes.js';
 import {
   alertsReportContent as alertsContent,
   caregiversReportContent as caregiversContent,
+  managementFiltersContent as filtersContent,
   managementReportContent as reportContent,
   recentReportsContent as recentContent,
   reportsPageContent as content,
 } from '../../../src/data/managementReports.js';
 import { patientReportContent } from '../../../src/data/patientReport.js';
 import ReportsPage from '../../../src/pages/Reports/ReportsPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import {
   apiFailure,
   apiFile,
@@ -20,6 +20,7 @@ import {
 import { patientRoutes } from '../../support/fixtures/patients.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
+import { prefixesOf, typeLikeBrowser } from '../../support/browserTyping.js';
 
 const NOW = new Date('2026-11-13T15:00:00.000Z');
 const CATALOG = 'GET /management-reports';
@@ -229,7 +230,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
   vi.useRealTimers();
   vi.restoreAllMocks();
@@ -308,6 +308,19 @@ describe('ReportsPage', () => {
     expect(apiStub().last('GET /management-reports/alerts').query).toEqual({
       condition: 'inexistente',
     });
+  });
+
+  it('guarda no campo cada letra da condição na hora em que ela entra e manda o texto inteiro à API', async () => {
+    apiStub().use(managementApi());
+    renderReports('admin', `${PATHS.REPORTS}?tipo=alertas`);
+
+    const field = await screen.findByLabelText(filtersContent.condition);
+    expect(typeLikeBrowser(field, 'Fictícia')).toEqual(prefixesOf('Fictícia'));
+    await waitFor(() =>
+      expect(
+        apiStub().last('GET /management-reports/alerts').query.condition,
+      ).toBe('Fictícia'),
+    );
   });
 
   it('mostra a atividade dos cuidadores, sem nota', async () => {

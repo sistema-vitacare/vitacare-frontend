@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   downloadAttachment,
   listAttachments,
@@ -6,7 +6,6 @@ import {
   uploadAttachment,
 } from '../../src/services/attachmentService.js';
 import { login } from '../../src/services/authService.js';
-import { resetMockState } from '../../src/services/mockApi.js';
 import {
   apiFailure,
   apiFile,
@@ -29,10 +28,6 @@ const CONTENT = 'GET /follow-ups/:followUpId/attachments/:attachmentId/content';
 async function signIn() {
   await login(credentialsFor('caregiver'));
 }
-
-afterEach(() => {
-  resetMockState();
-});
 
 describe('attachmentService', () => {
   it('lista, envia em multipart e remove pelas rotas de anexo, com o token da sessão', async () => {

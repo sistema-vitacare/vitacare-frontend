@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import EvolutionSeriesCard from '../../src/components/EvolutionSeriesCard.jsx';
 import { evolutionSeriesContent as content } from '../../src/data/evolutionSeries.js';
 import { theme } from '../../src/styles/theme.js';
-import { buildIndicators } from '../../src/utils/evolution.js';
+import { buildIndicators } from '../support/evolution.js';
 
 const day = (n) => new Date(Date.UTC(2026, 9, 1 + n, 12)).toISOString();
 

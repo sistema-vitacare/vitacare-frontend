@@ -14,6 +14,12 @@ export const PATIENT_ERROR_CODES = Object.freeze({
   PLAN_EXPIRED: 'PATIENT_PLAN_EXPIRED',
 });
 
+/** Situação já mudada por outra pessoa ou em outra aba: a tela recarrega. */
+export const PATIENT_STALE_CODES = Object.freeze([
+  PATIENT_ERROR_CODES.ALREADY_INACTIVE,
+  PATIENT_ERROR_CODES.ALREADY_ACTIVE,
+]);
+
 export function listPatients(query = {}) {
   return apiGet('/patients', query);
 }

@@ -1,9 +1,11 @@
 export const patientListContent = {
   title: 'Pacientes',
-  subtitle: (total, status) =>
-    `${total} ${total === 1 ? 'paciente' : 'pacientes'} ${
-      status === 'inactive' ? 'inativos' : 'ativos'
-    }`,
+  subtitle: (total, status) => {
+    const situation = status === 'inactive' ? 'inativo' : 'ativo';
+    return total === 1
+      ? `1 paciente ${situation}`
+      : `${total} pacientes ${situation}s`;
+  },
   newPatient: 'Novo paciente',
   searchLabel: 'Buscar paciente',
   searchPlaceholder: 'Nome ou CPF',

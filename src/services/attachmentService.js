@@ -10,6 +10,9 @@ import {
   apiUpload,
 } from './apiClient.js';
 
+/** Anexo que outra pessoa removeu antes: a lista recarrega sem ele. */
+export const ATTACHMENT_STALE_CODES = Object.freeze(['ATTACHMENT_NOT_FOUND']);
+
 export function listAttachments(followUpId) {
   return apiGet(apiPath`/follow-ups/${followUpId}/attachments`);
 }

@@ -11,6 +11,7 @@ import { useResource } from '../../hooks/useResource.js';
 import { useSession } from '../../hooks/useSession.js';
 import { useSubmit } from '../../hooks/useSubmit.js';
 import {
+  MEDICATION_STALE_CODES,
   deactivateMedication,
   listMedications,
   reactivateMedication,
@@ -55,7 +56,15 @@ function PatientMedications({ patient }) {
       medications.retry();
       return;
     }
-    setActionError(content.errors[error.code] ?? content.unexpected);
+    const text = content.errors[error.code] ?? content.unexpected;
+    if (MEDICATION_STALE_CODES.includes(error.code)) {
+      // Tentar de novo falharia igual: a lista volta como está agora.
+      setDeactivating(null);
+      setNotice({ text, severity: 'warning' });
+      medications.retry();
+      return;
+    }
+    setActionError(text);
   }
 
   function saved(medication) {
@@ -71,7 +80,10 @@ function PatientMedications({ patient }) {
       ) : null}
       {notice ? (
         <Stack spacing={1}>
-          <Alert severity="success" onClose={() => setNotice(null)}>
+          <Alert
+            severity={notice.severity ?? 'success'}
+            onClose={() => setNotice(null)}
+          >
             {notice.text}
           </Alert>
           {notice.conflicts?.length > 0 ? (

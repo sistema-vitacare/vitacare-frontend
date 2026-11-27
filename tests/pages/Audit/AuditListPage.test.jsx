@@ -7,7 +7,6 @@ import {
 } from '../../../src/data/auditPages.js';
 import { periodFieldsContent } from '../../../src/data/periodFields.js';
 import AuditListPage from '../../../src/pages/Audit/AuditListPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { formatDateTime } from '../../../src/utils/format.js';
 import {
   apiFailure,
@@ -24,6 +23,7 @@ import {
 import { apiOrganization } from '../../support/fixtures/organizations.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
+import { prefixesOf, typeLikeBrowser } from '../../support/browserTyping.js';
 
 const NOW = new Date('2026-11-13T15:00:00.000Z');
 const LIST = 'GET /audit-events';
@@ -58,7 +58,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
   vi.useRealTimers();
   delete URL.createObjectURL;
@@ -145,6 +144,16 @@ describe('filtros', () => {
       }),
     );
     expect(router.state.location.search).toBe('?gravidade=warning');
+  });
+
+  it('guarda no campo cada letra da busca na hora em que ela entra e manda o texto inteiro à API', async () => {
+    apiStub().use(auditRoutes({ events: OWN_EVENTS }));
+    renderList();
+    await screen.findByRole('link', { name: 'Alterou perfil de usuário' });
+
+    const field = screen.getByLabelText(content.searchLabel);
+    expect(typeLikeBrowser(field, 'Fictícia')).toEqual(prefixesOf('Fictícia'));
+    await waitFor(() => expect(lastQuery().search).toBe('Fictícia'));
   });
 
   it('busca pelo nome de quem fez ou pela ação, e filtra a ação pelo catálogo da API', async () => {

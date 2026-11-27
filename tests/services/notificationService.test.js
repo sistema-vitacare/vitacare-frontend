@@ -1,6 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { login } from '../../src/services/authService.js';
-import { resetMockState } from '../../src/services/mockApi.js';
 import {
   countUnreadNotifications,
   listNotifications,
@@ -22,10 +21,6 @@ const NOTIFICATION = apiNotification(NOTIFICATION_ID, allAlerts()[0]);
 async function signIn() {
   await login(credentialsFor('caregiver'));
 }
-
-afterEach(() => {
-  resetMockState();
-});
 
 describe('notificationService', () => {
   it('lista a caixa do próprio usuário e conta as não lidas, com o token da sessão', async () => {

@@ -1,6 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { login } from '../../src/services/authService.js';
-import { resetMockState } from '../../src/services/mockApi.js';
 import {
   createPatient,
   deactivatePatient,
@@ -21,10 +20,6 @@ const PATIENT = { id: PATIENT_ID, name: 'Paciente Exemplo', status: 'active' };
 async function signIn() {
   await login(credentialsFor('professional'));
 }
-
-afterEach(() => {
-  resetMockState();
-});
 
 describe('patientService', () => {
   it('lista pela API com os filtros da tela na query e o token da sessão', async () => {

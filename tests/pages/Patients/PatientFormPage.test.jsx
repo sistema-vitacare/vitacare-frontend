@@ -7,7 +7,6 @@ import {
   patientFieldErrors as errors,
 } from '../../../src/data/patientForm.js';
 import PatientFormPage from '../../../src/pages/Patients/PatientFormPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { apiFailure, apiPage, apiStub } from '../../support/apiStub.js';
 import { apiPatient, patientRoutes } from '../../support/fixtures/patients.js';
 import { renderPage } from '../../support/renderPage.jsx';
@@ -104,7 +103,6 @@ async function openEdit() {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  resetMockState();
   resetViewport();
 });
 
@@ -325,7 +323,7 @@ describe('PatientFormPage na edição', () => {
   });
 
   it('não abre a edição de paciente inativo', async () => {
-    // A Alzira é inativa nos dados simulados, e o detalhe da API a traz assim.
+    // A Alzira é inativa nos dados dos testes, e o detalhe da API a traz assim.
     renderForm(patientPath(ALZIRA_INACTIVE, 'edit'));
 
     expect(await screen.findByText(content.inactive)).toBeInTheDocument();

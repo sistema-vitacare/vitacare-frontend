@@ -4,22 +4,19 @@ import {
   INVITATION_CHANNELS,
   INVITATION_STATUSES,
 } from '../../src/constants/users.js';
-import { attachmentsAsOf } from '../../src/data/mocks/attachments.js';
-import { forms } from '../../src/data/mocks/forms.js';
-import { followUpsAsOf } from '../../src/data/mocks/followUps.js';
-import { organization } from '../../src/data/mocks/organization.js';
-import { patientLinks } from '../../src/data/mocks/patientLinks.js';
-import { patients } from '../../src/data/mocks/patients.js';
-import {
-  platformAdmin,
-  platformOrganization,
-} from '../../src/data/mocks/platform.js';
-import { users } from '../../src/data/mocks/users.js';
+import { attachmentsAsOf } from './data/attachments.js';
+import { forms } from './data/forms.js';
+import { followUpsAsOf } from './data/followUps.js';
+import { organization } from './data/organization.js';
+import { patientLinks } from './data/patientLinks.js';
+import { patients } from './data/patients.js';
+import { platformAdmin, platformOrganization } from './data/platform.js';
+import { users } from './data/users.js';
 import { isValidCpf } from '../../src/utils/cpf.js';
 
 const people = [...users, ...patients];
 
-describe('dados simulados', () => {
+describe('dados dos testes', () => {
   it('não repetem identificador entre usuários e pacientes', () => {
     const ids = people.map((person) => person.id);
 
@@ -76,7 +73,7 @@ describe('dados simulados', () => {
     }
   });
 
-  // `.example` é reservado pela RFC 2606: nenhum e-mail simulado aponta para
+  // `.example` é reservado pela RFC 2606: nenhum e-mail dos testes aponta para
   // um domínio que pode existir.
   it('usam só e-mails do domínio reservado .example', () => {
     const emails = [
@@ -91,7 +88,7 @@ describe('dados simulados', () => {
   });
 });
 
-describe('dados simulados de acompanhamento', () => {
+describe('dados de acompanhamento dos testes', () => {
   const now = new Date('2026-11-10T15:00:00.000Z');
   const userById = new Map(users.map((user) => [user.id, user]));
   const patientById = new Map(patients.map((patient) => [patient.id, patient]));

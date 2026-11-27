@@ -8,14 +8,13 @@ import {
 } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import SessionProvider from '../../../src/components/SessionProvider.jsx';
 import { PATHS } from '../../../src/constants/routes.js';
 import { accessErrors } from '../../../src/data/access.js';
 import { termsContent } from '../../../src/data/terms.js';
 import { useSession } from '../../../src/hooks/useSession.js';
 import TermsPage from '../../../src/pages/Terms/TermsPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { theme } from '../../../src/styles/theme.js';
 import { apiFailure, apiStub } from '../../support/apiStub.js';
 import {
@@ -76,10 +75,6 @@ async function renderTerms({ pending = true } = {}) {
   await router.navigate(PATHS.TERMS);
   return router;
 }
-
-afterEach(() => {
-  resetMockState();
-});
 
 describe('TermsPage', () => {
   it('mostra o texto vigente, com a versão, as seções, o negrito e as listas', async () => {

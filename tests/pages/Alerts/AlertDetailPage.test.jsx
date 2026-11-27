@@ -13,7 +13,6 @@ import {
   resolveAlertContent as resolve,
 } from '../../../src/data/alertPages.js';
 import AlertDetailPage from '../../../src/pages/Alerts/AlertDetailPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
 import { apiFailure, apiStub } from '../../support/apiStub.js';
@@ -71,7 +70,6 @@ async function confirmResolve(title) {
 }
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
 });
 
@@ -176,7 +174,10 @@ describe('AlertDetailPage', () => {
 
     await confirmResolve('Pressão sistólica acima de 160');
 
-    expect(await screen.findByText(list.alreadyResolved)).toBeVisible();
+    const notice = await screen.findByText(list.alreadyResolved);
+    expect(notice.closest('.MuiAlert-root')).toHaveClass(
+      'MuiAlert-colorWarning',
+    );
     expect(
       await screen.findByText(/^Resolvido por Rafael Moura Brandão em /),
     ).toBeVisible();

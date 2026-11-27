@@ -66,9 +66,8 @@ export const patientDetailContent = {
     PATIENT_PLAN_EXPIRED:
       'A vigência do plano venceu. A reativação fica bloqueada até a renovação.',
     PATIENT_ALREADY_INACTIVE:
-      'O paciente já foi inativado, talvez em outra aba. Recarregue a página.',
-    PATIENT_ALREADY_ACTIVE:
-      'O paciente já foi reativado, talvez em outra aba. Recarregue a página.',
+      'O paciente já foi inativado, talvez em outra aba.',
+    PATIENT_ALREADY_ACTIVE: 'O paciente já foi reativado, talvez em outra aba.',
     unexpected: 'Não foi possível concluir agora. Tente de novo.',
   },
 };

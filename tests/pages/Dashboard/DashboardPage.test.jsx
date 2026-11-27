@@ -9,7 +9,6 @@ import {
 import { dashboardContent as content } from '../../../src/data/dashboardPages.js';
 import { resourceStateContent } from '../../../src/data/patientFields.js';
 import DashboardPage from '../../../src/pages/Dashboard/DashboardPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { todayInSaoPaulo } from '../../../src/utils/format.js';
 import { shortcutPeriod } from '../../../src/utils/period.js';
 import { apiFailure, apiStub } from '../../support/apiStub.js';
@@ -109,7 +108,6 @@ const followUpsIndicator = () =>
   });
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
 });
 

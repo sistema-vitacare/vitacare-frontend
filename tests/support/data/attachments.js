@@ -1,4 +1,4 @@
-// Anexos simulados dos registros de acompanhamento, com os campos de
+// Anexos dos registros de acompanhamento dos testes, com os campos de
 // GET /follow-ups/{followUpId}/attachments. Como os registros, acompanham o
 // dia de hoje: cada anexo é enviado alguns minutos depois do registro.
 import { followUpsAsOf } from './followUps.js';

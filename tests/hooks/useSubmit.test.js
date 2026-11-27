@@ -1,14 +1,16 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { useSubmit } from '../../src/hooks/useSubmit.js';
-import { ApiError, respond } from '../../src/services/mockApi.js';
+import { ApiError } from '../../src/services/apiClient.js';
 
 const conflict = () =>
   new ApiError({ status: 409, code: 'CONFLICT', message: 'Conflito.' });
 
 describe('useSubmit', () => {
   it('começa parado, sem resposta nem erro', () => {
-    const { result } = renderHook(() => useSubmit(() => respond(null)));
+    const { result } = renderHook(() =>
+      useSubmit(() => ({ data: null, meta: {} })),
+    );
 
     expect(result.current.status).toBe('idle');
     expect(result.current.meta).toBeNull();
@@ -28,12 +30,15 @@ describe('useSubmit', () => {
     });
     expect(result.current.status).toBe('submitting');
 
-    await act(async () => finish(respond(null)));
+    await act(async () => finish({ data: null, meta: {} }));
     expect(result.current.status).toBe('success');
   });
 
   it('repassa os argumentos à ação e guarda dados e meta da resposta', async () => {
-    const action = async (values) => respond(values, { message: 'Recebido.' });
+    const action = async (values) => ({
+      data: values,
+      meta: { message: 'Recebido.' },
+    });
     const { result } = renderHook(() => useSubmit(action));
 
     await act(() => result.current.submit({ email: 'a@b.example' }));
@@ -61,7 +66,7 @@ describe('useSubmit', () => {
       if (fail) {
         throw conflict();
       }
-      return respond(null);
+      return { data: null, meta: {} };
     };
     const { result } = renderHook(() => useSubmit(action));
     await act(() => result.current.submit());
@@ -79,7 +84,7 @@ describe('useSubmit', () => {
       if (fail) {
         throw conflict();
       }
-      return respond({ id: 'p1' });
+      return { data: { id: 'p1' }, meta: {} };
     };
     const { result } = renderHook(() => useSubmit(action));
 
@@ -98,7 +103,10 @@ describe('useSubmit', () => {
   });
 
   it('devolve também o meta da resposta, com a mensagem da API', async () => {
-    const action = async () => respond({ id: 'p1' }, { message: 'Enviado.' });
+    const action = async () => ({
+      data: { id: 'p1' },
+      meta: { message: 'Enviado.' },
+    });
     const { result } = renderHook(() => useSubmit(action));
 
     let outcome;

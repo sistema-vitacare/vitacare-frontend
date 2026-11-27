@@ -1,13 +1,10 @@
 // Sessões dos testes no formato do login da API (`auth-login.md` e
 // `profile-consultar.md`), com os usuários e as organizações de demonstração
-// dos dados simulados.
+// dos dados dos testes.
 import { permissionsFor } from '../../../src/constants/permissions.js';
-import { organization } from '../../../src/data/mocks/organization.js';
-import {
-  platformAdmin,
-  platformOrganization,
-} from '../../../src/data/mocks/platform.js';
-import { users } from '../../../src/data/mocks/users.js';
+import { organization } from '../data/organization.js';
+import { platformAdmin, platformOrganization } from '../data/platform.js';
+import { users } from '../data/users.js';
 import { apiFailure } from '../apiStub.js';
 
 export const TEST_PASSWORD = 'senha-de-teste';

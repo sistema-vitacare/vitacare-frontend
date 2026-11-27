@@ -1,8 +1,8 @@
-// Pacientes dos dados simulados no formato da API (`patients-listar.md` e
-// `patients-consultar.md`), para os testes das telas que leem pacientes.
-// Nenhuma regra do backend é aplicada: o teste diz a lista que a API
-// devolveria. Sai com os dados simulados (FE-65 do INTEGRACAO.md).
-import { patients } from '../../../src/data/mocks/patients.js';
+// Pacientes dos dados dos testes (`tests/support/data/`) no formato da API
+// (`patients-listar.md` e `patients-consultar.md`), para os testes das telas
+// que leem pacientes. Nenhuma regra do backend é aplicada: o teste diz a
+// lista que a API devolveria.
+import { patients } from '../data/patients.js';
 import { apiFailure, apiPage } from '../apiStub.js';
 
 /** Paciente como o detalhe da API o devolve, com `changes` por cima. */
@@ -30,7 +30,7 @@ function listed(patient) {
 /**
  * Rotas de pacientes: a lista responde `list`; o detalhe, o paciente de
  * `others` (como um inativo, que a lista não traz) ou de `list` e, fora
- * deles, o dos dados simulados.
+ * deles, o dos dados dos testes.
  */
 export function patientRoutes(list = activePatients(), others = []) {
   const known = [...others, ...list];

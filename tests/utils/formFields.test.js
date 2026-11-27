@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { forms } from '../../src/data/mocks/forms.js';
+import { forms } from '../support/data/forms.js';
 import {
   checkFormFields,
   enabledFieldCount,
@@ -40,7 +40,7 @@ describe('checkFormFields', () => {
     expect(fieldContractErrors(sixTypes)).toEqual([]);
   });
 
-  it('aceita os campos de todas as versões e rascunhos simulados', () => {
+  it('aceita os campos de todas as versões e rascunhos dos dados dos testes', () => {
     const versions = forms.flatMap((form) => [
       ...form.versions,
       ...(form.draft ? [form.draft] : []),

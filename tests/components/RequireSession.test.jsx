@@ -1,12 +1,11 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import RequireSession from '../../src/components/RequireSession.jsx';
 import SessionProvider from '../../src/components/SessionProvider.jsx';
 import { PATHS } from '../../src/constants/routes.js';
 import { useSession } from '../../src/hooks/useSession.js';
-import { resetMockState } from '../../src/services/mockApi.js';
 import { apiStub } from '../support/apiStub.js';
 import {
   TEST_PASSWORD,
@@ -69,10 +68,6 @@ async function signInAndOpenProtected(router, email, status) {
   await screen.findByText(`Login: ${status}`);
   await router.navigate('/pacientes');
 }
-
-afterEach(() => {
-  resetMockState();
-});
 
 describe('RequireSession', () => {
   it('leva ao login quem não tem sessão', async () => {

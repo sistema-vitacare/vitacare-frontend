@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { login } from '../../src/services/authService.js';
 import {
   exportAlertsReportPdf,
@@ -8,7 +8,6 @@ import {
   listManagementReports,
   listRecentReports,
 } from '../../src/services/managementReportService.js';
-import { resetMockState } from '../../src/services/mockApi.js';
 import { apiFailure, apiFile, apiPage, apiStub } from '../support/apiStub.js';
 import { credentialsFor, demoUser } from '../support/fixtures/sessions.js';
 
@@ -18,10 +17,6 @@ const QUERY = { from: '2026-10-01', to: '2026-10-31', condition: 'DPOC' };
 async function signIn() {
   await login(credentialsFor('admin'));
 }
-
-afterEach(() => {
-  resetMockState();
-});
 
 describe('managementReportService', () => {
   it('lê o catálogo e os recentes pela API, com o token da sessão', async () => {

@@ -16,7 +16,6 @@ import { firstAccessContent } from '../../../src/data/firstAccess.js';
 import { loginContent } from '../../../src/data/login.js';
 import FirstAccessPage from '../../../src/pages/FirstAccess/FirstAccessPage.jsx';
 import LoginPage from '../../../src/pages/Login/LoginPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { theme } from '../../../src/styles/theme.js';
 import { apiFailure, apiStub } from '../../support/apiStub.js';
 import {
@@ -80,7 +79,6 @@ function save(newPassword, confirmation = newPassword) {
 }
 
 afterEach(() => {
-  resetMockState();
   vi.useRealTimers();
 });
 

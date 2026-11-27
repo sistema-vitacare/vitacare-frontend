@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   getAlert,
   getAlertSummary,
@@ -6,7 +6,6 @@ import {
   resolveAlert,
 } from '../../src/services/alertService.js';
 import { login } from '../../src/services/authService.js';
-import { resetMockState } from '../../src/services/mockApi.js';
 import { apiFailure, apiPage, apiStub } from '../support/apiStub.js';
 import {
   DIRCE,
@@ -22,10 +21,6 @@ const ALERT = allAlerts()[0];
 async function signIn() {
   await login(credentialsFor('professional'));
 }
-
-afterEach(() => {
-  resetMockState();
-});
 
 describe('alertService', () => {
   it('lista pela API com os filtros da tela na query e o token da sessão', async () => {

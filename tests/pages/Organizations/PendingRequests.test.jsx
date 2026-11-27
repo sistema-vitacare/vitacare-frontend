@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PATHS, organizationPath } from '../../../src/constants/routes.js';
 import { pendingRequestsContent as content } from '../../../src/data/organizationPlanPages.js';
 import PendingRequests from '../../../src/pages/Organizations/PendingRequests.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { formatDateTime } from '../../../src/utils/format.js';
 import { apiStub } from '../../support/apiStub.js';
 import {
@@ -49,7 +48,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  resetMockState();
   vi.useRealTimers();
 });
 

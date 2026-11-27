@@ -1,10 +1,9 @@
-// Formulários dos dados simulados no formato da API (`forms-listar.md` e
-// `forms-consultar.md`), como o administrador e o profissional os recebem,
-// para os testes das telas que leem formulários. Nenhum serviço lê mais os
-// formulários simulados: eles ficam só como fonte deste fixture e do
-// `mocks.test.js`. Nenhuma regra do backend é aplicada: o teste diz a lista
-// que a API devolveria. Sai com os dados simulados (FE-65 do INTEGRACAO.md).
-import { forms } from '../../../src/data/mocks/forms.js';
+// Formulários dos dados dos testes (`tests/support/data/`) no formato da API
+// (`forms-listar.md` e `forms-consultar.md`), como o administrador e o
+// profissional os recebem, para os testes das telas que leem formulários.
+// Nenhuma regra do backend é aplicada: o teste diz a lista que a API
+// devolveria.
+import { forms } from '../data/forms.js';
 import { enabledFieldCount } from '../../../src/utils/formFields.js';
 import { apiFailure, apiPage } from '../apiStub.js';
 
@@ -32,7 +31,7 @@ export function apiForm(id, changes = {}) {
   };
 }
 
-/** Formulários dos dados simulados, por nome, como a lista padrão da API. */
+/** Formulários dos dados dos testes, por nome, como a lista padrão da API. */
 export function allForms() {
   return [...forms]
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
@@ -53,7 +52,7 @@ function summary(form) {
 
 /**
  * Rotas de formulários: a lista responde o resumo de `list`; o detalhe, o
- * formulário de `list` e, fora dela, o dos dados simulados.
+ * formulário de `list` e, fora dela, o dos dados dos testes.
  */
 export function formRoutes(list = allForms()) {
   return {

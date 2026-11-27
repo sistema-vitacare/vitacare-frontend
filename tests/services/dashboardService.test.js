@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { login } from '../../src/services/authService.js';
 import {
   DASHBOARD_ERROR_CODES,
@@ -8,7 +8,6 @@ import {
   getDashboardPatients,
   getDashboardUsers,
 } from '../../src/services/dashboardService.js';
-import { resetMockState } from '../../src/services/mockApi.js';
 import { apiFailure, apiStub } from '../support/apiStub.js';
 import { credentialsFor, demoUser } from '../support/fixtures/sessions.js';
 
@@ -20,10 +19,6 @@ const PLAN_MESSAGE =
 async function signIn() {
   await login(credentialsFor('admin'));
 }
-
-afterEach(() => {
-  resetMockState();
-});
 
 describe('dashboardService', () => {
   it('pede o painel pela API, com o período na query e o token da sessão', async () => {

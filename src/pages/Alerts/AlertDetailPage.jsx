@@ -226,7 +226,7 @@ export default function AlertDetailPage() {
   function resolved({ alreadyResolved }) {
     setNotice(
       alreadyResolved
-        ? { severity: 'info', text: alertListContent.alreadyResolved }
+        ? { severity: 'warning', text: alertListContent.alreadyResolved }
         : { severity: 'success', text: alertListContent.resolved },
     );
     resource.retry();

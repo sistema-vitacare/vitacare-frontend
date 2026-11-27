@@ -12,7 +12,6 @@ import {
   organizationPlanContent,
 } from '../../../src/data/organizationPlanPages.js';
 import OrganizationDetailPage from '../../../src/pages/Organizations/OrganizationDetailPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { apiFailure, apiStub } from '../../support/apiStub.js';
 import {
   PLATFORM_ORGANIZATION,
@@ -40,7 +39,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  resetMockState();
   vi.useRealTimers();
 });
 

@@ -1,4 +1,9 @@
-import { BottomNavigation, BottomNavigationAction, Paper } from '@mui/material';
+import {
+  BottomNavigation,
+  BottomNavigationAction,
+  Paper,
+  bottomNavigationActionClasses as actionClasses,
+} from '@mui/material';
 import { NavLink, matchPath, useLocation } from 'react-router';
 import { navLabels, shellContent } from '../data/navigation.js';
 
@@ -47,7 +52,19 @@ export default function BottomNav({ items }) {
                   aria-hidden="true"
                 />
               }
-              sx={{ minWidth: 0, px: 0.5 }}
+              sx={(theme) => ({
+                minWidth: 0,
+                px: 0.5,
+                // Cada item do tamanho do próprio rótulo: com a largura
+                // dividida por igual, "Medicamentos" passaria do item em
+                // 375 px e encostaria no vizinho.
+                flex: '1 1 auto',
+                // O selecionado fica na fonte dos outros, marcado pela cor e
+                // pelo ícone preenchido; maior, ele não caberia no item.
+                [`& .${actionClasses.label}.${actionClasses.selected}`]: {
+                  fontSize: theme.typography.pxToRem(12),
+                },
+              })}
             />
           );
         })}

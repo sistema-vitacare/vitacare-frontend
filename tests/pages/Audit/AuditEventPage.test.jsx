@@ -11,7 +11,6 @@ import {
   auditSeverityLabels,
 } from '../../../src/data/auditPages.js';
 import AuditEventPage from '../../../src/pages/Audit/AuditEventPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { formatDateTime } from '../../../src/utils/format.js';
 import { apiStub } from '../../support/apiStub.js';
 import {
@@ -62,7 +61,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  resetMockState();
   vi.useRealTimers();
 });
 

@@ -62,7 +62,7 @@ O `npm run verify` precisa terminar sem erro antes da abertura do pull request. 
 - Título de um bloco: número, nome e intervalo de cards. Exemplo: `Bloco 2 — Pacientes (FE-11 a FE-15)`.
 - Título de um card fora de bloco: identificador do card e o que ele entrega. Exemplo: `FE-31 — Alerta do minimatch na cadeia do ESLint`.
 - Corpo: o que muda, como foi verificado e o que ficou de fora.
-- Destino: `develop`. A `main` recebe apenas a `develop`, num pull request aberto quando a `develop` está pronta para produção. Durante a integração com a API, isso só acontece depois que todos os blocos de integração entram; até lá, a produção continua com os dados simulados.
+- Destino: `develop`. A `main` recebe apenas a `develop`, num pull request aberto quando a `develop` está pronta para produção.
 - Merge só com os checks `verify` e `imagem` verdes.
 - Merge pela opção "Create a merge commit". As opções de squash e rebase reescrevem os commits da branch, e o squash junta todos em um só.
 

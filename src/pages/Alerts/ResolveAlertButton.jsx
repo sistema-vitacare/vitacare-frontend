@@ -3,7 +3,10 @@ import { useCallback, useState } from 'react';
 import ConfirmDialog from '../../components/ConfirmDialog.jsx';
 import { resolveAlertContent as content } from '../../data/alertPages.js';
 import { useSubmit } from '../../hooks/useSubmit.js';
-import { resolveAlert } from '../../services/alertService.js';
+import {
+  ALERT_STALE_CODES,
+  resolveAlert,
+} from '../../services/alertService.js';
 
 /**
  * Botão Resolver com a confirmação, usado na lista e no detalhe. Resolver
@@ -23,7 +26,7 @@ export default function ResolveAlertButton({
 
   async function confirm() {
     const result = await submit();
-    if (result.data || result.error.code === 'ALERT_ALREADY_RESOLVED') {
+    if (result.data || ALERT_STALE_CODES.includes(result.error.code)) {
       setOpen(false);
       onResolved({ alreadyResolved: !result.data });
       return;

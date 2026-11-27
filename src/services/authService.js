@@ -8,7 +8,6 @@ import {
   normalizeOrganizationCode,
 } from '../utils/authValidation.js';
 import { apiGet, apiPost, apiPut, configureApiSession } from './apiClient.js';
-import { registerMockState } from './mockApi.js';
 
 export const SESSION_STATES = Object.freeze({
   AUTHENTICATED: 'authenticated',
@@ -138,14 +137,6 @@ configureApiSession({
     save({ ...stored, session });
     notify({ type: 'terms', session });
   },
-});
-
-// Os testes voltam a sessão ao início pelo `resetMockState`; sem isso, a
-// sessão e quem a ouve passariam de um teste para o outro.
-registerMockState(() => {
-  save(null);
-  memory = null;
-  listeners.clear();
 });
 
 /** Sessão de quem consulta; `null` sem login. */

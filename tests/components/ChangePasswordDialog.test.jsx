@@ -7,7 +7,7 @@ import {
   within,
 } from '@testing-library/react';
 import { useEffect } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import ChangePasswordDialog from '../../src/components/ChangePasswordDialog.jsx';
 import SessionProvider from '../../src/components/SessionProvider.jsx';
 import {
@@ -16,7 +16,6 @@ import {
   fieldErrorMessages,
 } from '../../src/data/access.js';
 import { useSession } from '../../src/hooks/useSession.js';
-import { resetMockState } from '../../src/services/mockApi.js';
 import { theme } from '../../src/styles/theme.js';
 import { apiFailure, apiStub } from '../support/apiStub.js';
 import { credentialsFor } from '../support/fixtures/sessions.js';
@@ -64,10 +63,6 @@ async function fill(values) {
 
 const submit = (dialog) =>
   fireEvent.click(within(dialog).getByRole('button', { name: content.submit }));
-
-afterEach(() => {
-  resetMockState();
-});
 
 describe('ChangePasswordDialog', () => {
   it('explica que a troca encerra as sessões', async () => {

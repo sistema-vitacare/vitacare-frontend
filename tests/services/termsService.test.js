@@ -1,6 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { login } from '../../src/services/authService.js';
-import { resetMockState } from '../../src/services/mockApi.js';
 import {
   acceptTerms,
   getCurrentTerms,
@@ -16,10 +15,6 @@ const TERMS = {
   publishedAt: '2026-11-13T12:00:00.000Z',
   pageUrl: '/termos?versao=2',
 };
-
-afterEach(() => {
-  resetMockState();
-});
 
 describe('termsService', () => {
   it('lê o termo vigente pela rota pública, sem token', async () => {

@@ -2,7 +2,7 @@ import { ThemeProvider } from '@mui/material';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { PATHS } from '../../../src/constants/routes.js';
 import {
   accessErrors,
@@ -11,7 +11,6 @@ import {
 } from '../../../src/data/access.js';
 import { recoveryContent } from '../../../src/data/passwordRecovery.js';
 import PasswordRecoveryPage from '../../../src/pages/PasswordRecovery/PasswordRecoveryPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { theme } from '../../../src/styles/theme.js';
 import { apiFailure, apiStub, reply } from '../../support/apiStub.js';
 
@@ -55,10 +54,6 @@ function request(email) {
   fireEvent.change(field('email'), { target: { value: email } });
   fireEvent.click(screen.getByRole('button', { name: recoveryContent.submit }));
 }
-
-afterEach(() => {
-  resetMockState();
-});
 
 describe('PasswordRecoveryPage', () => {
   it('pede código da organização e e-mail e permite voltar ao login', async () => {

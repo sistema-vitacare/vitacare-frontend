@@ -10,7 +10,6 @@ import {
   dashboardIndicatorContent as content,
 } from '../../../src/data/dashboardPages.js';
 import DashboardIndicatorPage from '../../../src/pages/Dashboard/DashboardIndicatorPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { todayInSaoPaulo } from '../../../src/utils/format.js';
 import { shortcutPeriod } from '../../../src/utils/period.js';
 import { apiFailure, apiStub } from '../../support/apiStub.js';
@@ -99,7 +98,6 @@ function renderIndicator(path) {
 }
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
 });
 

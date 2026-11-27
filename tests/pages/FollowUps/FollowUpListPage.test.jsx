@@ -4,7 +4,6 @@ import { PATHS, recordsPath } from '../../../src/constants/routes.js';
 import { followUpListContent as content } from '../../../src/data/followUpPages.js';
 import { followUpRecordsContent as records } from '../../../src/data/followUpRecords.js';
 import FollowUpListPage from '../../../src/pages/FollowUps/FollowUpListPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
 import { apiStub } from '../../support/apiStub.js';
@@ -26,7 +25,6 @@ function renderList(profile, path = PATHS.RECORDS) {
 }
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
 });
 

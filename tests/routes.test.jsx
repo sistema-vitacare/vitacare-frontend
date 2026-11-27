@@ -40,7 +40,6 @@ import { userListContent } from '../src/data/userPages.js';
 import { appRoutes } from '../src/routes.jsx';
 import lazyPagesSource from '../src/lazyPages.js?raw';
 import routesSource from '../src/routes.jsx?raw';
-import { resetMockState } from '../src/services/mockApi.js';
 import { theme } from '../src/styles/theme.js';
 import { preloadPages } from './support/preloadPages.js';
 import { resetViewport, setViewportWidth } from './support/viewport.js';
@@ -122,7 +121,6 @@ async function fillLogin(values) {
 }
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
   vi.useRealTimers();
   vi.restoreAllMocks();

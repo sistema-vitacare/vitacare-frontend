@@ -3,6 +3,13 @@
 // backend). A API confere o formulário, o campo, o paciente e o alcance.
 import { apiGet, apiPatch, apiPath, apiPost } from './apiClient.js';
 
+/** Regra já inativada, reativada ou removida por outra pessoa: a tela recarrega. */
+export const ALERT_RULE_STALE_CODES = Object.freeze([
+  'ALERT_RULE_ALREADY_INACTIVE',
+  'ALERT_RULE_ALREADY_ACTIVE',
+  'ALERT_RULE_NOT_FOUND',
+]);
+
 export function listAlertRules(query = {}) {
   return apiGet('/alert-rules', query);
 }

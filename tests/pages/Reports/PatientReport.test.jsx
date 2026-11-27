@@ -6,7 +6,6 @@ import { resourceStateContent } from '../../../src/data/patientFields.js';
 import { patientReportContent as content } from '../../../src/data/patientReport.js';
 import { periodFieldsContent } from '../../../src/data/periodFields.js';
 import PatientReport from '../../../src/pages/Reports/PatientReport.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { apiFailure, apiFile, apiStub } from '../../support/apiStub.js';
 import { patientRoutes } from '../../support/fixtures/patients.js';
 import { renderPage } from '../../support/renderPage.jsx';
@@ -191,7 +190,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
   vi.useRealTimers();
   vi.restoreAllMocks();

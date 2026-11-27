@@ -11,7 +11,6 @@ import {
 } from '../../../src/data/organizationPlanPages.js';
 import { planSummaryContent as summary } from '../../../src/data/planSummary.js';
 import OrganizationPlan from '../../../src/pages/Organizations/OrganizationPlan.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { apiFailure, apiStub } from '../../support/apiStub.js';
 import {
   BASIC,
@@ -112,7 +111,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  resetMockState();
   vi.useRealTimers();
 });
 
@@ -249,6 +247,21 @@ describe('decisão da solicitação', () => {
     expect(
       within(plan).queryByRole('group', { name: content.pendingTitle }),
     ).not.toBeInTheDocument();
+  });
+
+  it('mostra no diálogo a mensagem da API quando o plano pedido saiu do catálogo', async () => {
+    const message = 'Plano de uso inexistente ou indisponível.';
+    apiStub().use({
+      'POST /plan-change-requests/:requestId/approve': () =>
+        apiFailure(422, 'PLAN_NOT_FOUND', message),
+    });
+    renderPlan();
+    const dialog = await openDialog(content.approve, form.approveTitle);
+
+    fireEvent.click(within(dialog).getByRole('button', { name: form.approve }));
+
+    expect(await within(dialog).findByText(message)).toBeInTheDocument();
+    expect(within(dialog).queryByText(form.unexpected)).not.toBeInTheDocument();
   });
 
   it('recusa só com justificativa, e o plano continua', async () => {

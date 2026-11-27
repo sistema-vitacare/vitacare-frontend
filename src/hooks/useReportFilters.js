@@ -42,7 +42,9 @@ export function useReportFilters() {
         next.delete(PARAMS[name]);
       }
     }
-    setParams(next, { replace: true });
+    // O campo mostra o valor do endereço: com a navegação em transição, o
+    // React devolveria ao campo o valor antigo, e letras digitadas se perderiam.
+    setParams(next, { replace: true, flushSync: true });
   }
 
   return {
