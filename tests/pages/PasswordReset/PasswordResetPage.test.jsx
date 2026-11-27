@@ -2,12 +2,11 @@ import { ThemeProvider } from '@mui/material';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { PATHS } from '../../../src/constants/routes.js';
 import { accessFields, fieldErrorMessages } from '../../../src/data/access.js';
 import { resetContent } from '../../../src/data/passwordRecovery.js';
 import PasswordResetPage from '../../../src/pages/PasswordReset/PasswordResetPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { theme } from '../../../src/styles/theme.js';
 import { apiFailure, apiStub, reply } from '../../support/apiStub.js';
 
@@ -43,10 +42,6 @@ function save(newPassword, confirmation = newPassword) {
   fireEvent.change(field('confirmation'), { target: { value: confirmation } });
   fireEvent.click(screen.getByRole('button', { name: resetContent.submit }));
 }
-
-afterEach(() => {
-  resetMockState();
-});
 
 describe('PasswordResetPage', () => {
   it('sem token no endereço, orienta a pedir um novo link', async () => {

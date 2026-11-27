@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { PATHS } from '../../../src/constants/routes.js';
 import { formListContent as content } from '../../../src/data/formList.js';
 import FormListPage from '../../../src/pages/Forms/FormListPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { apiPage, apiStub } from '../../support/apiStub.js';
 import { allForms, apiForm, formRoutes } from '../../support/fixtures/forms.js';
 import { renderPage } from '../../support/renderPage.jsx';
@@ -32,7 +31,6 @@ function item(name) {
 }
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
 });
 

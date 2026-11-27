@@ -2,7 +2,6 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { careTeamContent as content } from '../../../src/data/careTeam.js';
 import CareTeamSection from '../../../src/pages/Patients/CareTeamSection.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { apiFailure, apiPage, apiStub } from '../../support/apiStub.js';
 import { apiPatient } from '../../support/fixtures/patients.js';
 import { renderPage } from '../../support/renderPage.jsx';
@@ -129,7 +128,6 @@ async function choose(dialog, label, option) {
 }
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
 });
 

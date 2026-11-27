@@ -1,9 +1,9 @@
-// Registros de acompanhamento simulados, no formato de GET /follow-ups.
+// Registros de acompanhamento dos testes, no formato de GET /follow-ups.
 // As datas são relativas ao dia de hoje (fuso de Brasília): a evolução da
 // API olha por padrão os últimos 30 dias, e datas fixas deixariam os
 // gráficos vazios poucas semanas depois. Valores, autores e horários são
 // fixos; só o dia acompanha o calendário.
-import { todayInSaoPaulo } from '../../utils/format.js';
+import { todayInSaoPaulo } from '../../../src/utils/format.js';
 import { DAILY_FORM, VITAL_SIGNS_FORM } from './forms.js';
 
 const DIRCE = '0b639b83-76d0-570a-9017-7b6263d892cf';

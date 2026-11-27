@@ -2,7 +2,7 @@
 // `audit-events-detalhe.md` e `audit-events-acoes.md`), para os testes da
 // auditoria e do roteador. Nenhuma regra do backend é aplicada: a API filtra,
 // pagina e mascara; o teste diz o que ela devolveria.
-import { organization } from '../../../src/data/mocks/organization.js';
+import { organization } from '../data/organization.js';
 import { apiFailure, apiPage } from '../apiStub.js';
 
 export const eventId = (sequence) =>

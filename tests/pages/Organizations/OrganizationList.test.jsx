@@ -6,7 +6,6 @@ import {
   organizationStatusLabels,
 } from '../../../src/data/organizationPages.js';
 import OrganizationList from '../../../src/pages/Organizations/OrganizationList.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { formatDateTime } from '../../../src/utils/format.js';
 import { apiPage, apiStub } from '../../support/apiStub.js';
 import {
@@ -48,7 +47,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
   vi.useRealTimers();
 });

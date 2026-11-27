@@ -15,7 +15,6 @@ import {
   restoreSession,
   subscribeSession,
 } from '../../src/services/authService.js';
-import { resetMockState } from '../../src/services/mockApi.js';
 import { apiFailure, apiStub, reply } from '../support/apiStub.js';
 import {
   credentialsFor,
@@ -28,7 +27,6 @@ const admin = credentialsFor('admin');
 const invited = { ...admin, email: invitedUser.email };
 
 afterEach(() => {
-  resetMockState();
   vi.useRealTimers();
 });
 

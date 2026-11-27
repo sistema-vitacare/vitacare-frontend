@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { buildIndicators } from '../../src/utils/evolution.js';
+import { buildIndicators } from './evolution.js';
 
 const day = (n, hour = 12) =>
   new Date(Date.UTC(2026, 9, 1 + n, hour)).toISOString();

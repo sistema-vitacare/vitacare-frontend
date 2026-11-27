@@ -14,7 +14,6 @@ import {
 } from '../../../src/data/organizationPages.js';
 import { useResource } from '../../../src/hooks/useResource.js';
 import OrganizationData from '../../../src/pages/Organizations/OrganizationData.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { getOrganization } from '../../../src/services/platformOrganizationService.js';
 import { apiFailure, apiStub } from '../../support/apiStub.js';
 import {
@@ -102,7 +101,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  resetMockState();
   vi.useRealTimers();
 });
 

@@ -8,7 +8,6 @@ import {
   medicationListContent as list,
 } from '../../../src/data/medicationPages.js';
 import MedicationListPage from '../../../src/pages/Medications/MedicationListPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
 import { apiFailure, apiStub } from '../../support/apiStub.js';
@@ -68,7 +67,6 @@ function choose(label, option) {
 }
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
 });
 

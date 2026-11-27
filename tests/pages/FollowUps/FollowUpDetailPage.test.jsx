@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PATHS, recordPath } from '../../../src/constants/routes.js';
 import { followUpDetailContent as content } from '../../../src/data/followUpPages.js';
 import FollowUpDetailPage from '../../../src/pages/FollowUps/FollowUpDetailPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
 import {
@@ -104,7 +103,6 @@ function chooseFile(file) {
 }
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
   vi.restoreAllMocks();
   delete URL.createObjectURL;

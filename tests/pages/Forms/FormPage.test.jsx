@@ -6,7 +6,6 @@ import {
   formPageContent as content,
 } from '../../../src/data/formPage.js';
 import FormPage from '../../../src/pages/Forms/FormPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { enabledFieldCount } from '../../../src/utils/formFields.js';
 import { apiFailure, apiPage, apiStub, reply } from '../../support/apiStub.js';
 import { allForms, apiForm, formRoutes } from '../../support/fixtures/forms.js';
@@ -144,7 +143,6 @@ async function addField({ name, type, extra = () => {} }) {
 }
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
 });
 

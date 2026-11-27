@@ -8,13 +8,13 @@ import {
 } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import OrganizationFormDialog from '../../src/components/OrganizationFormDialog.jsx';
-import { organization } from '../../src/data/mocks/organization.js';
+import { organization } from '../support/data/organization.js';
 import {
   organizationFieldErrors,
   organizationFieldLabels as labels,
   organizationFormContent as content,
 } from '../../src/data/organizationFields.js';
-import { ApiError } from '../../src/services/mockApi.js';
+import { ApiError } from '../../src/services/apiClient.js';
 import { theme } from '../../src/styles/theme.js';
 
 function renderDialog(save) {

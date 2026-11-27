@@ -10,7 +10,6 @@ import {
   userFormContent as form,
 } from '../../../src/data/userPages.js';
 import UserDetailPage from '../../../src/pages/Users/UserDetailPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { apiFailure, apiStub, reply } from '../../support/apiStub.js';
 import {
   ANA,
@@ -79,7 +78,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
   vi.useRealTimers();
 });

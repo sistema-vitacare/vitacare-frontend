@@ -2,7 +2,6 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import PatientPicker from '../../src/components/PatientPicker.jsx';
 import { PATHS, medicationsPath } from '../../src/constants/routes.js';
-import { resetMockState } from '../../src/services/mockApi.js';
 import { apiPage, apiStub } from '../support/apiStub.js';
 import {
   activePatients,
@@ -42,7 +41,6 @@ function renderPicker(profile, path = PATHS.MEDICATIONS) {
 }
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
 });
 

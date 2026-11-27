@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { login } from '../../src/services/authService.js';
 import {
   createMedication,
@@ -7,7 +7,6 @@ import {
   reactivateMedication,
   updateMedication,
 } from '../../src/services/medicationService.js';
-import { resetMockState } from '../../src/services/mockApi.js';
 import { apiFailure, apiPage, apiStub } from '../support/apiStub.js';
 import { credentialsFor, demoUser } from '../support/fixtures/sessions.js';
 import {
@@ -24,10 +23,6 @@ const answer = ({ body }) => ({ data: { ...MEDICATION, ...body }, meta: {} });
 async function signIn() {
   await login(credentialsFor('professional'));
 }
-
-afterEach(() => {
-  resetMockState();
-});
 
 describe('medicationService', () => {
   it('lista pela API com o paciente e o limite na query e o token da sessão', async () => {

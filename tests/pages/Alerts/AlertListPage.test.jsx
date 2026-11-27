@@ -7,7 +7,6 @@ import {
   resolveAlertContent as resolve,
 } from '../../../src/data/alertPages.js';
 import AlertListPage from '../../../src/pages/Alerts/AlertListPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
 import { apiStub } from '../../support/apiStub.js';
@@ -63,7 +62,6 @@ function counter(label) {
 }
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
 });
 

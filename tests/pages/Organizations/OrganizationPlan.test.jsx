@@ -11,7 +11,6 @@ import {
 } from '../../../src/data/organizationPlanPages.js';
 import { planSummaryContent as summary } from '../../../src/data/planSummary.js';
 import OrganizationPlan from '../../../src/pages/Organizations/OrganizationPlan.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { apiFailure, apiStub } from '../../support/apiStub.js';
 import {
   BASIC,
@@ -112,7 +111,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  resetMockState();
   vi.useRealTimers();
 });
 

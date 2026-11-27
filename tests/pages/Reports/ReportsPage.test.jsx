@@ -10,7 +10,6 @@ import {
 } from '../../../src/data/managementReports.js';
 import { patientReportContent } from '../../../src/data/patientReport.js';
 import ReportsPage from '../../../src/pages/Reports/ReportsPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import {
   apiFailure,
   apiFile,
@@ -229,7 +228,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
   vi.useRealTimers();
   vi.restoreAllMocks();

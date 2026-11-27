@@ -13,7 +13,6 @@ import {
   resolveAlertContent as resolve,
 } from '../../../src/data/alertPages.js';
 import AlertDetailPage from '../../../src/pages/Alerts/AlertDetailPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
 import { apiFailure, apiStub } from '../../support/apiStub.js';
@@ -71,7 +70,6 @@ async function confirmResolve(title) {
 }
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
 });
 

@@ -1,6 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { login } from '../../src/services/authService.js';
-import { resetMockState } from '../../src/services/mockApi.js';
 import {
   createPatientLink,
   listEligibleUsers,
@@ -18,10 +17,6 @@ const USER_ID = '8ac988c6-79bc-40a9-a175-4fce300121d2';
 function link(role, name) {
   return { id: `${role}-${name}`, role, user: { id: name, name } };
 }
-
-afterEach(() => {
-  resetMockState();
-});
 
 describe('patientLinkService', () => {
   it('lista os vínculos do paciente com o responsável primeiro, depois cuidadores e familiares, por nome', async () => {

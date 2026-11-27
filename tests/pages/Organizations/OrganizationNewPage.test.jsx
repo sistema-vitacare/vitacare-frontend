@@ -13,7 +13,6 @@ import {
 import { temporaryPasswordContent as passwordField } from '../../../src/data/temporaryPassword.js';
 import { userFieldErrors } from '../../../src/data/userPages.js';
 import OrganizationNewPage from '../../../src/pages/Organizations/OrganizationNewPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { apiFailure, apiStub, reply } from '../../support/apiStub.js';
 import {
   BASIC,
@@ -97,7 +96,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
   vi.useRealTimers();
 });

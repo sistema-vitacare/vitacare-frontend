@@ -5,8 +5,8 @@
 // plataforma, dos usuários e do roteador. Nenhuma regra do backend é
 // aplicada: a API calcula limites, uso e aviso; o teste diz o que ela
 // devolveria.
-import { organization as ownOrganization } from '../../../src/data/mocks/organization.js';
-import { platformOrganization } from '../../../src/data/mocks/platform.js';
+import { organization as ownOrganization } from '../data/organization.js';
+import { platformOrganization } from '../data/platform.js';
 import { apiFailure, apiPage } from '../apiStub.js';
 
 export const BASIC = Object.freeze({

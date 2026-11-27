@@ -7,7 +7,6 @@ import {
 } from '../../../src/data/auditPages.js';
 import { periodFieldsContent } from '../../../src/data/periodFields.js';
 import AuditListPage from '../../../src/pages/Audit/AuditListPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { formatDateTime } from '../../../src/utils/format.js';
 import {
   apiFailure,
@@ -58,7 +57,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
   vi.useRealTimers();
   delete URL.createObjectURL;

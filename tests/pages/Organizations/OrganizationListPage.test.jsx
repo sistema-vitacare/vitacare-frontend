@@ -4,7 +4,6 @@ import { PATHS } from '../../../src/constants/routes.js';
 import { organizationListContent } from '../../../src/data/organizationPages.js';
 import { pendingRequestsContent } from '../../../src/data/organizationPlanPages.js';
 import OrganizationListPage from '../../../src/pages/Organizations/OrganizationListPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { apiStub } from '../../support/apiStub.js';
 import {
   SOL_NASCENTE,
@@ -21,7 +20,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  resetMockState();
   vi.useRealTimers();
 });
 

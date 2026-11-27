@@ -7,7 +7,6 @@ import { notificationBellContent as bell } from '../../src/data/alertPages.js';
 import { changePasswordContent } from '../../src/data/access.js';
 import { profileLabels } from '../../src/data/profiles.js';
 import { topBarSearchContent } from '../../src/data/patientList.js';
-import { resetMockState } from '../../src/services/mockApi.js';
 import { renderPage } from '../support/renderPage.jsx';
 import { resetViewport } from '../support/viewport.js';
 import { apiPage, apiStub } from '../support/apiStub.js';
@@ -32,7 +31,6 @@ function renderTopBar(profile) {
 }
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
 });
 

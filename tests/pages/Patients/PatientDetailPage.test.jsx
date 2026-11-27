@@ -11,7 +11,6 @@ import { careTeamContent } from '../../../src/data/careTeam.js';
 import { patientDetailContent as content } from '../../../src/data/patientDetail.js';
 import { maskedFieldText } from '../../../src/data/patientFields.js';
 import PatientDetailPage from '../../../src/pages/Patients/PatientDetailPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { ageFromBirthDate, MASKED_VALUE } from '../../../src/utils/format.js';
 import { apiFailure, apiPage, apiStub } from '../../support/apiStub.js';
 import { apiPatient } from '../../support/fixtures/patients.js';
@@ -116,7 +115,6 @@ function card(title) {
 }
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
 });
 

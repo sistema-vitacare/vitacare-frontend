@@ -17,7 +17,6 @@ import {
   settingsContent as content,
 } from '../../../src/data/settingsPages.js';
 import SettingsPage from '../../../src/pages/Settings/SettingsPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { apiFailure, apiStub, reply } from '../../support/apiStub.js';
 import {
   BASIC,
@@ -89,7 +88,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
   vi.useRealTimers();
 });

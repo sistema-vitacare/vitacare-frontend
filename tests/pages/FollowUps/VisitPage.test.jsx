@@ -7,7 +7,6 @@ import {
 } from '../../../src/constants/routes.js';
 import { visitRecordContent as content } from '../../../src/data/visitRecord.js';
 import VisitPage from '../../../src/pages/FollowUps/VisitPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
 import { apiFailure, apiPage, apiStub, reply } from '../../support/apiStub.js';
@@ -56,7 +55,6 @@ async function chooseForm(name) {
 }
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
 });
 

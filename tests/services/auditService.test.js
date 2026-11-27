@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   exportAuditEvents,
   getAuditEvent,
@@ -6,7 +6,6 @@ import {
   listAuditEvents,
 } from '../../src/services/auditService.js';
 import { login } from '../../src/services/authService.js';
-import { resetMockState } from '../../src/services/mockApi.js';
 import { apiFailure, apiFile, apiPage, apiStub } from '../support/apiStub.js';
 import { credentialsFor, demoUser } from '../support/fixtures/sessions.js';
 
@@ -16,10 +15,6 @@ const FILTERS = { from: '2026-10-01', severity: 'warning', search: 'helena' };
 async function signIn() {
   await login(credentialsFor('admin'));
 }
-
-afterEach(() => {
-  resetMockState();
-});
 
 describe('auditService', () => {
   it('lista os eventos pela API, com os filtros e a página na query e o token da sessão', async () => {

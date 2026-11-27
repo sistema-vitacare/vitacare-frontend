@@ -7,7 +7,6 @@ import {
   alertRuleSectionContent as content,
 } from '../../../src/data/alertRuleSection.js';
 import FormPage from '../../../src/pages/Forms/FormPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { renderPage } from '../../support/renderPage.jsx';
 import { resetViewport } from '../../support/viewport.js';
 import { apiFailure, apiPage, apiStub } from '../../support/apiStub.js';
@@ -125,7 +124,6 @@ async function openNewRule(formId) {
 }
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
 });
 

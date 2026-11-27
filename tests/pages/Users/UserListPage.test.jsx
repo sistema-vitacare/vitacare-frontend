@@ -11,7 +11,6 @@ import {
   userListContent as content,
 } from '../../../src/data/userPages.js';
 import UserListPage from '../../../src/pages/Users/UserListPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { apiFailure, apiPage, apiStub, reply } from '../../support/apiStub.js';
 import {
   ENTERPRISE,
@@ -140,7 +139,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
   vi.useRealTimers();
   delete navigator.clipboard;

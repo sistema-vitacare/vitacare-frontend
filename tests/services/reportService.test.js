@@ -1,6 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { login } from '../../src/services/authService.js';
-import { resetMockState } from '../../src/services/mockApi.js';
 import {
   exportPatientReportPdf,
   getPatientReport,
@@ -15,10 +14,6 @@ const PERIOD = { from: '2026-10-01', to: '2026-10-31' };
 async function signIn() {
   await login(credentialsFor('professional'));
 }
-
-afterEach(() => {
-  resetMockState();
-});
 
 describe('reportService', () => {
   it('pede o relatório do paciente pela API, com o período e o token da sessão', async () => {

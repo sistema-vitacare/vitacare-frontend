@@ -10,8 +10,7 @@ import { followUpRecordsContent as recordsContent } from '../../../src/data/foll
 import { patientHistoryContent as content } from '../../../src/data/patientHistory.js';
 import { periodFieldsContent } from '../../../src/data/periodFields.js';
 import PatientHistoryPage from '../../../src/pages/Patients/PatientHistoryPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
-import { buildIndicators } from '../../../src/utils/evolution.js';
+import { buildIndicators } from '../../support/evolution.js';
 import { apiFailure, apiPage, apiStub } from '../../support/apiStub.js';
 import { patientFollowUps } from '../../support/fixtures/followUps.js';
 import { apiPatient } from '../../support/fixtures/patients.js';
@@ -117,7 +116,6 @@ async function select(label, option) {
 }
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
 });
 

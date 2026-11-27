@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   createAlertRule,
   deactivateAlertRule,
@@ -7,7 +7,6 @@ import {
   updateAlertRule,
 } from '../../src/services/alertRuleService.js';
 import { login } from '../../src/services/authService.js';
-import { resetMockState } from '../../src/services/mockApi.js';
 import { apiFailure, apiPage, apiStub } from '../support/apiStub.js';
 import {
   SYSTOLIC,
@@ -30,10 +29,6 @@ const answer = ({ body }) => ({ data: { ...RULE, ...body }, meta: {} });
 async function signIn() {
   await login(credentialsFor('professional'));
 }
-
-afterEach(() => {
-  resetMockState();
-});
 
 describe('alertRuleService', () => {
   it('lista pela API com o formulário e o limite na query e o token da sessão', async () => {

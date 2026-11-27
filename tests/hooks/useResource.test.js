@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { useResource } from '../../src/hooks/useResource.js';
-import { ApiError, respond } from '../../src/services/mockApi.js';
+import { ApiError } from '../../src/services/apiClient.js';
 
 const serverError = () =>
   new ApiError({ status: 500, code: 'INTERNAL_ERROR', message: 'Falhou.' });
@@ -17,16 +17,17 @@ describe('useResource', () => {
   });
 
   it('termina com os dados e o meta da resposta', async () => {
-    const load = () => Promise.resolve(respond([{ id: 1 }]));
+    const load = () =>
+      Promise.resolve({ data: [{ id: 1 }], meta: { requestId: 'req-1' } });
     const { result } = renderHook(() => useResource(load));
 
     await waitFor(() => expect(result.current.status).toBe('success'));
     expect(result.current.data).toEqual([{ id: 1 }]);
-    expect(result.current.meta.requestId).toEqual(expect.any(String));
+    expect(result.current.meta).toEqual({ requestId: 'req-1' });
   });
 
   it('fica vazio quando a lista volta sem itens', async () => {
-    const load = () => Promise.resolve(respond([]));
+    const load = () => Promise.resolve({ data: [], meta: {} });
     const { result } = renderHook(() => useResource(load));
 
     await waitFor(() => expect(result.current.status).toBe('empty'));
@@ -44,7 +45,7 @@ describe('useResource', () => {
     const load = vi
       .fn()
       .mockRejectedValueOnce(serverError())
-      .mockResolvedValueOnce(respond(['ok']));
+      .mockResolvedValueOnce({ data: ['ok'], meta: {} });
     const { result } = renderHook(() => useResource(load));
     await waitFor(() => expect(result.current.status).toBe('error'));
 
@@ -57,8 +58,8 @@ describe('useResource', () => {
   });
 
   it('carrega de novo quando a função de carga muda', async () => {
-    const first = () => Promise.resolve(respond(['página 1']));
-    const second = () => Promise.resolve(respond(['página 2']));
+    const first = () => Promise.resolve({ data: ['página 1'], meta: {} });
+    const second = () => Promise.resolve({ data: ['página 2'], meta: {} });
     const { result, rerender } = renderHook(({ load }) => useResource(load), {
       initialProps: { load: first },
     });

@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import SessionProvider from '../../src/components/SessionProvider.jsx';
 import { useSession } from '../../src/hooks/useSession.js';
 import { apiGet } from '../../src/services/apiClient.js';
-import { resetMockState } from '../../src/services/mockApi.js';
 import { apiFailure, apiStub } from '../support/apiStub.js';
 import {
   credentialsFor,
@@ -23,7 +22,6 @@ function renderSession() {
 }
 
 afterEach(() => {
-  resetMockState();
   vi.useRealTimers();
   vi.restoreAllMocks();
 });

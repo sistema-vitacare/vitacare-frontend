@@ -1,6 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { login } from '../../src/services/authService.js';
-import { resetMockState } from '../../src/services/mockApi.js';
 import {
   changeUserProfile,
   createUser,
@@ -27,10 +26,6 @@ const FORGED = '../organizations/me';
 async function signIn() {
   await login(credentialsFor('admin'));
 }
-
-afterEach(() => {
-  resetMockState();
-});
 
 describe('userService', () => {
   it('lista e consulta pela API, com os filtros na query, o id escapado e o token da sessão', async () => {

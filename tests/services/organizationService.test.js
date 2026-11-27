@@ -1,6 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { login } from '../../src/services/authService.js';
-import { resetMockState } from '../../src/services/mockApi.js';
 import {
   approveChangeRequest,
   assignOrganizationPlan,
@@ -34,10 +33,6 @@ const EXPIRY =
   'O plano vence em 16/11/2026 às 23:59 (horário de Brasília). Depois disso, novos cadastros e reativações de usuários e pacientes ficam bloqueados até a renovação. Solicite a renovação na área de plano.';
 
 const answer = (data) => () => ({ data, meta: {} });
-
-afterEach(() => {
-  resetMockState();
-});
 
 describe('organização da sessão', () => {
   it('consulta e edita a própria organização pela rota da sessão, com o token', async () => {

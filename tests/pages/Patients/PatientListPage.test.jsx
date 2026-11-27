@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { PATHS, patientPath } from '../../../src/constants/routes.js';
 import { patientListContent as content } from '../../../src/data/patientList.js';
 import PatientListPage from '../../../src/pages/Patients/PatientListPage.jsx';
-import { resetMockState } from '../../../src/services/mockApi.js';
 import { apiPage, apiStub } from '../../support/apiStub.js';
 import {
   activePatients,
@@ -50,7 +49,6 @@ function rowNames() {
 }
 
 afterEach(() => {
-  resetMockState();
   resetViewport();
 });
 
